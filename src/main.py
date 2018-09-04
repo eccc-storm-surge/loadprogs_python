@@ -34,7 +34,8 @@ from pathlib import Path
 
 def main():
     config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
-    config = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
+    config = configparser.ConfigParser(inline_comment_prefixes=("#", ";"),
+                                       interpolation=configparser.ExtendedInterpolation())
     config_data = "[top]\n" + config_path.open().read()
     config.read_string(config_data)
     config = config["top"]
@@ -42,6 +43,13 @@ def main():
     for k, v in config.items():
         print(f"{k} => {v}")
 
+    # TODO: Load obs
+
+    # TODO: Do detiding
+
+    # TODO: Load mod corresponding to obs and take out time avg
+
+    # TODO: Dump corresponding obs and mod data into a file for scoring
 
 
 if __name__ == '__main__':
