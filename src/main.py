@@ -29,28 +29,82 @@ col 6: modelled value
 """
 
 import configparser
+from _datetime import datetime, timezone
 from pathlib import Path
+from data import obs
+from data import mod
 
 
-def main():
-    config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
+def main_levelling_v01():
+    # with levelling
+    main(config_path=Path("configs/rdsps_pa/rdsps_pa_lev.cfg"))
+
+    # without levelling
+    main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
+
+
+def main(config_path: Path=None):
+    if config_path is None:
+        config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
+
     config = configparser.ConfigParser(inline_comment_prefixes=("#", ";"),
                                        interpolation=configparser.ExtendedInterpolation())
     config_data = "[top]\n" + config_path.open().read()
     config.read_string(config_data)
     config = config["top"]
 
+    beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    n_members = int(config["nmembers"])
+
+    out_dir = Path(config["prepared_for_scoring_dir"])
+    out_dir.mkdir(exist_ok=True)
+    out_file = out_dir / ("surge_" + config["label"] + ".dat")
+
+    date_format = "%Y%m%d%H"
+
+    member_fname_suffix = config["control_filename_suffix"]
+
+    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
+    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * n_members + "\n"
+
     for k, v in config.items():
-        print(f"{k} => {v}")
+        print(f"{k} => {v}, ({type(v)})")
 
-    # TODO: Load obs
+    # Load obs and do de-tiding (the list of stations is from the .obs file)
+    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]), config["station_info"])
 
-    # TODO: Do detiding
+    # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
+    station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config["station_info"])
+    model_points = mod.get_mod_timeseries(stations, Path(config["mod_dir"]),
+                                          station_id_to_grid_indices=station_to_model_grid_map,
+                                          start_time=beg_time,
+                                          end_time=end_time)
 
-    # TODO: Load mod corresponding to obs and take out time avg
+    with out_file.open("w") as fout:
+        # Dump corresponding obs and mod data into a file for scoring
+        for s in stations:
+            mod_data = model_points.copy()
 
-    # TODO: Dump corresponding obs and mod data into a file for scoring
+            obs_data = s.get_detided_series(do_filtering=True)
+
+            # take into account some obs that might have
+            # 30 minutes in their time stamps not 00 (i.e NL)
+            obs_data = obs_data.asfreq("30T").fillna(method="ffill", limit=1)
+            mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+
+            mod_data.dropna(inplace=True)
+
+            for row_index, row in mod_data.iterrows():
+                line = out_line_format.format(
+                    int(row["valid_hour"]),
+                    s.station_id,
+                    s.latitude, s.longitude,
+                    row["time"].strftime(date_format),
+                    row[f"{s.station_id}_obs"], row[s.station_id]  # TODO: extend for ensembles
+                )
+                fout.write(line)
 
 
 if __name__ == '__main__':
-    main()
+    main_levelling_v01()

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -10,7 +10,7 @@ from data import utils
 
 
 class Station(object):
-    def __init__(self, data_file, do_filtering=True):
+    def __init__(self, data_file, do_filtering=True, station_info=None):
 
         self.nlines_for_header = 6
         self.data_file = data_file
@@ -20,7 +20,15 @@ class Station(object):
         self.name = ""
         self.latitude = None
         self.longitude = None
-        self._parse_header(data_file)
+
+        if station_info is None:
+            self._parse_header(data_file)
+        else:
+            # station attributes
+            self.station_id = station_info["id"]
+            self.name = station_info["name"]
+            self.latitude = station_info["lat"]
+            self.longitude = station_info["lon"]
 
         self.ttidecon = None
 
@@ -28,11 +36,16 @@ class Station(object):
 
         # try parsing prepared data, if does not work, then try raw station data parser
         try:
-            df = pd.read_csv(data_file, header=None, sep="\s+")
 
-            df["time"] = df.apply(lambda row: datetime.strptime("".join([row[k] for k in range(5)]), "%Y%m%d%H%M"))
-            df.rename({0, "twl"}, inplace=True)
+            df = pd.read_csv(data_file, header=None, sep="\s+")
+            print(df.head())
+
+            df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]).replace(tzinfo=timezone.utc), axis="columns")
+
+            df.rename({5: "twl"}, inplace=True, axis="columns")
             df = df.loc[:, ["time", "twl"]]
+
+
 
         except ValueError:
 
@@ -127,16 +140,31 @@ class Station(object):
         self.ttidecon = con
 
 
-def load_station_data_from_dir(inp_dir=Path("data")):
+def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path=None):
     stations = []
-    for inp_file in inp_dir.iterdir():
 
+    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep="\s+")
+
+
+    for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
             continue
 
         if not inp_file.name.endswith(".dat"):
             continue
 
-        s = Station(inp_file)
+        station_id = inp_file.name[1:-4]
+        st_info_rec = {"id": station_id}
+
+        where = st_info["NO"] == int(station_id)
+        for row_index, row in st_info[where].iterrows():
+            st_info_rec["name"] = row["ID"]
+            st_info_rec["lon"] = row["LON"]
+            st_info_rec["lat"] = row["LAT"]
+
+        print(f"station_info_rec={st_info_rec}")
+
+        s = Station(inp_file, station_info=st_info_rec)
         stations.append(s)
+
     return stations

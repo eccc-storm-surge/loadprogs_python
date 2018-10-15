@@ -10,26 +10,26 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
     :param stations:
     :param stations_info_file: Path to the file that contains correspondence between station ids and the (I, J) coordinates
             of the corresponding grid cells, (I, J) indices are assumed to be 1-based as in Fortran or MATLAB.
-    :return: dict relating station_id to the corresponding grid indices, 0-based as in Python and C in the returned dictionarys
+    :return: dict relating station_id to the corresponding grid indices, 0-based as in Python and C in the returned dictionaries
     """
 
     df = pd.read_csv(stations_info_file, skiprows=2, header=0, sep="\s+")
-    print(df.columns)
-
-    print(df.head())
 
     obs_mod_map = {}
     for s in stations:
-        place = df["NO"] == s.station_id
+        place = df["NO"] == int(s.station_id)
         i = df["DATA.I"][place].values[0]
         j = df["DATA.J"][place].values[0]
 
-        obs_mod_map[s.station_id] = (i, j)
+        obs_mod_map[s.station_id] = (i - 1, j - 1)
 
     return obs_mod_map
 
 
-def get_mod_timeseries(stations, mod_data_path: Path, station_id_to_grid_indices, mod_nomvar="ETAS",
+
+def get_mod_timeseries(stations, mod_data_path: Path,
+                       station_id_to_grid_indices,
+                       mod_nomvar="ETAS",
                        start_time=None, end_time=None):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
@@ -86,11 +86,17 @@ def get_mod_timeseries(stations, mod_data_path: Path, station_id_to_grid_indices
 
         rmn.fstcloseall(funit)
 
+    for i, d in enumerate(data_dict["time"]):
+        assert d != 0, f"time[{i}]={d}"
+
     df = pd.DataFrame.from_dict(data_dict)
 
     # take out the time mean
     for s in stations:
         df[s.station_id] -= df[s.station_id].mean(skipna=True)
+
+    # sorting, useful for debugging
+    # df.sort_values(["time", "valid_hour"], inplace=True)
 
     return df
 
