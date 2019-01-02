@@ -5,6 +5,10 @@ from data import obs
 from typing import List
 
 
+def get_member_id_from_file_path(fpath: Path):
+    return fpath.name.split("_")[-1]
+
+
 def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file):
     """
     :param stations:
@@ -30,10 +34,12 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
 def get_mod_timeseries(stations, mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",
-                       start_time=None, end_time=None):
+                       start_time=None, end_time=None, member_ids=("", )):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
     remove the time mean
+
+    member id is derived from the last part (after the last underscore) of the output file name
     :param stations:
     :param mod_data_path: (folder with simulation files)
     :param station_id_to_grid_indices:
@@ -43,12 +49,15 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     from rpnpy.rpndate import RPNDate
 
     data_dict = {
-        s.station_id: [] for s in stations
+        (s.station_id, member_id): [] for s in stations for member_id in member_ids
     }
     data_dict["time"] = []
     data_dict["valid_hour"] = []
 
     for f_index, data_file in enumerate(mod_data_path.iterdir()):
+
+        member_id = get_member_id_from_file_path(data_file)
+
         # get all data from a file in memory
         funit = rmn.fstopenall(str(data_file))
 
@@ -79,7 +88,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
         for s in stations:
             i, j = station_id_to_grid_indices[s.station_id]
-            data_dict[s.station_id].extend([rec["d"][i, j] for rec in records])
+            data_dict[(s.station_id, member_id)].extend([rec["d"][i, j] for rec in records])
 
         data_dict["time"].extend(dates)
         data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
@@ -92,8 +101,11 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     df = pd.DataFrame.from_dict(data_dict)
 
     # take out the time mean
-    for s in stations:
-        df[s.station_id] -= df[s.station_id].mean(skipna=True)
+    for c in df:
+        if c in ["time", "valid_hour"]:
+            continue
+
+        df[c] -= df[c].mean(skipna=True)
 
     # sorting, useful for debugging
     # df.sort_values(["time", "valid_hour"], inplace=True)
