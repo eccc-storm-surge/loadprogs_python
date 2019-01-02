@@ -35,6 +35,14 @@ from data import obs
 from data import mod
 
 
+def main_pn_vs_p0():
+    # with p0 - old
+    main(config_path=Path("configs/PN_vs_P0/rdsps_forecast_P0.cfg"))
+
+    # with pn - new
+    main(config_path=Path("configs/PN_vs_P0/rdsps_forecast_PN.cfg"))
+
+
 def main_levelling_v01():
     # with levelling
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_lev.cfg"))
@@ -63,10 +71,10 @@ def main(config_path: Path=None):
 
     date_format = "%Y%m%d%H"
 
-    member_fname_suffix = config["control_filename_suffix"]
-
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * n_members + "\n"
+
+    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members > 1 else [""]
 
     for k, v in config.items():
         print(f"{k} => {v}, ({type(v)})")
@@ -101,10 +109,11 @@ def main(config_path: Path=None):
                     s.station_id,
                     s.latitude, s.longitude,
                     row["time"].strftime(date_format),
-                    row[f"{s.station_id}_obs"], row[s.station_id]  # TODO: extend for ensembles
+                    row[f"{s.station_id}_obs"], *[row[(s.station_id, member_id)] for member_id in member_ids]  # extend for ensembles
                 )
                 fout.write(line)
 
 
 if __name__ == '__main__':
-    main_levelling_v01()
+    # main_levelling_v01()
+    main_pn_vs_p0()
