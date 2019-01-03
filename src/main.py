@@ -94,6 +94,8 @@ def main(config_path: Path=None):
         for s in stations:
             mod_data = model_points.copy()
 
+
+
             obs_data = s.get_detided_series(do_filtering=True)
 
             # take into account some obs that might have
@@ -102,6 +104,8 @@ def main(config_path: Path=None):
             mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
 
             mod_data.dropna(inplace=True)
+
+            print(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
 
             for row_index, row in mod_data.iterrows():
                 line = out_line_format.format(
