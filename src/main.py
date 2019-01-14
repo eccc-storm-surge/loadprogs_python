@@ -94,14 +94,20 @@ def main(config_path: Path=None):
         for s in stations:
             mod_data = model_points.copy()
 
-
-
             obs_data = s.get_detided_series(do_filtering=True)
 
             # take into account some obs that might have
             # 30 minutes in their time stamps not 00 (i.e NL)
             obs_data = obs_data.asfreq("30T").fillna(method="ffill", limit=1)
+
+            # remove the mean over the current period from the data (to be more consistent with mod)
+            obs_data -= obs_data.mean(skipna=True, axis=0)
+
+            # deprecated
+            # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+            obs_data = obs_data.reindex(mod_data["time"])
             mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+
 
             mod_data.dropna(inplace=True)
 
