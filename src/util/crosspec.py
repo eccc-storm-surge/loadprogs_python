@@ -7,7 +7,6 @@ from numpy import pi
 
 eps = .00000000001
 
-import matplotlib.pyplot as plt
 def crosspec(m: int, x):
     """
 

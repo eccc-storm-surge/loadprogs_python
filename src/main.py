@@ -33,6 +33,7 @@ from _datetime import datetime, timezone
 from pathlib import Path
 from data import obs
 from data import mod
+from util.plot_ts_and_spectre import plot_ts_and_spectre
 
 
 def main_pn_vs_p0():
@@ -71,6 +72,10 @@ def main(config_path: Path=None):
 
     date_format = "%Y%m%d%H"
 
+    plot_detiding_diag = True
+    if "plot_detiding_diag" in config:
+        plot_detiding_diag = config["plot_detiding_diag"].strip() != "0"
+
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * n_members + "\n"
 
@@ -108,6 +113,13 @@ def main(config_path: Path=None):
             obs_data = obs_data.reindex(mod_data["time"])
             mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
 
+            #  diags for detiding
+            if plot_detiding_diag:
+                plot_ts_and_spectre(obs_data, config["label"],
+                                    img_dir=out_dir,
+                                    subplot_titles=None,
+                                    raw_data=s.data["twl-mean"],
+                                    tides=s.data["tides"])
 
             mod_data.dropna(inplace=True)
 

@@ -16,7 +16,7 @@ def main():
 
     data_file = Path(data_dir) / f"X{st_id}.dat"
 
-    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503}, do_filtering=False)
+    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503}, do_filtering=True)
 
     print(s.data)
 
@@ -57,8 +57,6 @@ def main():
     plt.semilogx(freq, p0, color="b")
     plt.semilogx(freq, p1, color="r")
 
-    ax = plt.gca()
-    # ax.xaxis.set_major_locator(MultipleLocator(base=12))
     plt.xlabel("freq (day**-1)")
 
 
@@ -67,8 +65,8 @@ def main():
     plt.title("PSD")
     dt = 1.0 / 24
     t = np.arange(0, len(wl0.values) * dt, dt)
-    plt.psd(wl0.values, 1024, 1 / dt, color="b")
-    plt.psd(wl1_notides.values, 1024, 1 / dt, color="r")
+    plt.psd(wl0.values, 500, 1 / dt, color="b")
+    plt.psd(wl1_notides.values, 500, 1 / dt, color="r")
 
     plt.figure()
     plt.title("CSD")
