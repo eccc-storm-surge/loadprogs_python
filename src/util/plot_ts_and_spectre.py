@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,8 @@ import numpy as np
 
 def plot_ts_and_spectre(hourly_series: pd.Series, data_label="", img_dir: Path=None, subplot_titles=None,
                         raw_data=None, tides=None):
+
+    logging.basicConfig(level=logging.INFO)
 
     min_period_h = 6.
     max_period_h = 24 * 30.
@@ -35,14 +38,15 @@ def plot_ts_and_spectre(hourly_series: pd.Series, data_label="", img_dir: Path=N
 
     # power spectrum
     ax = fig.add_subplot(gs[1, 0])
-    f, pxx = crosspec(1024, hourly_series.values)
+    # hourly_series.to_csv("test.csv", header=None)
+    f, pxx = crosspec(min(1024, len(hourly_series)), hourly_series.values)
     f += eps
 
     selection = ((1.0 / f) >= min_period_h) & ((1.0 / f) <= max_period_h)
     f = f[selection]
     pxx = pxx[selection]
 
-    ax.semilogx(f, pxx, color="k")
+    ax.loglog(f, pxx, color="k")
     ax.set_xlim(1.0 / max_period_h, 1.0 / min_period_h)
     ax.grid(True)
     if subplot_titles is not None:
@@ -73,7 +77,9 @@ def plot_ts_and_spectre(hourly_series: pd.Series, data_label="", img_dir: Path=N
 
     if tides is not None:
         # raw_data.plot(ax=ax)
-        plt.psd(tides.values, Fs=1 / dt, NFFT=min(1024, len(tides.values)), label="tides", color="cyan")
+        v = tides.values.copy()
+        v[np.isnan(v)] = 0
+        plt.psd(v, Fs=1 / dt, NFFT=min(1024, len(tides.values)), label="tides", color="cyan")
 
     if raw_data is not None:
         v = raw_data.values.copy()
@@ -88,6 +94,7 @@ def plot_ts_and_spectre(hourly_series: pd.Series, data_label="", img_dir: Path=N
     img_file = img_dir / f"ts_spectre_{data_label}.png"
 
     fig.savefig(str(img_file), dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 
 def test():

@@ -14,7 +14,7 @@ def crosspec(m: int, x):
     :param x: time series to get the power spectre
     """
 
-    x1 = np.asarray(x)
+    x1 = np.copy(np.asarray(x))
 
     if x1.shape[-1] % 2 != 0:
         x1 = x1[:-1]
@@ -28,7 +28,7 @@ def crosspec(m: int, x):
     p = 2 * n // m
 
     Omega = np.arange(-p, p + 1, 1) * delOmega + eps
-    freq = np.arange(0, pi + delOmega, delOmega)
+    freq = np.arange(0, pi + eps, delOmega)
 
     # W = (sin(M*Omega/4)./sin(Omega/2)).^4 .*(1-2/3*sin(Omega/2).^2).*6/(pi*M^3);
     W = (np.sin(m * Omega / 4.0) / np.sin(Omega / 2.)) ** 4 * (1 - 2. / 3. * np.sin(Omega / 2.) ** 2) * 6 / (pi * m ** 3)
@@ -43,5 +43,7 @@ def crosspec(m: int, x):
 
     Pxx1 = delOmega * np.convolve(instartx1, W) / (2 * pi * len(x1))
     Pxx1 = 2 * Pxx1[2 * p - 1: n // 2 + 2 * p]
+
+    assert len(Pxx1) == len(freq), f"len(Pxx1)={len(Pxx1)}, len(freq)={len(freq)}."
 
     return freq / (2. * pi), Pxx1

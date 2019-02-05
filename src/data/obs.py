@@ -45,8 +45,6 @@ class Station(object):
             df.rename({5: "twl"}, inplace=True, axis="columns")
             df = df.loc[:, ["time", "twl"]]
 
-
-
         except ValueError:
 
             df = pd.read_csv(data_file,
@@ -140,11 +138,10 @@ class Station(object):
         self.ttidecon = con
 
 
-def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path=None):
+def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None):
     stations = []
 
-    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep="\s+")
-
+    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep="\s+", converters={"NO": str})
 
     for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
@@ -156,7 +153,7 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path=Non
         station_id = inp_file.name[1:-4]
         st_info_rec = {"id": station_id}
 
-        where = st_info["NO"] == int(station_id)
+        where = st_info["NO"] == station_id
         for row_index, row in st_info[where].iterrows():
             st_info_rec["name"] = row["ID"]
             st_info_rec["lon"] = row["LON"]

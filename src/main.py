@@ -29,6 +29,7 @@ col 6: modelled value
 """
 
 import configparser
+import logging
 from _datetime import datetime, timezone
 from pathlib import Path
 from data import obs
@@ -64,7 +65,11 @@ def main(config_path: Path=None):
 
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    n_members = int(config["nmembers"])
+
+    if "nmembers" in config:
+        n_members = int(config["nmembers"])
+    else:
+        n_members = 0
 
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True)
@@ -77,9 +82,9 @@ def main(config_path: Path=None):
         plot_detiding_diag = config["plot_detiding_diag"].strip() != "0"
 
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
-    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * n_members + "\n"
 
-    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members > 1 else [""]
+    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
+    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     for k, v in config.items():
         print(f"{k} => {v}, ({type(v)})")
@@ -87,12 +92,23 @@ def main(config_path: Path=None):
     # Load obs and do de-tiding (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_dir(Path(config["obs_dir"]), config["station_info"])
 
+    # determine if the mean over the analysis period should be taken out from the model output
+    mod_remove_anal_period_mean = True
+    if "mod_remove_anal_period_mean" in config:
+        mod_remove_anal_period_mean = config["mod_remove_anal_period_mean"] != "0"
+
+    obs_remove_anal_period_mean = True
+    if "obs_remove_anal_period_mean" in config:
+        obs_remove_anal_period_mean = config["obs_remove_anal_period_mean"] != "0"
+
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config["station_info"])
     model_points = mod.get_mod_timeseries(stations, Path(config["mod_dir"]),
                                           station_id_to_grid_indices=station_to_model_grid_map,
                                           start_time=beg_time,
-                                          end_time=end_time)
+                                          end_time=end_time,
+                                          mod_remove_anal_period_mean=mod_remove_anal_period_mean,
+                                          member_ids=member_ids)
 
     with out_file.open("w") as fout:
         # Dump corresponding obs and mod data into a file for scoring
@@ -103,35 +119,45 @@ def main(config_path: Path=None):
 
             # take into account some obs that might have
             # 30 minutes in their time stamps not 00 (i.e NL)
-            obs_data = obs_data.asfreq("30T").fillna(method="ffill", limit=1)
+            obs_data_f = obs_data.asfreq("30T").fillna(method="ffill", limit=1)
+            obs_data_b = obs_data.asfreq("30T").fillna(method="bfill", limit=1)
 
-            # remove the mean over the current period from the data (to be more consistent with mod)
-            obs_data -= obs_data.mean(skipna=True, axis=0)
+            obs_data = 0.5 * (obs_data_b + obs_data_f)
 
-            # deprecated
-            # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-            obs_data = obs_data.reindex(mod_data["time"])
-            mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-
-            #  diags for detiding
+            # diags for detiding
             if plot_detiding_diag:
-                plot_ts_and_spectre(obs_data, config["label"],
+                msg = f"plotting timeseries for {s.station_id}"
+                logging.info(msg)
+                plot_ts_and_spectre(obs_data, "{}_{}".format(config["label"], s.station_id),
                                     img_dir=out_dir,
                                     subplot_titles=None,
                                     raw_data=s.data["twl-mean"],
                                     tides=s.data["tides"])
 
+            # deprecated
+            # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+            obs_data = obs_data.reindex(mod_data["time"])
+
+            # remove the mean over the current period from the data (to be more consistent with mod)
+            if obs_remove_anal_period_mean:
+                obs_data -= obs_data.mean(skipna=True, axis=0)
+
+            mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+
             mod_data.dropna(inplace=True)
 
             print(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
 
+            mod_member_keys = [mod.get_mod_col_name(s.station_id, member_id=member_id) for member_id in member_ids]
+
             for row_index, row in mod_data.iterrows():
+
                 line = out_line_format.format(
                     int(row["valid_hour"]),
                     s.station_id,
                     s.latitude, s.longitude,
                     row["time"].strftime(date_format),
-                    row[f"{s.station_id}_obs"], *[row[(s.station_id, member_id)] for member_id in member_ids]  # extend for ensembles
+                    row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
 
