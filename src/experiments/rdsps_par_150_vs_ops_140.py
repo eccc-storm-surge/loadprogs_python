@@ -4,7 +4,6 @@ from main import main
 from multiprocessing import Process
 
 
-
 do_pa = False
 do_fc_default = False
 do_fc_raw = True
@@ -34,8 +33,6 @@ if __name__ == '__main__':
 
         pl = [Process(target=main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
         processes.extend(pl)
-
-
 
     for p in processes:
         p.start()

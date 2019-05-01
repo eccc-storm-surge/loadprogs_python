@@ -32,9 +32,17 @@ import configparser
 import logging
 from _datetime import datetime, timezone
 from pathlib import Path
+
+import commons
 from data import obs
 from data import mod
 from util.plot_ts_and_spectre import plot_ts_and_spectre
+
+
+import logging
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def main_pn_vs_p0():
@@ -66,10 +74,20 @@ def main(config_path: Path=None):
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
+    beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+
+    mod_nomvar = "ETAS"
+    if "mod_nomvar" in config:
+        mod_nomvar = config["mod_nomvar"]
+
     if "nmembers" in config:
         n_members = int(config["nmembers"])
     else:
         n_members = 0
+
+    detide_obs = True
+    if "detide_obs" in config:
+        detide_obs = (int(config["detide_obs"]) == 1)
 
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True)
@@ -87,10 +105,12 @@ def main(config_path: Path=None):
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     for k, v in config.items():
-        print(f"{k} => {v}, ({type(v)})")
+        logger.debug(f"{k} => {v}, ({type(v)})")
 
     # Load obs and do de-tiding (the list of stations is from the .obs file)
-    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]), config["station_info"])
+    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]),
+                                              config["station_info"],
+                                              beg_time_obs=beg_time_obs)
 
     # determine if the mean over the analysis period should be taken out from the model output
     mod_remove_anal_period_mean = True
@@ -108,14 +128,17 @@ def main(config_path: Path=None):
                                           start_time=beg_time,
                                           end_time=end_time,
                                           mod_remove_anal_period_mean=mod_remove_anal_period_mean,
-                                          member_ids=member_ids)
+                                          member_ids=member_ids, mod_nomvar=mod_nomvar)
 
     with out_file.open("w") as fout:
         # Dump corresponding obs and mod data into a file for scoring
         for s in stations:
             mod_data = model_points.copy()
 
-            obs_data = s.get_detided_series(do_filtering=True)
+            if detide_obs:
+                obs_data = s.get_detided_series(do_filtering=True)
+            else:
+                obs_data = s.data["twl"]
 
             # take into account some obs that might have
             # 30 minutes in their time stamps not 00 (i.e NL)
@@ -136,6 +159,11 @@ def main(config_path: Path=None):
 
             # deprecated
             # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+
+            # take the time mean over the same time points as the model (unless there is missing data)
+            # Note: some time points will be added to the mean few times in a similar way as the model has
+            # several values for the same time (with different lead times), this does not change the scores,
+            # but makes the scatter plots
             obs_data = obs_data.reindex(mod_data["time"])
 
             # remove the mean over the current period from the data (to be more consistent with mod)
@@ -146,7 +174,7 @@ def main(config_path: Path=None):
 
             mod_data.dropna(inplace=True)
 
-            print(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
+            logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
 
             mod_member_keys = [mod.get_mod_col_name(s.station_id, member_id=member_id) for member_id in member_ids]
 

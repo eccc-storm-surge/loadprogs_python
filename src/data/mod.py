@@ -5,6 +5,12 @@ from data import obs
 from typing import List
 
 
+import logging
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 def get_member_id_from_file_path(fpath: Path):
     return fpath.name.split("_")[-1]
 
@@ -37,13 +43,19 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
 def get_mod_timeseries(stations, mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",
-                       start_time=None, end_time=None, member_ids=("", ),
+                       start_time=None, end_time=None,
+                       member_ids=("", ),
                        mod_remove_anal_period_mean=True):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
     remove the time mean
 
     member id is derived from the last part (after the last underscore) of the output file name
+    :param mod_remove_anal_period_mean:
+    :param member_ids:
+    :param end_time:
+    :param start_time:
+    :param mod_nomvar:
     :param stations:
     :param mod_data_path: (folder with simulation files)
     :param station_id_to_grid_indices:
@@ -53,18 +65,14 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     from rpnpy.librmn import all as rmn
     from rpnpy.rpndate import RPNDate
 
-    data_dict = {}
-    for s in stations:
-        data_dict.update(
-            {get_mod_col_name(s.station_id, member_id=member_id): [] for member_id in member_ids}
-        )
-
-    data_dict["time"] = []
-    data_dict["valid_hour"] = []
+    data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
 
     for f_index, data_file in enumerate(mod_data_path.iterdir()):
 
         member_id = get_member_id_from_file_path(data_file)
+
+        if member_id not in member_ids:
+            continue
 
         # get all data from a file in memory
         funit = rmn.fstopenall(str(data_file))
@@ -96,33 +104,49 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
         for s in stations:
             i, j = station_id_to_grid_indices[s.station_id]
-            data_dict[get_mod_col_name(s.station_id, member_id=member_id)].extend([rec["d"][i, j] for rec in records])
+            data_dict["value"].extend([rec["d"][i, j] for rec in records])
+            data_dict["station_id"].extend([s.station_id] * len(records))
 
-        data_dict["time"].extend(dates)
-        data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
+            data_dict["time"].extend(dates)
+            data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
+            data_dict["member_id"].extend([member_id] * len(dates))
 
         rmn.fstcloseall(funit)
 
     for i, d in enumerate(data_dict["time"]):
         assert d != 0, f"time[{i}]={d}"
 
-    print(list(data_dict.keys()))
+    logger.debug(list(data_dict.keys()))
+
+    # check that the lists have the same length
+    data_leng = {cn: len(cd) for cn, cd in data_dict.items()}
+    logger.debug(f"data_leng: {data_leng}")
 
     df = pd.DataFrame.from_dict(data_dict)
 
     # take out the time mean
-    for c in df:
-        if c in ["time", "valid_hour"]:
-            continue
+    tmean = 0
+    if mod_remove_anal_period_mean:
+        tmean = df.groupby(["station_id", "member_id"]).mean()
 
+    df_list = []
+    for (station_id, member_id), group in df.groupby(["station_id", "member_id"]):
+
+        sub = 0
         if mod_remove_anal_period_mean:
-            df[c] -= df[c].mean(skipna=True)
+            sub = tmean.loc[(station_id, member_id), "value"]
+        group.loc[:, get_mod_col_name(station_id, member_id)] = group["value"] - sub
+        group = group.set_index(["time", "valid_hour"])
+        df_list.append(group)
+
+    df = pd.concat(df_list, axis=1)
+    df.reset_index(inplace=True)
 
     # sorting, useful for debugging
     # df.sort_values(["time", "valid_hour"], inplace=True)
 
-    print("model points")
-    print(df)
+    logger.debug("model points")
+    logger.debug(df)
 
     return df
 

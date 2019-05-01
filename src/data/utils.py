@@ -24,6 +24,18 @@ def remove_spikes(series: pd.Series, thresh_std_fraction=0.9, inplace=False):
     return series_
 
 
+def strip_nans(series: pd.Series):
+    """
+    Remove nans in the beginning and end of the timeseries
+    :param series:
+    """
+
+    indices = np.where(~series.isnull())[0]
+    i_min, i_max = indices.min(), indices.max()
+
+    return series.iloc[i_min: i_max + 1]
+
+
 def remove_small_chunks(series: pd.Series, lowest_duration_hours=24, inplace=False):
     """
     Remove data from small continuous chunks

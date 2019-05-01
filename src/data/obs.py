@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -7,6 +8,13 @@ import numpy as np
 from ttide import t_tide
 
 from data import utils
+
+
+MIN_DATA_LEN_FOR_DETIDING = 2160
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class Station(object):
@@ -20,6 +28,9 @@ class Station(object):
         self.name = ""
         self.latitude = None
         self.longitude = None
+
+        # do filtering after de-tiding ? (Butterworth)
+        self.do_filtering = do_filtering
 
         if station_info is None:
             self._parse_header(data_file)
@@ -36,11 +47,10 @@ class Station(object):
 
         # try parsing prepared data, if does not work, then try raw station data parser
         try:
-
             df = pd.read_csv(data_file, header=None, sep="\s+")
             print(df.head())
 
-            df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]).replace(tzinfo=timezone.utc), axis="columns")
+            df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
             df.rename({5: "twl"}, inplace=True, axis="columns")
             df = df.loc[:, ["time", "twl"]]
@@ -55,16 +65,80 @@ class Station(object):
                              usecols=[0, 1])
 
         df.set_index("time", inplace=True)
+        df.index = df.index.tz_localize("UTC")
+        self.data = df
 
-        self.data = df.resample("60T", base=df.index[0].minute).asfreq()
+        if len(df) > 0:
+            self.data = df.resample("60T", base=df.index[0].minute).asfreq()
 
-        # input data cleanup
-        utils.remove_spikes(self.data["twl"], inplace=True, thresh_std_fraction=1.5)
-        utils.remove_small_chunks(self.data["twl"], inplace=True, lowest_duration_hours=12)
+            # input data cleanup
+            utils.remove_spikes(self.data["twl"], inplace=True, thresh_std_fraction=1.5)
+            utils.remove_small_chunks(self.data["twl"], inplace=True, lowest_duration_hours=12)
 
-        # do detiding and filtering by default
-        self.do_filtering = do_filtering
-        self.get_detided_series(do_filtering=do_filtering)
+            self.data.dropna(inplace=True)
+
+            self.data = self.data.resample("60T", base=self.data.index[0].minute).asfreq()
+
+            # do detiding and filtering by default
+
+            # self.get_detided_series(do_filtering=do_filtering)
+
+    def drop_all_except_longest_year(self):
+        """
+        removes data for all years except the one that contains the most of the data
+        """
+
+        # do nothing if there is no data
+        if len(self.data) == 0:
+            return
+
+        data_per_year = self.data.groupby(self.data.index.year)
+
+        year_of_interest = None
+        data_of_interest = None
+
+        for y, group in data_per_year:
+
+            group.dropna(inplace=True)
+
+            if year_of_interest is None:
+                year_of_interest = y
+                data_of_interest = group
+            else:
+                if len(group) > len(data_of_interest):
+                    year_of_interest = y
+                    data_of_interest = group
+
+                if len(group) == len(data_of_interest) and y > year_of_interest:
+                    year_of_interest = y
+                    data_of_interest = group
+
+            logger.debug(f"{y}: n={len(group)}")
+
+        self.data = data_of_interest.dropna().resample("60T", base=self.data.index[0].minute).asfreq()
+
+    def get_data_len_since(self, start_date: datetime = None):
+        if self.data is None:
+            return 0
+
+        if len(self.data) == 0:
+            return 0
+
+        if start_date is None:
+            return len(self.data)
+
+        return len(self.data[self.data.index >= start_date])
+
+    def remove_data_before(self, start_date: datetime = None):
+        """
+        Remove data points for time before start_date
+        :param start_date:
+        :return:
+        """
+        if start_date is None or self.data is None:
+            return
+
+        self.data = self.data[self.data.index >= start_date]
 
     def __str__(self):
         return f"{self.name} ({self.station_id})"
@@ -110,6 +184,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
+        print(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v, synth=0, lat=self.latitude, ray=0.5)
         v_notide = v - con["xout"].squeeze()
 
@@ -138,10 +213,10 @@ class Station(object):
         self.ttidecon = con
 
 
-def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None):
+def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None):
     stations = []
 
-    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep="\s+", converters={"NO": str})
+    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
 
     for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
@@ -163,5 +238,12 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = N
 
         s = Station(inp_file, station_info=st_info_rec)
         stations.append(s)
+
+    # make sure that the obs time-series starts on the specified datetime
+    for s in stations:
+        s.remove_data_before(start_date=beg_time_obs)
+
+    # Make sure that there is enough obs data for de-tiding
+    # stations = [s for s in stations if s.get_data_len_since(start_date=beg_time_obs) >= MIN_DATA_LEN_FOR_DETIDING]
 
     return stations
