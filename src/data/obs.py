@@ -9,7 +9,6 @@ from ttide import t_tide
 
 from data import utils
 
-
 MIN_DATA_LEN_FOR_DETIDING = 2160
 
 logging.basicConfig()
@@ -47,8 +46,8 @@ class Station(object):
 
         # try parsing prepared data, if does not work, then try raw station data parser
         try:
-            df = pd.read_csv(data_file, header=None, sep="\s+")
-            print(df.head())
+            df = pd.read_csv(data_file, header=None, sep=r"\s+")
+            logger.debug(df.head())
 
             df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
@@ -64,11 +63,13 @@ class Station(object):
                              names=["time", "twl"],
                              usecols=[0, 1])
 
-        df.set_index("time", inplace=True)
-        df.index = df.index.tz_localize("UTC")
         self.data = df
 
         if len(df) > 0:
+
+            self.data.set_index("time", inplace=True)
+            self.data.index = df.index.tz_localize("UTC")
+
             self.data = df.resample("60T", base=df.index[0].minute).asfreq()
 
             # input data cleanup
@@ -184,7 +185,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
-        print(f"Before t_tide: v.shape={v.shape}")
+        logger.debug(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v, synth=0, lat=self.latitude, ray=0.5)
         v_notide = v - con["xout"].squeeze()
 
@@ -234,10 +235,15 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = N
             st_info_rec["lon"] = row["LON"]
             st_info_rec["lat"] = row["LAT"]
 
-        print(f"station_info_rec={st_info_rec}")
+        logger.debug(f"station_info_rec={st_info_rec}")
 
         s = Station(inp_file, station_info=st_info_rec)
-        stations.append(s)
+
+        # skip stations with no data
+        if s.get_data_len_since() > 0:
+            stations.append(s)
+        else:
+            logger.debug(f"No data for {s.station_id}, skipping ...")
 
     # make sure that the obs time-series starts on the specified datetime
     for s in stations:
