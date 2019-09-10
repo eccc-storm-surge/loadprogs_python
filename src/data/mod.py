@@ -1,11 +1,17 @@
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import pandas as pd
 from data import obs
 from typing import List
 
+from rpnpy.librmn import all as rmn
+from rpnpy.rpndate import RPNDate
+
+rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
 import logging
+
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -15,8 +21,8 @@ def get_member_id_from_file_path(fpath: Path):
     return fpath.name.split("_")[-1]
 
 
-def get_mod_col_name(station_id, member_id=""):
-    return f"{station_id}_mod_{member_id}"
+def get_mod_col_name(member_id=""):
+    return f"mod_{member_id}"
 
 
 def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file):
@@ -27,7 +33,7 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
     :return: dict relating station_id to the corresponding grid indices, 0-based as in Python and C in the returned dictionaries
     """
 
-    df = pd.read_csv(stations_info_file, skiprows=2, header=0, sep="\s+")
+    df = pd.read_csv(stations_info_file, skiprows=2, header=0, sep=r"\s+")
 
     obs_mod_map = {}
     for s in stations:
@@ -40,78 +46,53 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
     return obs_mod_map
 
 
-def get_mod_timeseries(stations, mod_data_path: Path,
-                       station_id_to_grid_indices,
-                       mod_nomvar="ETAS",
-                       start_time=None, end_time=None,
-                       member_ids=("", ),
-                       mod_remove_anal_period_mean=True):
-    """
-    Read all the files in mod_data_path and store data in a pd.DataFrame
-    remove the time mean
+def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
+                                 station_id_to_grid_indices,
+                                 mod_nomvar="ETAS",
+                                 start_time=None, end_time=None,
+                                 member_ids=("",), b2b_nhours=12):
 
-    member id is derived from the last part (after the last underscore) of the output file name
-    :param mod_remove_anal_period_mean:
-    :param member_ids:
-    :param end_time:
-    :param start_time:
-    :param mod_nomvar:
-    :param stations:
-    :param mod_data_path: (folder with simulation files)
-    :param station_id_to_grid_indices:
-    :return:
-    """
-
-    from rpnpy.librmn import all as rmn
-    from rpnpy.rpndate import RPNDate
+    assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
 
     data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
 
-    for f_index, data_file in enumerate(mod_data_path.iterdir()):
+    dt_run_freq = timedelta(hours=b2b_nhours)
+    n_exp = (end_time - start_time).total_seconds() // dt_run_freq.total_seconds() + 1
+    n_exp = int(n_exp)
 
-        member_id = get_member_id_from_file_path(data_file)
+    logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
 
-        if member_id not in member_ids:
-            continue
+    exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
 
-        # get all data from a file in memory
-        funit = rmn.fstopenall(str(data_file))
+    for member_id in member_ids:
+        for exp_t in exp_t_list:
+            data_file = mod_data_path / f"{exp_t:%Y%m%d%H}_{member_id}"
 
-        keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
+            # get all data from a file in memory
+            funit = rmn.fstopenall(str(data_file))
 
-        # filter the keys by date first first, if required
-        dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
+            keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
+            record_metas = [rmn.fstprm(k) for k in keys]
+            vh_list = [int(rec["deet"] * rec["npas"] / 3600.) for rec in record_metas]
 
-        if start_time is not None or end_time is not None:
-            keys_filt = []
-            dates_filt = []
-            for k, d in zip(keys, dates):
-                if start_time is not None:
-                    if d < start_time:
-                        continue
+            # filter the keys by date first first, if required
+            keys = [k for k, vh in zip(keys, vh_list) if 0 < vh <= b2b_nhours]
+            record_metas = [meta for meta, vh in zip(record_metas, vh_list) if vh <= b2b_nhours]
 
-                if end_time is not None:
-                    if d > end_time:
-                        continue
+            dates = [RPNDate(meta["datev"]).toDateTime() for meta in record_metas]
 
-                keys_filt.append(k)
-                dates_filt.append(d)
+            records = [rmn.fstluk(k) for k in keys]
 
-            keys = keys_filt
-            dates = dates_filt
+            for s in stations:
+                i, j = station_id_to_grid_indices[s.station_id]
+                data_dict["value"].extend([rec["d"][i, j] for rec in records])
+                data_dict["station_id"].extend([s.station_id] * len(records))
 
-        records = [rmn.fstluk(k) for k in keys]
+                data_dict["time"].extend(dates)
+                data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
+                data_dict["member_id"].extend([member_id] * len(dates))
 
-        for s in stations:
-            i, j = station_id_to_grid_indices[s.station_id]
-            data_dict["value"].extend([rec["d"][i, j] for rec in records])
-            data_dict["station_id"].extend([s.station_id] * len(records))
-
-            data_dict["time"].extend(dates)
-            data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
-            data_dict["member_id"].extend([member_id] * len(dates))
-
-        rmn.fstcloseall(funit)
+            rmn.fstcloseall(funit)
 
     for i, d in enumerate(data_dict["time"]):
         assert d != 0, f"time[{i}]={d}"
@@ -124,31 +105,153 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
     df = pd.DataFrame.from_dict(data_dict)
 
-    # take out the time mean
-    tmean = 0
-    if mod_remove_anal_period_mean:
-        tmean = df.groupby(["station_id", "member_id"]).mean()
-
     df_list = []
-    for (station_id, member_id), group in df.groupby(["station_id", "member_id"]):
+    for member_id, group in df.groupby("member_id"):
+        group = group.set_index(["time", "valid_hour", "station_id"])
 
-        sub = 0
-        if mod_remove_anal_period_mean:
-            sub = tmean.loc[(station_id, member_id), "value"]
-        group.loc[:, get_mod_col_name(station_id, member_id)] = group["value"] - sub
-        group = group.set_index(["time", "valid_hour"])
+        group.rename({"value": f"mod_{member_id}"}, axis=1, inplace=True)
+        group.drop("member_id", axis=1, inplace=True)
+
+        logger.debug(len(group))
+
         df_list.append(group)
 
-    df = pd.concat(df_list, axis=1)
+    df = pd.concat(df_list, axis=1, join_axes=[df_list[0].index])
+
+    logger.debug(df.head())
+    logger.debug("column names")
+
     df.reset_index(inplace=True)
 
+    for c in df:
+        logger.debug(c)
+
     # sorting, useful for debugging
-    # df.sort_values(["time", "valid_hour"], inplace=True)
+    df.sort_values(["time", "valid_hour"], inplace=True)
+    df.set_index("time", inplace=True)
+
+    df = df.mean(axis=0)
+    logger.debug("model points (analysis period mean)")
+    logger.debug(df)
+
+    return df
+
+
+def get_mod_timeseries(stations, mod_data_path: Path,
+                       station_id_to_grid_indices,
+                       mod_nomvar="ETAS",
+                       start_time=None, end_time=None,
+                       member_ids=("",), run_freq_hours=12
+                       ):
+    """
+    Read all the files in mod_data_path and store data in a pd.DataFrame
+    remove the time mean
+
+    member id is derived from the last part (after the last underscore) of the output file name
+    :param run_freq_hours: Frequency of the experiment, if t ie a new experiment is started each t hours
+    :param member_ids:
+    :param end_time:
+    :param start_time:
+    :param mod_nomvar:
+    :param stations:
+    :param mod_data_path: (folder with simulation files)
+    :param station_id_to_grid_indices:
+    :return:
+    """
+
+    assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
+
+    data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
+
+    dt_run_freq = timedelta(hours=run_freq_hours)
+    n_exp = (end_time - start_time).total_seconds() // dt_run_freq.total_seconds() + 1
+    n_exp = int(n_exp)
+
+    logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
+
+    exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
+    logger.debug(
+        exp_t_list
+    )
+
+    for member_id in member_ids:
+        for exp_t in exp_t_list:
+            data_file = mod_data_path / f"{exp_t:%Y%m%d%H}_{member_id}"
+
+            # get all data from a file in memory
+            funit = rmn.fstopenall(str(data_file))
+
+            keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
+
+            # filter the keys by date first first, if required
+            dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
+
+            records = [rmn.fstluk(k) for k in keys]
+
+            for s in stations:
+                i, j = station_id_to_grid_indices[s.station_id]
+                data_dict["value"].extend([rec["d"][i, j] for rec in records])
+                data_dict["station_id"].extend([s.station_id] * len(records))
+
+                data_dict["time"].extend(dates)
+                data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
+                data_dict["member_id"].extend([member_id] * len(dates))
+
+            rmn.fstcloseall(funit)
+
+    for i, d in enumerate(data_dict["time"]):
+        assert d != 0, f"time[{i}]={d}"
+
+    logger.debug(list(data_dict.keys()))
+
+    # check that the lists have the same length
+    data_leng = {cn: len(cd) for cn, cd in data_dict.items()}
+    logger.debug(f"data_leng: {data_leng}")
+
+    df = pd.DataFrame.from_dict(data_dict)
+
+    df_list = []
+    for member_id, group in df.groupby("member_id"):
+        group = group.set_index(["time", "valid_hour", "station_id"])
+
+        group.rename({"value": f"mod_{member_id}"}, axis=1, inplace=True)
+        group.drop("member_id", axis=1, inplace=True)
+
+        logger.debug(len(group))
+
+        df_list.append(group)
+
+    df = pd.concat(df_list, axis=1, join_axes=[df_list[0].index])
+
+    logger.debug(df.head())
+    logger.debug("column names")
+
+    df.reset_index(inplace=True)
+
+    for c in df:
+        logger.debug(c)
+
+    # sorting, useful for debugging
+    df.sort_values(["time", "valid_hour"], inplace=True)
+    df.loc[:, "date_of_origin"] = df.loc[:, "time"] - df.loc[:, "valid_hour"].map(lambda ti: timedelta(hours=ti))
 
     logger.debug("model points")
     logger.debug(df)
 
     return df
+
+
+def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
+    """
+    returns a list of origin dates spaced by run_freq_dt
+    :param mod_data:
+    :param run_freq_dt:
+    """
+
+    do = mod_data.loc[:, "time"] - mod_data.loc[:, "valid_hour"].map(lambda h: timedelta(hours=h))
+    t0 = do.min()
+    t1 = do.max()
+    return pd.date_range(t0, t1, freq=run_freq_dt)
 
 
 def main():

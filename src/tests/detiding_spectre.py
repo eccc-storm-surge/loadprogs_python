@@ -10,21 +10,23 @@ from util.crosspec import crosspec
 
 
 def main():
-    st_id = "8443970"
+    st_id = "665"
 
     data_dir = "/home/olh001/MATLAB/detide/data/obs/merged_2016_2017/"
 
     data_file = Path(data_dir) / f"X{st_id}.dat"
 
-    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503}, do_filtering=True)
+    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503},
+                do_filtering=True)
 
     print(s.data)
+
+    s.get_detided_series(do_filtering=True)
 
     # initial water level time series
     # filling missing values with 0 as in Natacha's script (~/MATLAB/detide/loadprogs_matlab/crosspec.m)
     wl0 = s.data["twl-mean"].asfreq("60T").fillna(value=0)
     wl1_notides = s.data["detided"].asfreq("60T").fillna(value=0)
-
 
     plt.figure()
     plt.title("t-space")
@@ -89,9 +91,6 @@ def main():
 
 
     plt.show()
-
-
-
 
 
 

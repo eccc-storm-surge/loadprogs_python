@@ -10,12 +10,9 @@ if __name__ == '__main__':
 
     procs = []
 
-    # each 36h
     paths = [
-        # "configs/resps/phase_2_2019_fc/E2CPL60E16V1.cfg",
-        # "configs/resps/phase_2_2019_fc/exp_during_E2CPL60E16V1.cfg",
-        "configs/resps/phase_2_2019_fc/E2CPL60H17V1.cfg",
-        "configs/resps/phase_2_2019_fc/exp_during_E2CPL60H17V1.cfg"
+        "configs/resps/migration_2019_test_cycle/E2CPL60H17V1_120.cfg",
+        "configs/resps/migration_2019_test_cycle/E2CPL60H17V1_130.cfg"
     ]
 
     procs += [Process(target=main, kwargs=dict(config_path=Path(p))) for p in paths]
@@ -24,3 +21,7 @@ if __name__ == '__main__':
     for p in procs:
         p.start()
 
+    for p in procs:
+        p.join()
+        if p.exitcode != 0:
+            raise Exception(f"{p.name} did not finish successfully. Error code = {p.exitcode}")
