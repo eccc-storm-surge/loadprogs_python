@@ -97,7 +97,7 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
     for i, d in enumerate(data_dict["time"]):
         assert d != 0, f"time[{i}]={d}"
 
-    logger.debug(list(data_dict.keys()))
+    # logger.debug(list(data_dict.keys()))
 
     # check that the lists have the same length
     data_leng = {cn: len(cd) for cn, cd in data_dict.items()}
