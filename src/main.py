@@ -115,6 +115,11 @@ def main(config_path: Path = None):
     out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
 
+    # do nothing if the output file already exists
+    if out_file.exists():
+        logger.info(f"(INFO) Already exists, won't redo:\n{out_file}")
+        return
+
     date_format = "%Y%m%d%H"
 
     plot_detiding_diag = True
@@ -215,7 +220,10 @@ def main(config_path: Path = None):
                 logger.info("Detiding model outputs.")
                 assert not any(mod_data["time"].isna())
 
-                mod_data_twl = mod_data.loc[mod_data["valid_hour"] <= b2b_freq_hours, :]
+                # for b2b operations
+                select_crit = mod_data["valid_hour"] <= b2b_freq_hours
+                select_crit = select_crit & (mod_data["valid_hour"] > 0) # remove t=0
+                mod_data_twl = mod_data.loc[select_crit, :]
                 mod_data_twl.sort_values("time", inplace=True)
                 logger.debug(mod_data_twl.head())
 
@@ -225,8 +233,13 @@ def main(config_path: Path = None):
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
                         mod_data_twl.loc[:, c].to_frame(), constituents=detide_mod_constituents)
 
-                    mod_data.loc[:, c] -= mod_data_twl[c].mean() + mod_tides.loc[mod_data["time"]].values + \
-                                          mod_to_filter.loc[mod_data["time"]].values
+                    # remove longterm mean
+                    mod_data.loc[:, c] -= mod_data_twl[c].mean()
+                    # detiding
+                    mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
+
+                    # filtering
+                    mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
                     # diags for detiding
                     if plot_detiding_diag:
