@@ -18,8 +18,10 @@ logger.setLevel(logging.DEBUG)
 
 def get_tides_and_filter_hourly(data, do_filtering=True, constituents=None):
 
+    # Make sure the total water level column can be found
     data_ = data.copy()
-    data_.columns = ["time", "twl"]
+    data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
+
     s = Station()
 
     s.data = data_
@@ -45,7 +47,9 @@ class Station(object):
 
         if self._data is not None and len(self._data) > 0:
 
-            self._data.set_index("time", inplace=True)
+            if "time" in self._data:
+                logger.debug("setting time as index for the purpose of resampling")
+                self._data.set_index("time", inplace=True)
 
             logger.debug(self._data.head())
 

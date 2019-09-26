@@ -64,6 +64,9 @@ def main_levelling_v01():
 
 
 def main(config_path: Path = None):
+
+    logging.info(f"Processing {config_path} ...")
+
     if config_path is None:
         config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
 
@@ -180,7 +183,8 @@ def main(config_path: Path = None):
             if plot_detiding_diag and detide_obs:
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
-                plot_ts_and_spectre(obs_data, "{}_{}".format(config["label"], s.station_id),
+                plot_ts_and_spectre(obs_data,
+                                    "{}_{}".format(config["label"], s.station_id),
                                     img_dir=out_dir,
                                     subplot_titles=None,
                                     raw_data=s.data["twl-mean"],
@@ -209,14 +213,18 @@ def main(config_path: Path = None):
             # detide model time series if requested
             if detide_mod:
                 logger.info("Detiding model outputs.")
+                assert not any(mod_data["time"].isna())
 
                 mod_data_twl = mod_data.loc[mod_data["valid_hour"] <= b2b_freq_hours, :]
                 mod_data_twl.sort_values("time", inplace=True)
                 logger.debug(mod_data_twl.head())
 
+                mod_data_twl.set_index("time", inplace=True)
+
                 for c in mod_member_keys:
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
-                        mod_data_twl.loc[:, ["time", c]], constituents=detide_mod_constituents)
+                        mod_data_twl.loc[:, c].to_frame(), constituents=detide_mod_constituents)
+
                     mod_data.loc[:, c] -= mod_data_twl[c].mean() + mod_tides.loc[mod_data["time"]].values + \
                                           mod_to_filter.loc[mod_data["time"]].values
 
@@ -225,7 +233,6 @@ def main(config_path: Path = None):
                         msg = f"plotting timeseries for mod at {s.station_id}"
                         logging.info(msg)
 
-                        mod_data_twl.set_index("time", inplace=True)
                         plot_ts_and_spectre(
                             mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index] -
                             mod_to_filter.loc[mod_data_twl.index],
@@ -273,6 +280,8 @@ def main(config_path: Path = None):
                     row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
+
+    logger.info(f"Finished processing {config_path} .")
 
 
 if __name__ == '__main__':
