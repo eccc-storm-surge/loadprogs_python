@@ -109,7 +109,7 @@ def main(config_path: Path = None):
             detide_mod_constituents = config["detide_mod_constituents"].split(",")
 
     out_dir = Path(config["prepared_for_scoring_dir"])
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
 
     date_format = "%Y%m%d%H"
