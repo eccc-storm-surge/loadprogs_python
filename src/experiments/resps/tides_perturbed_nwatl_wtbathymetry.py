@@ -27,8 +27,7 @@ if __name__ == '__main__':
         main(config_path=po)
 
     # launch everything
-    for p in procs:
-        p.start()
+    # for p in procs:
+    #     p.start()
 
     logger.info(f"Execution time: {time.perf_counter() - t0}")
-

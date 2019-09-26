@@ -14,11 +14,10 @@ if __name__ == '__main__':
     debug = False
 
     paths = [
-        "configs/resps/tides_perturbed_nwatl/surge_tidesbc.cfg",
-        "configs/resps/tides_perturbed_nwatl/tidesbc_only.cfg",
-        "configs/resps/tides_perturbed_nwatl/webtide.cfg",
-        "configs/resps/tides_perturbed_nwatl/surge0_tidesbc.cfg"
-        # "configs/resps/tides_perturbed/surgep_tidesnp.cfg"
+        "configs/resps/tides_perturbed_nwatl_detided/surge_tidesbc.cfg",
+        "configs/resps/tides_perturbed_nwatl_detided/tidesbc_only.cfg",
+        "configs/resps/tides_perturbed_nwatl_detided/webtide.cfg",
+        "configs/resps/tides_perturbed_nwatl_detided/surge0_tidesbc.cfg"
     ]
 
     path_objs = [Path(p) for p in paths]
@@ -29,7 +28,6 @@ if __name__ == '__main__':
             main(config_path=po)
     else:
         procs += [Process(target=main, kwargs=dict(config_path=po)) for po in path_objs]
-
         # launch everything
         for p in procs:
             p.start()
