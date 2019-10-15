@@ -14,12 +14,13 @@ if __name__ == '__main__':
     debug = False
 
     paths = [
-        "configs/resps/tides_perturbed_nwatl/surge_tidesbc.cfg",
-        "configs/resps/tides_perturbed_nwatl/tidesbc_only.cfg",
-        "configs/resps/tides_perturbed_nwatl/webtide.cfg",
-        "configs/resps/tides_perturbed_nwatl/surge0_tidesbc.cfg",
+        "configs/resps/tides_perturbed_nwatl_m2o1/surge_tidesbc.cfg",
+        "configs/resps/tides_perturbed_nwatl_m2o1/tidesbc_only.cfg",
+        "configs/resps/tides_perturbed_nwatl_m2o1/webtide.cfg",
+        "configs/resps/tides_perturbed_nwatl_m2o1/surge0_tidesbc.cfg",
+        "configs/resps/tides_perturbed_nwatl_m2o1/surge_tidesbc0.cfg",
         # "configs/resps/tides_perturbed/surgep_tidesnp.cfg"
-        "configs/resps/tides_perturbed_nwatl/surge_only.cfg"
+        # "configs/resps/tides_perturbed_nwatl/surge_only.cfg"
     ]
 
     path_objs = [Path(p) for p in paths]
