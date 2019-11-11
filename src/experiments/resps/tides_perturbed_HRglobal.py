@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     paths = [
         "configs/resps/tides_perturbed/surge_tidesbc.cfg",
-        # "configs/resps/tides_perturbed/tidesbc_only.cfg",
-        # "configs/resps/tides_perturbed/webtide.cfg",
+        "configs/resps/tides_perturbed/tidesbc_only.cfg",
+        "configs/resps/tides_perturbed/webtide.cfg",
         # "configs/resps/tides_perturbed/surgep_tidesnp.cfg"
     ]
 

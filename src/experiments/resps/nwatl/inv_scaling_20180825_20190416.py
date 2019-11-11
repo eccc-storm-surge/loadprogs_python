@@ -10,7 +10,6 @@ if __name__ == '__main__':
 
     procs = []
 
-
     twl_dir = Path("configs/resps/resps_perturb_tides_nwatl_m2o1_invert_scaling/twl")
     dtd_dir = Path("configs/resps/resps_perturb_tides_nwatl_m2o1_invert_scaling/detided")
 
@@ -25,7 +24,6 @@ if __name__ == '__main__':
         twl_dir / "surge_only.cfg"
 
         # detided
-
 
     ]
 
