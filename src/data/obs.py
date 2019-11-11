@@ -75,7 +75,7 @@ class Station(object):
             self._data = 0.5 * (obs_data_b + obs_data_f)
             self._data = self._data[self._data.index.minute == 0]
 
-    def __init__(self, data_file=None, do_filtering=True, station_info=None):
+    def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
         self.data_file = data_file
 
@@ -302,7 +302,7 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = N
 
         logger.debug(f"station_info_rec={st_info_rec}")
 
-        s = Station(data_file=inp_file, station_info=st_info_rec)
+        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=False)
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
