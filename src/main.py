@@ -162,6 +162,15 @@ def main(config_path: Path = None):
         msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
 
+    obs_do_filtering = False
+    mod_do_filtering = False
+
+    if "detide_obs_filtering" in config:
+        obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
+
+    if "detide_mod_filtering" in config:
+        mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
+
     with out_file.open("w") as fout:
         mod_groups_by_station = model_points.groupby("station_id")
 
@@ -179,7 +188,7 @@ def main(config_path: Path = None):
             mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
             if detide_obs:
-                obs_data = s.get_detided_series(do_filtering=True)
+                obs_data = s.get_detided_series(do_filtering=obs_do_filtering)
             else:
                 # still remove the long-term mean
                 obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
@@ -239,7 +248,8 @@ def main(config_path: Path = None):
                     mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
 
                     # filtering
-                    mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
+                    if mod_do_filtering:
+                        mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
                     # diags for detiding
                     if plot_detiding_diag:
@@ -271,9 +281,11 @@ def main(config_path: Path = None):
                 # mean to be removed from each member calculated based on the control member, which is assumed
                 # to be the first in the list
 
+                where_cond = (mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0)
+                tmean = mod_data.loc[where_cond, mod_member_keys[0]].mean()
+
                 for cn in mod_member_keys:
-                    where_cond = (mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0)
-                    mod_data.loc[:, cn] -= mod_data.loc[where_cond, cn].mean()
+                    mod_data.loc[:, cn] -= tmean  # remove long time mean only of the control member
 
             # select only runs run_freq_hours apart (usually it is 36h)
             mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
