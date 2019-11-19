@@ -21,9 +21,13 @@ if __name__ == '__main__':
         twl_dir / "surge_tidesbc.cfg",
         twl_dir / "webtide.cfg",
         twl_dir / "tidesbc_only.cfg",
-        twl_dir / "surge_only.cfg"
+        twl_dir / "surge_only.cfg",
+        twl_dir / "surge_only_plus_t0.cfg",
 
         # detided
+        dtd_dir / "surge_tidesbc.cfg",
+        dtd_dir / "surge_tidesbc0.cfg",
+
 
     ]
 
