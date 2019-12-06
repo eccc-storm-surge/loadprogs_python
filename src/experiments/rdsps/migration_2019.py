@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     # run in parallel different cases
     cfg_paths = [
-        "configs/rdsps/migration_2019/rdsps_fc_par_160.cfg",
+        "configs/rdsps/migration_2019/rdsps_fc_ops_160.cfg",
         "configs/rdsps/migration_2019/rdsps_fc_par_170.cfg"
     ]
 

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def get_tides_and_filter_hourly(data, do_filtering=True, constituents=None):
+def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
 
     # Make sure the total water level column can be found
     data_ = data.copy()
@@ -275,7 +275,8 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None):
+def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
+                               do_filtering=False):
     stations = []
 
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
@@ -302,7 +303,7 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = N
 
         logger.debug(f"station_info_rec={st_info_rec}")
 
-        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=False)
+        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
 
         # skip stations with no data
         if s.get_data_len_since() > 0:

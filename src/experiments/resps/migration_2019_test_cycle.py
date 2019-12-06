@@ -11,8 +11,8 @@ if __name__ == '__main__':
     procs = []
 
     paths = [
-        "configs/resps/migration_2019_test_cycle/E2CPL60H17V1_120.cfg",
-        "configs/resps/migration_2019_test_cycle/E2CPL60H17V1_130.cfg"
+        "configs/resps/migration_2019_test_cycle/resps_120_ops.cfg",
+        "configs/resps/migration_2019_test_cycle/resps_130_par.cfg"
     ]
 
     procs += [Process(target=main, kwargs=dict(config_path=Path(p))) for p in paths]

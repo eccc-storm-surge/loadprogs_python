@@ -130,6 +130,16 @@ def main(config_path: Path = None):
     if "remove_anal_period_mean" in config:
         remove_anal_period_mean = int(config["remove_anal_period_mean"])
 
+    obs_do_filtering = False
+    mod_do_filtering = False
+
+    if "detide_obs_filtering" in config:
+        obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
+
+    if "detide_mod_filtering" in config:
+        mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
+
+
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
 
     member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
@@ -141,7 +151,8 @@ def main(config_path: Path = None):
     # Load obs and do de-tiding (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_dir(Path(config["obs_dir"]),
                                               config["station_info"],
-                                              beg_time_obs=beg_time_obs)
+                                              beg_time_obs=beg_time_obs,
+                                              do_filtering=obs_do_filtering)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 
@@ -162,14 +173,6 @@ def main(config_path: Path = None):
         msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
 
-    obs_do_filtering = False
-    mod_do_filtering = False
-
-    if "detide_obs_filtering" in config:
-        obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
-
-    if "detide_mod_filtering" in config:
-        mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
 
     with out_file.open("w") as fout:
         mod_groups_by_station = model_points.groupby("station_id")
