@@ -29,6 +29,7 @@ col 6: modelled value
 """
 
 import configparser
+import argparse
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -155,12 +156,14 @@ def main(config_path: Path = None):
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
+    ########################################################################
     # Load obs and do de-tiding (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_dir(Path(config["obs_dir"]).expanduser(),
                                               config["station_info"],
                                               beg_time_obs=beg_time_obs,
                                               end_time_obs=end_time_obs,
                                               do_filtering=obs_do_filtering)
+    ########################################################################
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 

@@ -5,24 +5,23 @@ from main import main
 
 from multiprocessing import Process
 import argparse
+import logging
 
-
-debug = True
 
 if __name__ == '__main__':
     processes = []
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="run experiment")
 
     parser.add_argument("--cfg_paths", nargs="+")
-    parser.add_argument("--debug", nargs="?", type=int, default=0)
+    parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("-c", "--canhys", action="store", type=Path)
 
     args = parser.parse_args()
 
     cfg_paths = args.cfg_paths
-    debug = args.debug == 1
 
-    if debug:
+    if args.debug:
         for cp in cfg_paths:
             main(config_path=Path(cp))
 
