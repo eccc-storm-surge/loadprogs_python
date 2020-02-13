@@ -34,5 +34,5 @@ if __name__ == '__main__':
     for p in processes:
         p.start()
 
-    logger.debug(f"Execution time: {time.perf_counter() - t0}")
+    logger.info(f"Execution time: {time.perf_counter() - t0}")
 

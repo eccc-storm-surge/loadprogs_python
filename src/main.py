@@ -162,17 +162,17 @@ def main(config_path: Path = None):
     obs_datatype = config["obs_datatype"]
 
     if obs_datatype == "txt":
-        obs_dir = Path(config["obs_dir"])
+        stations = obs.load_station_data_from_txt_dir(Path(config["obs_dir"]),
+                                                      config["station_info"],
+                                                      beg_time_obs=beg_time_obs,
+                                                      do_filtering=obs_do_filtering)
 
     elif obs_datatype == "sql":
-        obs_dir = Path(config["canhys_sql_dir"])
-
-    stations = obs.load_obs_data_from_dir(obs_dir,
-                                          obs_datatype,
-                                          config["station_info"],
-                                          beg_time_obs=beg_time_obs,
+        stations = obs.load_station_data_from_sql_dir(Path(config["canhys_sql_dir"]),
+                                                      config["station_info"],
+                                                      beg_time_obs=beg_time_obs,
                                               end_time_obs=end_time_obs,
-                                          do_filtering=obs_do_filtering)
+                                                      do_filtering=obs_do_filtering)
     ########################################################################
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]

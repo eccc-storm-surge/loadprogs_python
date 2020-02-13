@@ -1,6 +1,8 @@
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 
 import pandas as pd
 
@@ -75,7 +77,7 @@ class Station(object):
             self._data = 0.5 * (obs_data_b + obs_data_f)
             self._data = self._data[self._data.index.minute == 0]
 
-    def __init__(self, data_file=None, do_filtering=False, station_info=None):
+    def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt"):
         self.nlines_for_header = 6
         self.data_file = data_file
 
@@ -100,6 +102,7 @@ class Station(object):
 
         self.ttidecon = None
 
+        ############################################################
         # parse the data file, if provided
         if data_file is not None:
 
@@ -125,6 +128,7 @@ class Station(object):
             df = None
 
         self.data = df
+        ###############################################################
 
 
     def drop_all_except_longest_year(self):
@@ -288,65 +292,58 @@ class Station(object):
 
         self.data["filtered"] = filtered_part
 
+# Vectorize
+def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
+                                   end_time_obs: datetime = None,
+                                   do_filtering=False):
 
-def load_data_from_dat(txt_file, st_info, st_info_path):
+    for sql_file in sql_inp_dir.iterdir():
+        if not sql_file.is_file():
+            continue
+        
+        if not sql_file.name.endswith("sql"):
+            continue
 
-    station_id = txt_file.name[1:-4]
-    st_info_record = {"id": station_id}
+        record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
 
-    where = st_info["NO"] == station_id
+        if beg_time_obs <= record_date and record_date <= end_time_obs:
+            conn = sqlite3.connect(sql_file)
+            cursor = conn.cursor()
 
-    for row_index, row in st_info[where].iterrows():
-        st_info_record["name"] = row["ID"]
-        st_info_record["lon"] = row["LON"]
-        st_info_record["lat"] = row["LAT"]
+            cursor.execute("select distinct(siteid) from datavalue;")
+            
+            station_ids_to_df_lists = defaultdict(list)
+            for station_id, in cursor.fetchall():
+                print(station_id)
+                station_ids_to_df_lists[station_id].append(pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={station_id};",
+                                                                       con=conn))
     
-    if not any(where):
-        logger.info(f"{station_id} is not found in the {st_info_path} file.")
-        return
-    
-    logger.debug(f"station_info_rec={st_info_record}")
+    station_ids_to_df_lists = {station_id: pd.concat(station_ids_to_df_lists[station_id]) for station_id in station_ids_to_df_lists}
 
-    return st_info_record
+    print(len(station_ids_to_df_lists))
+    quit()
 
-def load_data_from_sql(sql_db, st_info):
     return
         
+def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
+                                   do_filtering=False):
 
-def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", station_info_path: Path = None, beg_time_obs: datetime = None,
-                               do_filtering=False):
     stations = []
 
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0,
                           sep=r"\s+", converters={"NO": str})
 
-    if inp_datatype == "txt":
-        file_handler_func = load_data_from_dat
-    
-    elif inp_datatype == "sql":
-        file_handler_func = load_data_from_sql
-
-    for inp_file in inp_dir.iterdir():
+    for inp_file in txt_inp_dir.iterdir():
         if not inp_file.is_file():
             continue
-        
-        '''
-        ###############################
+
         if not inp_file.name.endswith(".dat"):
             continue
-            
+
         station_id = inp_file.name[1:-4]
         st_info_rec = {"id": station_id}
 
-        #print(station_id)
-        #print(st_info["NO"])
-
         where = st_info["NO"] == station_id
-
-        #print(where)
-        #print(st_info[where])
-        #quit()
-
         for row_index, row in st_info[where].iterrows():
             st_info_rec["name"] = row["ID"]
             st_info_rec["lon"] = row["LON"]
@@ -357,13 +354,10 @@ def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", stat
             continue
 
         logger.debug(f"station_info_rec={st_info_rec}")
-        ###############################
-        '''
 
-        st_info_rec = load_data_from_dat(txt_file=inp_file, st_info=st_info, st_info_path=station_info_path)
-
-        if st_info_rec:
-            s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
+        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
+        print(s.data)
+        quit()
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
@@ -372,11 +366,15 @@ def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", stat
             logger.debug(f"No data for {s.station_id}, skipping ...")
 
     # make sure that the obs time-series starts on the specified datetime
-    for s in stations:
-        s.remove_data_before(start_date=beg_time_obs)
+    for stn in stations:
+        stn.remove_data_before(start_date=beg_time_obs)
         s.remove_data_after(end_date=end_time_obs)
 
     # Make sure that there is enough obs data for de-tiding
     # stations = [s for s in stations if s.get_data_len_since(start_date=beg_time_obs) >= MIN_DATA_LEN_FOR_DETIDING]
 
     return stations
+
+
+if __name__ == "__main__":
+    pass
