@@ -9,7 +9,10 @@ import logging
 
 
 if __name__ == '__main__':
-    processes = []
+    import time
+    t0 = time.perf_counter()
+
+    logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser(description="run experiment")
 
@@ -21,14 +24,15 @@ if __name__ == '__main__':
     cfg_paths = args.cfg_paths
 
     if args.debug:
-        for cp in cfg_paths:
-            main(config_path=Path(cp))
+        logger.setLevel(logging.DEBUG)
 
-    else:
-        pl = [Process(target=main, kwargs=dict(config_path=Path(p)))
-              for p in cfg_paths]
-        processes.extend(pl)
+    processes = []
 
-        for p in processes:
-            p.start()
-            quit()
+    pl = [Process(target=main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
+    processes.extend(pl)
+
+    for p in processes:
+        p.start()
+
+    logger.debug(f"Execution time: {time.perf_counter() - t0}")
+

@@ -289,11 +289,27 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def load_data_from_dat(inp_dir, st_info):
-    pass
+def load_data_from_dat(txt_file, st_info, st_info_path):
 
+    station_id = txt_file.name[1:-4]
+    st_info_record = {"id": station_id}
 
-def load_data_from_sql(sql_db):
+    where = st_info["NO"] == station_id
+
+    for row_index, row in st_info[where].iterrows():
+        st_info_record["name"] = row["ID"]
+        st_info_record["lon"] = row["LON"]
+        st_info_record["lat"] = row["LAT"]
+    
+    if not any(where):
+        logger.info(f"{station_id} is not found in the {st_info_path} file.")
+        return
+    
+    logger.debug(f"station_info_rec={st_info_record}")
+
+    return st_info_record
+
+def load_data_from_sql(sql_db, st_info):
     return
         
 
@@ -309,14 +325,13 @@ def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", stat
     
     elif inp_datatype == "sql":
         file_handler_func = load_data_from_sql
-    
-    print(file_handler_func)
-    quit()
 
     for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
             continue
         
+        '''
+        ###############################
         if not inp_file.name.endswith(".dat"):
             continue
             
@@ -342,8 +357,13 @@ def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", stat
             continue
 
         logger.debug(f"station_info_rec={st_info_rec}")
+        ###############################
+        '''
 
-        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
+        st_info_rec = load_data_from_dat(txt_file=inp_file, st_info=st_info, st_info_path=station_info_path)
+
+        if st_info_rec:
+            s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
