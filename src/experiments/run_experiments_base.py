@@ -15,7 +15,6 @@ if __name__ == '__main__':
 
     parser.add_argument("--cfg_paths", nargs="+")
     parser.add_argument("-d", "--debug", action="store_true")
-    parser.add_argument("-c", "--canhys", action="store", type=Path)
 
     args = parser.parse_args()
 
@@ -32,3 +31,4 @@ if __name__ == '__main__':
 
         for p in processes:
             p.start()
+            quit()

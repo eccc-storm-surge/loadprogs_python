@@ -289,26 +289,49 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None,
-                               beg_time_obs: datetime = None,
-                               end_time_obs: datetime = None,
-                               do_filtering: bool = False):
+def load_data_from_dat(inp_dir, st_info):
+    pass
+
+
+def load_data_from_sql(sql_db):
+    return
+        
+
+def load_obs_data_from_dir(inp_dir=Path("data"), inp_datatype: str = "txt", station_info_path: Path = None, beg_time_obs: datetime = None,
+                               do_filtering=False):
     stations = []
 
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0,
                           sep=r"\s+", converters={"NO": str})
 
+    if inp_datatype == "txt":
+        file_handler_func = load_data_from_dat
+    
+    elif inp_datatype == "sql":
+        file_handler_func = load_data_from_sql
+    
+    print(file_handler_func)
+    quit()
+
     for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
             continue
-
+        
         if not inp_file.name.endswith(".dat"):
             continue
-
+            
         station_id = inp_file.name[1:-4]
         st_info_rec = {"id": station_id}
 
+        #print(station_id)
+        #print(st_info["NO"])
+
         where = st_info["NO"] == station_id
+
+        #print(where)
+        #print(st_info[where])
+        #quit()
+
         for row_index, row in st_info[where].iterrows():
             st_info_rec["name"] = row["ID"]
             st_info_rec["lon"] = row["LON"]
