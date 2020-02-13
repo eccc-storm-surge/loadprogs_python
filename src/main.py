@@ -170,6 +170,7 @@ def main(config_path: Path = None):
     elif obs_datatype == "sql":
         stations = obs.load_station_data_from_sql_dir(Path(config["canhys_sql_dir"]),
                                                       config["station_info"],
+                                                      config["canhys_station_id_translation_dict"],
                                                       beg_time_obs=beg_time_obs,
                                               end_time_obs=end_time_obs,
                                                       do_filtering=obs_do_filtering)
