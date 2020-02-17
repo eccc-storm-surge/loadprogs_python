@@ -111,6 +111,10 @@ def main(config_path: Path = None):
         if "detide_mod_constituents" in config:
             detide_mod_constituents = config["detide_mod_constituents"].split(",")
 
+    dt_texp_from_tbeg = timedelta(hours=0)
+    if "dt_texp_from_tbeg_hours" in config:
+        dt_texp_from_tbeg = timedelta(hours=int(config["dt_texp_from_tbeg_hours"]))
+
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
@@ -139,7 +143,6 @@ def main(config_path: Path = None):
     if "detide_mod_filtering" in config:
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
 
-
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
 
     member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
@@ -149,7 +152,7 @@ def main(config_path: Path = None):
         logger.debug(f"{k} => {v}, ({type(v)})")
 
     # Load obs and do de-tiding (the list of stations is from the .obs file)
-    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]),
+    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]).expanduser(),
                                               config["station_info"],
                                               beg_time_obs=beg_time_obs,
                                               do_filtering=obs_do_filtering)
@@ -159,20 +162,20 @@ def main(config_path: Path = None):
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config["station_info"])
 
-    mod_dir = Path(config["mod_dir"])
+    mod_dir = Path(config["mod_dir"]).expanduser()
     model_points = mod.get_mod_timeseries(stations, mod_dir,
                                           station_id_to_grid_indices=station_to_model_grid_map,
                                           start_time=beg_time,
                                           end_time=end_time,
                                           member_ids=member_ids, mod_nomvar=mod_nomvar,
-                                          run_freq_hours=b2b_freq_hours)
+                                          run_freq_hours=b2b_freq_hours,
+                                          dt_texp_from_tbeg=dt_texp_from_tbeg)
 
     origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=run_freq_hours))
 
     if len(model_points) == 0:
         msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
-
 
     with out_file.open("w") as fout:
         mod_groups_by_station = model_points.groupby("station_id")

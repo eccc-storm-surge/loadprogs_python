@@ -141,7 +141,8 @@ def get_mod_timeseries(stations, mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",
                        start_time=None, end_time=None,
-                       member_ids=("",), run_freq_hours=12
+                       member_ids=("",), run_freq_hours=12,
+                       dt_texp_from_tbeg=timedelta(hours=0)
                        ):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
@@ -176,10 +177,17 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
     for member_id in member_ids:
         for exp_t in exp_t_list:
-            data_file = mod_data_path / f"{exp_t:%Y%m%d%H}_{member_id}"
+            logger.info(f"treating experiment: {exp_t}")
+            data_files = mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}")
+
+            # sort by name
+            data_files = [p for p in sorted(data_files, key=lambda ip: ip.name)]
+
+            logger.debug(f"mod_data_path={mod_data_path}")
+            logger.debug(data_files)
 
             # get all data from a file in memory
-            funit = rmn.fstopenall(str(data_file))
+            funit = rmn.fstopenall([str(data_file) for data_file in data_files])
 
             keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
 
@@ -194,7 +202,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
                 data_dict["station_id"].extend([s.station_id] * len(records))
 
                 data_dict["time"].extend(dates)
-                data_dict["valid_hour"].extend([int(rec["deet"] * rec["npas"] / 3600.0) for rec in records])
+                data_dict["valid_hour"].extend([int((t - (exp_t - dt_texp_from_tbeg)).total_seconds() // 3600) for t in dates])
                 data_dict["member_id"].extend([member_id] * len(dates))
 
             rmn.fstcloseall(funit)
@@ -221,7 +229,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
         df_list.append(group)
 
-    df = pd.concat(df_list, axis=1, join_axes=[df_list[0].index])
+    df = pd.concat(df_list, axis=1)
 
     logger.debug(df.head())
     logger.debug("column names")
@@ -248,7 +256,8 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     :param run_freq_dt:
     """
 
-    do = mod_data.loc[:, "time"] - mod_data.loc[:, "valid_hour"].map(lambda h: timedelta(hours=h))
+    do = mod_data.loc[:, "date_of_origin"]
+
     t0 = do.min()
     t1 = do.max()
     return pd.date_range(t0, t1, freq=run_freq_dt)
