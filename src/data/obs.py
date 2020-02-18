@@ -45,7 +45,7 @@ class Station(object):
         else:
             self._data = None
 
-#        self._data = df
+        #self._data = df
 
         if self._data is not None and len(self._data) > 0:
 
@@ -299,12 +299,37 @@ def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: 
                                    do_filtering=False):
 
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
-    canhys_to_station_id_translator = pd.read_csv(translator_path, usecols=(1, 2), 
-                                                                   names=["canhys", "valid"],
-                                                                   sep="|").astype(str).set_index("canhys").T.to_dict(orient='list')
-    station_info_ids = set(st_info["NO"])
+    st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
+
+    '''
+    >>> print(st_info.head(5).to_string())
+                         ID       NO        LAT         LON  ......  DATA.LON_OLD
+    0           Eastport ME  8410140  44.763676  292.961487  ......    292.961487
+    1          Belledune NB    02145  47.894047  294.193420  ......    294.193420
+    2  Riviere-au-Renard QC    02330  48.992680  295.658752  ......    295.658752
+    3           Rimouski QC    02985  48.459965  291.462952  ......    291.462952
+    4          Sept-Iles QC    02780  50.158207  293.627502  ......    293.627502
+    '''
+
+    translator = pd.read_csv(translator_path, usecols=(1, 2), 
+                                              names=["canhys", "real"],
+                                              sep="|").astype(str)
+
+    '''
+    >>> print(translator.head(5).to_string())
+      canhys     real
+    0  10002  05AA008
+    1  10004  05AA011
+    2  10006  05AA022
+    3  10008  05AA024
+    4  10012  05AA028
+    '''
+
+    station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in st_info["NO"]}
+    canhys_ids_to_df_lists = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
     for sql_file in sql_inp_dir.iterdir():
+        print(f"file: {sql_file}")
         if not sql_file.is_file():
             continue
         
@@ -314,39 +339,48 @@ def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: 
         try:
             record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
+            print(f"Naming for {sql_file.name} is not correct, please double check. Skipping.")
             continue
 
         if beg_time_obs <= record_date and record_date <= end_time_obs:
             conn = sqlite3.connect(sql_file)
             cursor = conn.cursor()
 
+            cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
+
+            if not cursor.fetchone():
+                continue
+
+            '''
             try:
                 cursor.execute("select distinct(siteid) from datavalue;")
             except sqlite3.OperationalError:
+                print(f"SQL file doesn't have any station ids, skipping.")
                 continue
-                
-            station_ids_to_df_lists = defaultdict(list)
+            '''
 
+            '''
             for station_id, in cursor.fetchall():
+                station_id = str(station_id)
 
-                try:
-                    station_id = canhys_to_station_id_translator[str(station_id)][0]
-                except KeyError:
-                    continue
-
-                if station_id not in station_info_ids:
+                if station_id not in station_info_canhys_ids:
                     continue
                 
-                print(station_id)
-                print(sql_file.name)
-                quit()
                 station_ids_to_df_lists[station_id].append(pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={station_id};",
                                                                         con=conn))
-            
-    
-    station_ids_to_df_lists = {station_id: pd.concat(station_ids_to_df_lists[station_id]) for station_id in station_ids_to_df_lists}
+            '''
 
-    print(station_ids_to_df_lists)
+            for canhys_id in canhys_ids_to_df_lists:
+                st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
+                canhys_ids_to_df_lists[canhys_id] += [st_data]
+        
+        else:
+            print("Date of file not within ranged defined in config, skipping.")
+
+
+    canhys_ids_to_df_lists = {canhys_id: pd.concat(canhys_ids_to_df_lists[canhys_id]) for canhys_id in canhys_ids_to_df_lists}
+
+    print(canhys_ids_to_df_lists)
     quit()
 
     return
