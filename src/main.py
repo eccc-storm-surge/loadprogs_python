@@ -168,12 +168,12 @@ def main(config_path: Path = None):
                                                       do_filtering=obs_do_filtering)
 
     elif obs_datatype == "sql":
-        stations = obs.load_station_data_from_sql_dir(Path(config["canhys_sql_dir"]),
-                                                      config["station_info"],
-                                                      config["canhys_station_id_translation_dict"],
-                                                      beg_time_obs=beg_time_obs,
+        stations = obs.load_station_data_from_canhys_dir(Path(config["canhys_sql_dir"]),
+                                                         config["station_info"],
+                                                         config["canhys_station_id_translation_dict"],
+                                                         beg_time_obs=beg_time_obs,
                                               end_time_obs=end_time_obs,
-                                                      do_filtering=obs_do_filtering)
+                                                         do_filtering=obs_do_filtering)
     ########################################################################
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]

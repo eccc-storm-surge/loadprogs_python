@@ -292,11 +292,15 @@ class Station(object):
 
         self.data["filtered"] = filtered_part
 
-# Vectorize
-def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, translator_path: Path = None,
-                                   beg_time_obs: datetime = None,
-                                   end_time_obs: datetime = None,
-                                   do_filtering=False):
+
+def get_station_info_rec():
+    pass
+
+
+def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, translator_path: Path = None,
+                                      beg_time_obs: datetime = None,
+                                      end_time_obs: datetime = None,
+                                      do_filtering=False):
 
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
     st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
@@ -326,10 +330,10 @@ def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: 
     '''
 
     station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in st_info["NO"]}
-    canhys_ids_to_df_lists = {canhys_id: [] for canhys_id in station_info_canhys_ids}
+    canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
     for sql_file in sql_inp_dir.iterdir():
-        print(f"file: {sql_file}")
+        print(f"processing file: {sql_file}")
         if not sql_file.is_file():
             continue
         
@@ -349,39 +353,19 @@ def load_station_data_from_sql_dir(sql_inp_dir=Path("data"), station_info_path: 
             cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
 
             if not cursor.fetchone():
+                print(f"Table 'datavalue' not found in {sql_file.name}, skipping.")
                 continue
 
-            '''
-            try:
-                cursor.execute("select distinct(siteid) from datavalue;")
-            except sqlite3.OperationalError:
-                print(f"SQL file doesn't have any station ids, skipping.")
-                continue
-            '''
-
-            '''
-            for station_id, in cursor.fetchall():
-                station_id = str(station_id)
-
-                if station_id not in station_info_canhys_ids:
-                    continue
-                
-                station_ids_to_df_lists[station_id].append(pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={station_id};",
-                                                                        con=conn))
-            '''
-
-            for canhys_id in canhys_ids_to_df_lists:
+            for canhys_id in canhys_ids_to_dfs:
                 st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-                canhys_ids_to_df_lists[canhys_id] += [st_data]
+                canhys_ids_to_dfs[canhys_id] += [st_data]
         
         else:
-            print("Date of file not within ranged defined in config, skipping.")
+            print("Date of file not within range defined in config, skipping.")
 
-
-    canhys_ids_to_df_lists = {canhys_id: pd.concat(canhys_ids_to_df_lists[canhys_id]) for canhys_id in canhys_ids_to_df_lists}
-
-    print(canhys_ids_to_df_lists)
-    quit()
+    canhys_ids_to_dfs = {ID: pd.concat(canhys_ids_to_dfs[ID]) \
+                               .reset_index(drop=True) \
+                               .sort_values(by="datetimeutc") for ID in canhys_ids_to_dfs}
 
     return
 
@@ -417,8 +401,6 @@ def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: 
         logger.debug(f"station_info_rec={st_info_rec}")
 
         s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
-        print(s.data)
-        quit()
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
