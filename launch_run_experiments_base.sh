@@ -17,4 +17,4 @@ python ${DEPS_SIY}/loadprogs_python/src/main.py
 
 # Diagnostic script for CanHys SQL feed
 #python ${DEPS_SIY}/loadprogs_python/src/util/canhys_feed_diag.py \
-	--verbose
+#	--debug

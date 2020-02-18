@@ -107,23 +107,31 @@ class Station(object):
         if data_file is not None:
 
             # try parsing prepared data, if does not work, then try raw station data parser
-            try:
-                df = pd.read_csv(data_file, header=None, sep=r"\s+")
-                logger.debug(df.head())
+            if obs_datatype == "txt":
+                try:
+                    df = pd.read_csv(data_file, header=None, sep=r"\s+")
+                    logger.debug(df.head())
 
-                df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
+                    df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
-                df.rename({5: "twl"}, inplace=True, axis="columns")
-                df = df.loc[:, ["time", "twl"]]
+                    df.rename({5: "twl"}, inplace=True, axis="columns")
+                    df = df.loc[:, ["time", "twl"]]
 
-            except ValueError:
+                except ValueError:
 
-                df = pd.read_csv(data_file,
-                                 converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
-                                 header=None,
-                                 skiprows=8,
-                                 names=["time", "twl"],
-                                 usecols=[0, 1])
+                    df = pd.read_csv(data_file,
+                                    converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
+                                    header=None,
+                                    skiprows=8,
+                                    names=["time", "twl"],
+                                    usecols=[0, 1])
+
+            elif obs_datatype == "sql":
+                try:
+                    pass
+                except:
+                    pass
+
         else:
             df = None
 
@@ -293,17 +301,20 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def get_station_info_rec():
-    pass
-
-
 def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, translator_path: Path = None,
                                       beg_time_obs: datetime = None,
                                       end_time_obs: datetime = None,
                                       do_filtering=False):
 
+    import time
+    t0 = time.perf_counter()
+
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
     st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
+
+    st_info_recs = {}
+    for row_index, row in st_info.iterrows():
+        st_info_recs[row["NO"]] = {"name": row["ID"], "id": row["NO"], "lon": row["LON"], "lat": row["LAT"]}
 
     '''
     >>> print(st_info.head(5).to_string())
@@ -363,10 +374,17 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
         else:
             print("Date of file not within range defined in config, skipping.")
 
-    canhys_ids_to_dfs = {ID: pd.concat(canhys_ids_to_dfs[ID]) \
-                               .reset_index(drop=True) \
-                               .sort_values(by="datetimeutc") for ID in canhys_ids_to_dfs}
+    canhys_ids_to_dfs = {translator.loc[(translator.canhys == c_id), "real"].iat[0]: pd.concat(canhys_ids_to_dfs[c_id]) \
+                                                                                       .reset_index(drop=True) \
+                                                                                       .sort_values(by="datetimeutc") for c_id in canhys_ids_to_dfs}
+    for c_id in canhys_ids_to_dfs:
+        canhys_ids_to_dfs[c_id]["datetimeutc"] = pd.to_datetime(canhys_ids_to_dfs[c_id]["datetimeutc"], format="%Y-%m-%d %H:%M:%S")
+    
+    print(canhys_ids_to_dfs)
 
+    print(f"Execution time: {time.perf_counter() - t0} seconds.")
+    quit()
+    
     return
 
         
@@ -400,7 +418,7 @@ def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: 
 
         logger.debug(f"station_info_rec={st_info_rec}")
 
-        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering)
+        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering, obs_datatype="txt")
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
