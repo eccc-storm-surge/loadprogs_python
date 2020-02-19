@@ -52,14 +52,16 @@ class Station(object):
             if "time" in self._data:
                 logger.debug("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
-
+            
             logger.debug(self._data.head())
 
             # all times are in UTC
             if self._data.index.tz is None:
                 self._data.index = self._data.index.tz_localize("UTC")
 
-            self._data = self._data.asfreq("60T")
+                # remove duplicate dates in index before converting to frequency
+                self._data = self._data[~self._data.index.duplicated()]
+                self._data = self._data.asfreq("60T")
 
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, thresh_std_fraction=1.5)
@@ -77,7 +79,7 @@ class Station(object):
             self._data = 0.5 * (obs_data_b + obs_data_f)
             self._data = self._data[self._data.index.minute == 0]
 
-    def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt"):
+    def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt", **kwargs):
         self.nlines_for_header = 6
         self.data_file = data_file
 
@@ -96,6 +98,7 @@ class Station(object):
         else:
             # station attributes
             self.station_id = station_info["id"]
+            print(self.station_id)
             self.name = station_info["name"]
             self.latitude = station_info["lat"]
             self.longitude = station_info["lon"]
@@ -118,7 +121,6 @@ class Station(object):
                     df = df.loc[:, ["time", "twl"]]
 
                 except ValueError:
-
                     df = pd.read_csv(data_file,
                                     converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
                                     header=None,
@@ -126,11 +128,11 @@ class Station(object):
                                     names=["time", "twl"],
                                     usecols=[0, 1])
 
-            elif obs_datatype == "sql":
-                try:
-                    pass
-                except:
-                    pass
+        elif obs_datatype == "sql":
+            try:
+                df = kwargs["precalculated_df"]
+            except KeyError:
+                df = None
 
         else:
             df = None
@@ -306,9 +308,6 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
                                       end_time_obs: datetime = None,
                                       do_filtering=False):
 
-    import time
-    t0 = time.perf_counter()
-
     st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
     st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
 
@@ -374,18 +373,20 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
         else:
             print("Date of file not within range defined in config, skipping.")
 
-    canhys_ids_to_dfs = {translator.loc[(translator.canhys == c_id), "real"].iat[0]: pd.concat(canhys_ids_to_dfs[c_id]) \
-                                                                                       .reset_index(drop=True) \
-                                                                                       .sort_values(by="datetimeutc") for c_id in canhys_ids_to_dfs}
-    for c_id in canhys_ids_to_dfs:
-        canhys_ids_to_dfs[c_id]["datetimeutc"] = pd.to_datetime(canhys_ids_to_dfs[c_id]["datetimeutc"], format="%Y-%m-%d %H:%M:%S")
+    real_ids_to_dfs = {translator.loc[(translator.canhys == c_id), "real"].iat[0]: pd.concat(canhys_ids_to_dfs[c_id]) \
+                                                                                     .reset_index(drop=True) \
+                                                                                     .sort_values(by="datetimeutc") \
+                                                                                     .rename(columns={"datetimeutc": "time", "datavalue": "twl"}) for c_id in canhys_ids_to_dfs}
     
-    print(canhys_ids_to_dfs)
+    for r_id in real_ids_to_dfs:
+        real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
-    print(f"Execution time: {time.perf_counter() - t0} seconds.")
-    quit()
-    
-    return
+    stations = [Station(do_filtering=False,
+                        station_info=st_info_recs[station_id],
+                        obs_datatype="sql",
+                        precalculated_df=real_ids_to_dfs[station_id]) for station_id in st_info_recs]
+
+    return stations
 
         
 def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
