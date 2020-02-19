@@ -77,7 +77,7 @@ class Station(object):
             obs_data_b = self._data.asfreq("30T").fillna(method="bfill", limit=1)
 
             self._data = 0.5 * (obs_data_b + obs_data_f)
-            self._data = self._data[self._data.index.minute == 0]
+            #self._data = self._data[self._data.index.minute == 0]
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt", **kwargs):
         self.nlines_for_header = 6
@@ -98,7 +98,6 @@ class Station(object):
         else:
             # station attributes
             self.station_id = station_info["id"]
-            print(self.station_id)
             self.name = station_info["name"]
             self.latitude = station_info["lat"]
             self.longitude = station_info["lon"]
@@ -122,11 +121,11 @@ class Station(object):
 
                 except ValueError:
                     df = pd.read_csv(data_file,
-                                    converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
-                                    header=None,
-                                    skiprows=8,
-                                    names=["time", "twl"],
-                                    usecols=[0, 1])
+                                     converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
+                                     header=None,
+                                     skiprows=8,
+                                     names=["time", "twl"],
+                                     usecols=[0, 1])
 
         elif obs_datatype == "sql":
             try:
@@ -381,10 +380,13 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
-    stations = [Station(do_filtering=False,
+    stations = [Station(do_filtering=do_filtering,
                         station_info=st_info_recs[station_id],
                         obs_datatype="sql",
                         precalculated_df=real_ids_to_dfs[station_id]) for station_id in st_info_recs]
+
+    for stn in stations:
+        stn.remove_data_before(beg_time_obs)
 
     return stations
 
