@@ -61,7 +61,8 @@ class Station(object):
 
                 # remove duplicate dates in index before converting to frequency
                 self._data = self._data[~self._data.index.duplicated()]
-                self._data = self._data.asfreq("60T")
+                self._data = self._data[self._data.index.minute == 0]
+                self._data = self._data.resample("60T").first()
 
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, thresh_std_fraction=1.5)
@@ -73,11 +74,14 @@ class Station(object):
 
             # take into account some obs that might have
             # 30 minutes in their time stamps not 00 (i.e NL)
-            obs_data_f = self._data.asfreq("30T").fillna(method="ffill", limit=1)
-            obs_data_b = self._data.asfreq("30T").fillna(method="bfill", limit=1)
+            #obs_data_f = self._data.asfreq("30T").fillna(method="ffill", limit=1)
+            #obs_data_b = self._data.asfreq("30T").fillna(method="bfill", limit=1)
 
-            self._data = 0.5 * (obs_data_b + obs_data_f)
-            #self._data = self._data[self._data.index.minute == 0]
+            #self._data = 0.5 * (obs_data_b + obs_data_f)
+
+            #print("after frequency conversion")
+            #print(self._data)
+            #quit()
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt", **kwargs):
         self.nlines_for_header = 6
@@ -130,6 +134,8 @@ class Station(object):
         elif obs_datatype == "sql":
             try:
                 df = kwargs["precalculated_df"]
+                #print("Before frequency conversion")
+                #print(df)
             except KeyError:
                 df = None
 
@@ -342,7 +348,7 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
     for sql_file in sql_inp_dir.iterdir():
-        print(f"processing file: {sql_file}")
+        logger.debug(f"processing file: {sql_file}")
         if not sql_file.is_file():
             continue
         
@@ -352,7 +358,7 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
         try:
             record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
-            print(f"Naming for {sql_file.name} is not correct, please double check. Skipping.")
+            logger.debug(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
         if beg_time_obs <= record_date and record_date <= end_time_obs:
@@ -360,9 +366,8 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
             cursor = conn.cursor()
 
             cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
-
             if not cursor.fetchone():
-                print(f"Table 'datavalue' not found in {sql_file.name}, skipping.")
+                logger.debug(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
                 continue
 
             for canhys_id in canhys_ids_to_dfs:
@@ -370,8 +375,9 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
                 canhys_ids_to_dfs[canhys_id] += [st_data]
         
         else:
-            print("Date of file not within range defined in config, skipping.")
+            logger.debug(f"Date of {sql_file.name} not within range defined in config, skipping..")
 
+    # Translate station ids from CanHys to real as well as merge time series for each station
     real_ids_to_dfs = {translator.loc[(translator.canhys == c_id), "real"].iat[0]: pd.concat(canhys_ids_to_dfs[c_id]) \
                                                                                      .reset_index(drop=True) \
                                                                                      .sort_values(by="datetimeutc") \

@@ -1,6 +1,7 @@
 import argparse
 import csv
 import datetime
+import logging
 import sqlite3
 import pandas as pd
 from pathlib import Path

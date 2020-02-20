@@ -3,7 +3,7 @@
 from pathlib import Path
 from main import main
 
-from multiprocessing import Process
+from multiprocessing import Process, Lock
 import argparse
 import logging
 
@@ -33,7 +33,6 @@ if __name__ == '__main__':
 
     for p in processes:
         p.start()
-
 
     logger.info(f"Execution time: {time.perf_counter() - t0}")
 

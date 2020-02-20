@@ -42,6 +42,7 @@ from util.plot_ts_and_spectre import plot_ts_and_spectre
 import numpy as np
 
 import logging
+import shutil
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -121,7 +122,16 @@ def main(config_path: Path = None):
         dt_texp_from_tbeg = timedelta(hours=int(config["dt_texp_from_tbeg_hours"]))
 
     out_dir = Path(config["prepared_for_scoring_dir"])
+
+    #### for debugging --Sam
+    if out_dir.exists():
+        make_new = True
+        if make_new:
+            shutil.rmtree(out_dir)
+    ###################
+
     out_dir.mkdir(exist_ok=True, parents=True)
+    
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
 
     # do nothing if the output file already exists
@@ -140,23 +150,17 @@ def main(config_path: Path = None):
         remove_anal_period_mean = int(config["remove_anal_period_mean"])
 
     obs_do_filtering = False
-    mod_do_filtering = False
-
     if "detide_obs_filtering" in config:
         obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
 
+    mod_do_filtering = False
     if "detide_mod_filtering" in config:
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
-
-    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
-
-    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
-    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
-    # Sam's changes
+    # Sam's changes to obs
     ########################################################################
     # Load obs and do de-tiding (the list of stations is from the .obs file)
     obs_datatype = config["obs_datatype"]
@@ -175,6 +179,11 @@ def main(config_path: Path = None):
                                               end_time_obs=end_time_obs,
                                                          do_filtering=obs_do_filtering)
     ########################################################################
+
+    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
+
+    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
+    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 
@@ -250,6 +259,7 @@ def main(config_path: Path = None):
             #
 
             # detide model time series if requested
+
             if detide_mod:
                 logger.info("Detiding model outputs.")
                 assert not any(mod_data["time"].isna())
@@ -292,8 +302,19 @@ def main(config_path: Path = None):
 
                         mod_ttide_con.classic_style(to_file=str(out_dir / f"{s.station_id}_mod_tides.csv"))
 
+            #print("model data 1")
+            #print(mod_data)
+            #print("obs data 1")
+            #print(obs_data)
+
             # align model and observation timeseries in time
             mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+
+            #print("model data 2")
+            #print(mod_data.dropna())
+            #print("obs data 2")
+            #print(obs_data)
+            #quit()
 
             mod_data.dropna(inplace=True)
 
@@ -317,8 +338,8 @@ def main(config_path: Path = None):
 
             rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (
                 len(mod_data)) ** 0.5
-            logger.debug(f"rmse({s.station_id})={rmse}")
 
+            logger.debug(f"rmse({s.station_id})={rmse}")
             logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
 
             for row_index, row in mod_data.iterrows():
@@ -339,8 +360,8 @@ if __name__ == '__main__':
     import time
     t0 = time.perf_counter()
     # main_pn_vs_p0()
-    
-    ## For testing done by Sam
+
+    ## Debug code from Sam
     main(config_path=Path("/home/siy000/projects/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"))
     ##
 
