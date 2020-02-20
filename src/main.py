@@ -339,5 +339,9 @@ if __name__ == '__main__':
     import time
     t0 = time.perf_counter()
     # main_pn_vs_p0()
+    
+    ## For testing done by Sam
     main(config_path=Path("/home/siy000/projects/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"))
+    ##
+
     logger.debug(f"Execution time: {time.perf_counter() - t0}")
