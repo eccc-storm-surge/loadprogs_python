@@ -7,12 +7,16 @@ import pandas as pd
 from pathlib import Path
 
 # Custom modules
-import constants
+# import constants
 
+STATION_ID_TRANSLATION_DICT = Path("/home/olh001/Python/loadprogs_python/stations_info/CanHys/stn.txt")
+STATIONS_INFO_FILE = Path("/home/olh001/Python/station_positions_vis/stations_storm_surge_1_30_subset.obs")
+CANHYS_SQL_DIR = Path("/home/olh001/data/eccc-ppp3/canhys_backup")
+OUTPUT_TEXT_FILE = Path("/home/siy000/projects/loadprogs_python/out/canhys_sql_info_overlap/")
 
 def main():
 
-    st_info = pd.read_csv(constants.STATIONS_INFO_FILE, skiprows=2,
+    st_info = pd.read_csv(STATIONS_INFO_FILE, skiprows=2,
                                               usecols=(1,),
                                               names=["real"],
                                               header=0,
@@ -20,7 +24,7 @@ def main():
 
     st_info["real"] = st_info["real"].map(lambda x: x.zfill(5))
 
-    #print(st_info.head().to_string())
+    logger.debug(st_info.head().to_string())
     #print(st_info.dtypes)
 
     """
@@ -34,11 +38,11 @@ def main():
     4    00065
     """
 
-    translator = pd.read_csv(constants.STATION_ID_TRANSLATION_DICT, usecols=(1, 2, 3),
+    translator = pd.read_csv(STATION_ID_TRANSLATION_DICT, usecols=(1, 2, 3),
                                                           names=["canhys", "real", "station_name"],
                                                           sep="|").astype(str)
 
-    #print(translator.head().to_string())                                                          
+    logger.debug(translator.head().to_string())                                                          
     #print(translator.dtypes)                                        
 
     """
@@ -59,12 +63,12 @@ def main():
                                        .fillna(value=-1) \
                                        .reindex(columns=["canhys", "real", "station_name", "start_date", "end_date"]) \
                                        .astype({"start_date": "int32", "end_date": "int32"})
-    print(final_df)
+    #print(final_df)
 
     stations_checklist = set(canhys_real_ids_and_name["canhys"])
 
-    for sql_file in constants.CANHYS_SQL_DIR.iterdir():
-        print(f"file: {sql_file}")
+    for sql_file in CANHYS_SQL_DIR.iterdir():
+        logger.debug(f"processing file: {sql_file}")
         conn = sqlite3.connect(str(sql_file))
         cursor = conn.cursor()
 
@@ -80,15 +84,17 @@ def main():
                 #print(f"skipping {st_id}")
                 continue
 
-            foo = pd.read_sql(sql=f'''SELECT min(datetimeutc) FROM datavalue
-                                      WHERE siteid={st_id}
-                                      UNION ALL
-                                      SELECT max(datetimeutc) FROM datavalue
-                                      WHERE siteid=({st_id});''',
-                              con=conn,
-                              columns=["datetimeutc"]).rename(index={0:"start", 1:"end"}).to_dict(orient="dict")["min(datetimeutc)"]
+            query = pd.read_sql(sql=f'''SELECT min(datetimeutc) FROM datavalue
+                                        WHERE siteid={st_id}
+                                        UNION ALL
+                                        SELECT max(datetimeutc) FROM datavalue
+                                        WHERE siteid=({st_id});''',
+                                con=conn,
+                                columns=["datetimeutc"]).rename(index={0:"start", 1:"end"}).to_dict(orient="dict")["min(datetimeutc)"]
 
-            start, end = map(lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S"), foo.values())
+            logger.debug(query)
+
+            start, end = map(lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S"), query.values())
             row_selection = (final_df.canhys == st_id)
 
             df_start = final_df.loc[row_selection, "start_date"].iat[0]
@@ -106,6 +112,11 @@ def main():
 if __name__ == "__main__":
     import time
     t0 = time.perf_counter()
+
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     main()
     print(f"Execution time: {time.perf_counter() - t0}")
 
