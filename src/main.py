@@ -80,6 +80,10 @@ def main(config_path: Path = None):
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
     beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    if "dateend_obs" in config:
+        end_time_obs = datetime.strptime(config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    else:
+        end_time_obs = None
 
     mod_nomvar = "ETAS"
     if "mod_nomvar" in config:
