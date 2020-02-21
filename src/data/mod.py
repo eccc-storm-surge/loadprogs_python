@@ -184,7 +184,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
             data_files = [p for p in sorted(data_files, key=lambda ip: ip.name)]
 
             logger.debug(f"mod_data_path={mod_data_path}")
-            logger.debug(data_files)
+            # logger.debug(data_files)
 
             # get all data from a file in memory
             funit = rmn.fstopenall([str(data_file) for data_file in data_files])

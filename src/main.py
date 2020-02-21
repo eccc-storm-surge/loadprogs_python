@@ -159,6 +159,7 @@ def main(config_path: Path = None):
     stations = obs.load_station_data_from_dir(Path(config["obs_dir"]).expanduser(),
                                               config["station_info"],
                                               beg_time_obs=beg_time_obs,
+                                              end_time_obs=end_time_obs,
                                               do_filtering=obs_do_filtering)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
