@@ -184,6 +184,20 @@ class Station(object):
 
         self._data = self.data[self.data.index >= start_date]
 
+    def remove_data_after(self, end_date: datetime = None):
+        """
+        Remove data points for time after end_date
+        :param end_date:
+        :return:
+        """
+        if end_date is None or self.data is None:
+            return
+
+        self._data = self.data[self.data.index <= end_date]
+
+
+
+
     def __str__(self):
         return f"{self.name} ({self.station_id})"
 
@@ -275,11 +289,14 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
-                               do_filtering=False):
+def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = None,
+                               beg_time_obs: datetime = None,
+                               end_time_obs: datetime = None,
+                               do_filtering: bool = False):
     stations = []
 
-    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
+    st_info = pd.read_csv(station_info_path, skiprows=2, header=0,
+                          sep=r"\s+", converters={"NO": str})
 
     for inp_file in inp_dir.iterdir():
         if not inp_file.is_file():
@@ -314,6 +331,7 @@ def load_station_data_from_dir(inp_dir=Path("data"), station_info_path: Path = N
     # make sure that the obs time-series starts on the specified datetime
     for s in stations:
         s.remove_data_before(start_date=beg_time_obs)
+        s.remove_data_after(end_date=end_time_obs)
 
     # Make sure that there is enough obs data for de-tiding
     # stations = [s for s in stations if s.get_data_len_since(start_date=beg_time_obs) >= MIN_DATA_LEN_FOR_DETIDING]

@@ -5,7 +5,7 @@ from multiprocessing import Process
 import argparse
 
 
-debug = False
+debug = True
 
 if __name__ == '__main__':
     processes = []
@@ -13,10 +13,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--cfg_paths", nargs="+")
+    parser.add_argument("--debug", nargs="?", type=int, default=0)
 
     args = parser.parse_args()
 
     cfg_paths = args.cfg_paths
+    debug = args.debug == 1
 
     if debug:
         for cp in cfg_paths:
