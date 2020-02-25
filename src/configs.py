@@ -21,9 +21,30 @@ def parse_config_settings(config_path):
     #cparser.read_string(cparser_data)
     #cparser = cparser["top"]
 
-    obs_config = cparser["obs"]
     mod_config = cparser["mod"]
+    obs_config = cparser["obs"]
     misc_config = cparser["misc"]
+
+    ################ mod ##########################
+    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+
+    _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
+
+    _config.b2b_freq_hours=int(mod_config["b2b_freq_hours"])
+    _config.run_freq_hours=int(mod_config["run_freq_hours"])
+    _config.dt_texp_from_tbeg = timedelta(hours=mod_config.getint("dt_texp_from_tbeg_hours", fallback=0))
+
+    msg = f"back to back frequency should be less or equal to run_freq_hours, but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"
+    assert _config.b2b_freq_hours <= _config.run_freq_hours, msg
+
+    _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
+
+    _config.detide_mod = mod_config.getboolean("detide_mod", fallback=True)
+    _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
+    _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
+    _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=True)
+    #################################################
 
     ################# obs ########################
     _config.obs_datatype = obs_config["obs_datatype"]
@@ -40,33 +61,12 @@ def parse_config_settings(config_path):
     _config.obs_do_filtering = obs_config.get("obs_do_filtering", fallback=False)
     ##############################################
 
-    ################ mod ##########################
-    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-
-    _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
-
-    _config.b2b_freq_hours=int(mod_config["b2b_freq_hours"])
-    _config.run_freq_hours=int(mod_config["run_freq_hours"])
-
-    msg = f"back to back frequency should be less or equal to run_freq_hours, but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"
-    assert _config.b2b_freq_hours <= _config.run_freq_hours, msg
-
-    _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
-
-    _config.detide_mod = mod_config.getboolean("detide_mod", fallback=True)
-    _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
-    _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
-    _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=True)
-    #################################################
-
     ################# misc ##########################
     _config.label = misc_config["label"]
 
     #_config.dt_texp_from_tbeg = timedelta(hours=0)
     #if "dt_texp_from_tbeg_hours" in misc_config:
     #    _config.dt_texp_from_tbeg = timedelta(hours=int(misc_config["dt_texp_from_tbeg_hours"]))
-    _config.dt_texp_from_tbeg = timedelta(hours=misc_config.getint("dt_texp_from_tbeg_hours", fallback=0))
 
     _config.out_dir = Path(misc_config["prepared_for_scoring_dir"])
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
@@ -77,7 +77,7 @@ def parse_config_settings(config_path):
     ##################################################   
 
     for k, v in vars(_config).items():
-        logging.info(f"{k} => {v}, ({type(v)})")
+        print(f"{k} => {v}, ({type(v)})")
 
     return _config
 

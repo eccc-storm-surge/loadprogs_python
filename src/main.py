@@ -90,7 +90,6 @@ def main(config_path: Path = None):
     stations = obs.load_station_data_from_obs_dir(obs_config_ns)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
-
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info)
 
@@ -135,8 +134,8 @@ def main(config_path: Path = None):
             if config.plot_detiding_diag and config.detide_obs:
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
-                plot_ts_and_spectre(obs_data,
-                                    "{}_{}".format(config.label, s.station_id),
+                plot_ts_and_spectre(hourly_series=obs_data,
+                                    data_label="{}_{}".format(config.label, s.station_id),
                                     img_dir=config.out_dir,
                                     subplot_titles=None,
                                     raw_data=s.data["twl-mean"],
@@ -177,17 +176,51 @@ def main(config_path: Path = None):
                 mod_data_twl.set_index("time", inplace=True)
 
                 for c in mod_member_keys:
-                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
-                        mod_data_twl.loc[:, c].to_frame(), constituents=config.detide_mod_constituents)
+                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(), 
+                                                                                              constituents=config.detide_mod_constituents)
 
                     # remove longterm mean
                     mod_data.loc[:, c] -= mod_data_twl[c].mean()
                     ########
                     # detiding
+                    print(mod_data)
+                    print(mod_tides)
+                    print(mod_tides.reindex(index=mod_data["time"]))
                     mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
                     '''
                     KeyError: 'Passing list-likes to .loc or [] with any missing labels is no longer supported,
                     see https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#deprecate-loc-reindex-listlike'
+
+                    debug:
+                    >>> print(mod_data); print(mod_tides)
+
+                                               time  valid_hour station_id      mod_            date_of_origin
+                    0     2019-10-29 10:00:00+00:00          -2       2780 -0.038447 2019-10-29 12:00:00+00:00
+                    1     2019-10-29 11:00:00+00:00          -1       2780 -0.031911 2019-10-29 12:00:00+00:00
+                    2     2019-10-29 12:00:00+00:00           0       2780 -0.026304 2019-10-29 12:00:00+00:00
+                    3     2019-10-29 13:00:00+00:00           1       2780 -0.026481 2019-10-29 12:00:00+00:00
+                    4     2019-10-29 14:00:00+00:00           2       2780 -0.026078 2019-10-29 12:00:00+00:00
+                    ...                         ...         ...        ...       ...                       ...
+                    77512 2019-12-04 20:00:00+00:00         236       2780  0.095017 2019-11-25 00:00:00+00:00
+                    77513 2019-12-04 21:00:00+00:00         237       2780  0.077520 2019-11-25 00:00:00+00:00
+                    77514 2019-12-04 22:00:00+00:00         238       2780  0.068755 2019-11-25 00:00:00+00:00
+                    77515 2019-12-04 23:00:00+00:00         239       2780  0.067034 2019-11-25 00:00:00+00:00
+                    77516 2019-12-05 00:00:00+00:00         240       2780  0.063833 2019-11-25 00:00:00+00:00
+                    [13122 rows x 5 columns]
+
+                    time
+                    2019-10-29 13:00:00+00:00    0.129150
+                    2019-10-29 14:00:00+00:00    0.111618
+                    2019-10-29 15:00:00+00:00    0.104145
+                    2019-10-29 16:00:00+00:00    0.102295
+                    2019-10-29 17:00:00+00:00    0.095134
+                                                ...   
+                    2019-11-25 08:00:00+00:00    0.155723
+                    2019-11-25 09:00:00+00:00    0.159498
+                    2019-11-25 10:00:00+00:00    0.163116
+                    2019-11-25 11:00:00+00:00    0.151977
+                    2019-11-25 12:00:00+00:00    0.131268
+                    Name: tides, Length: 648, dtype: float64
                     '''
                     ########
                     # filtering
@@ -233,8 +266,7 @@ def main(config_path: Path = None):
             # select only runs run_freq_hours apart (usually it is 36h)
             mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
 
-            rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (
-                len(mod_data)) ** 0.5
+            rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
             logger.debug(f"rmse({s.station_id})={rmse}")
 
             logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
