@@ -182,7 +182,6 @@ class Station(object):
 
         self._data = self.data[self.data.index <= end_date]
         return self
-
     def __str__(self):
         return f"{self.name} ({self.station_id})"
 
@@ -370,6 +369,8 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     return real_ids_to_dfs
 
+                                   beg_time_obs: datetime = None,
+                                   end_time_obs: datetime = None,
 
 def load_station_data_from_txt_dir(station_records, config):
 
