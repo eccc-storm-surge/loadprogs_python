@@ -137,6 +137,17 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
     return df
 
 
+def prepare_mod_sql_data(mod_data, mod_members, stn):
+
+    df = mod_data.copy()
+    df = df.assign(lat=stn.latitude, lon=stn.longitude)
+    df = df.rename(columns={f"{stn.station_id}_obs": "obs"}) \
+           .reindex(columns=["valid_hour", "station_id", "lat", "lon", "time", "obs", *mod_members]) \
+           .sort_values(by="time")
+    
+    return df
+
+
 def get_mod_timeseries(stations, mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",

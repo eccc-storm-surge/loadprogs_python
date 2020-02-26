@@ -78,10 +78,9 @@ def main(config_path: Path = None):
     else:
         config.out_dir.mkdir(exist_ok=True, parents=True)
 
-    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
+    # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
-
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
@@ -102,7 +101,6 @@ def main(config_path: Path = None):
                                           run_freq_hours=config.b2b_freq_hours,
                                           dt_texp_from_tbeg=config.dt_texp_from_tbeg)
 
-
     origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=config.run_freq_hours))
     if len(model_points) == 0:
         msg = f"Could not find {config.mod_nomvar} in {config.mod_dir}, please check your data or load_progs config file.."
@@ -122,8 +120,10 @@ def main(config_path: Path = None):
         for s in stations:
             logger.debug(f"{s.station_id}, {type(s.station_id)}")
 
+            # get model data for corresponding station
             mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
+            # detide observation data if specified in config file
             if config.detide_obs:
                 obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
             else:
@@ -131,18 +131,21 @@ def main(config_path: Path = None):
                 obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
             # diags for detiding
-            if config.plot_detiding_diag and config.detide_obs:
+            if config.plot_detiding_diag:
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
-                plot_ts_and_spectre(hourly_series=obs_data,
-                                    data_label="{}_{}".format(config.label, s.station_id),
-                                    img_dir=config.out_dir,
-                                    subplot_titles=None,
-                                    raw_data=s.data["twl-mean"],
-                                    tides=s.data["tides"],
-                                    sup_title=f"OBS : {s.name} ({s.station_id})")
+                if config.detide_obs:
+                    # Create time series and power spectrum plots for observational data
+                    plot_ts_and_spectre(hourly_series=obs_data,
+                                        data_label="{}_{}".format(config.label, s.station_id),
+                                        img_dir=config.out_dir,
+                                        subplot_titles=None,
+                                        raw_data=s.data["twl-mean"],
+                                        tides=s.data["tides"],
+                                        sup_title=f"OBS : {s.name} ({s.station_id})")
 
-                s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
+                    # Create tidal constituents csv file for observational data
+                    s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
 
             # deprecated
             # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
@@ -181,47 +184,8 @@ def main(config_path: Path = None):
 
                     # remove longterm mean
                     mod_data.loc[:, c] -= mod_data_twl[c].mean()
-                    ########
                     # detiding
-                    print(mod_data)
-                    print(mod_tides)
                     mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
-                    '''
-                    KeyError: 'Passing list-likes to .loc or [] with any missing labels is no longer supported,
-                    see https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#deprecate-loc-reindex-listlike'
-
-                    debug:
-                    >>> print(mod_data); print(mod_tides)
-
-                                               time  valid_hour station_id      mod_            date_of_origin
-                    0     2019-10-29 10:00:00+00:00           1       2780 -0.037663 2019-10-29 09:00:00+00:00
-                    1     2019-10-29 11:00:00+00:00           2       2780 -0.031126 2019-10-29 09:00:00+00:00
-                    2     2019-10-29 12:00:00+00:00           3       2780 -0.025520 2019-10-29 09:00:00+00:00
-                    3     2019-10-29 13:00:00+00:00           4       2780 -0.025696 2019-10-29 09:00:00+00:00
-                    4     2019-10-29 14:00:00+00:00           5       2780 -0.025294 2019-10-29 09:00:00+00:00
-                    ...                         ...         ...        ...       ...                       ...
-                    77512 2019-12-04 20:00:00+00:00         239       2780  0.095802 2019-11-24 21:00:00+00:00
-                    77513 2019-12-04 21:00:00+00:00         240       2780  0.078305 2019-11-24 21:00:00+00:00
-                    77514 2019-12-04 22:00:00+00:00         241       2780  0.069540 2019-11-24 21:00:00+00:00
-                    77515 2019-12-04 23:00:00+00:00         242       2780  0.067818 2019-11-24 21:00:00+00:00
-                    77516 2019-12-05 00:00:00+00:00         243       2780  0.064618 2019-11-24 21:00:00+00:00
-
-                    [13122 rows x 5 columns]
-                    time
-                    2019-10-29 10:00:00+00:00    0.097392
-                    2019-10-29 11:00:00+00:00    0.079210
-                    2019-10-29 12:00:00+00:00    0.078266
-                    2019-10-29 13:00:00+00:00    0.088041
-                    2019-10-29 14:00:00+00:00    0.094061
-                                                ...   
-                    2019-11-25 05:00:00+00:00    0.150486
-                    2019-11-25 06:00:00+00:00    0.150948
-                    2019-11-25 07:00:00+00:00    0.139408
-                    2019-11-25 08:00:00+00:00    0.113763
-                    2019-11-25 09:00:00+00:00    0.090808
-                    Name: tides, Length: 648, dtype: float64
-                    '''
-                    ########
                     # filtering
                     if config.mod_do_filtering:
                         mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
@@ -280,10 +244,12 @@ def main(config_path: Path = None):
                 )
                 fout.write(line)
 
+            ######## Sam's changes for write table in sql function #############
             if config.output_sql:
-                mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
-                conn = sqlite3.connect(config.out_dir / ("surge_" + config.label + ".sqlite"))
-                mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
+                sql_out_dir = config.out_dir / ("surge_" + config.label + ".sqlite")
+                mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
+                conn = sqlite3.connect(sql_out_dir)
+                mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists='append')
 
     logger.info(f"Finished processing {config_path} .")
 

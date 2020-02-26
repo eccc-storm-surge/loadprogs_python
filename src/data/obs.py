@@ -368,6 +368,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
     return real_ids_to_dfs
+        stn.remove_data_after(end_date=end_time_obs)
 
                                    beg_time_obs: datetime = None,
                                    end_time_obs: datetime = None,
