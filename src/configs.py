@@ -40,7 +40,7 @@ def parse_config_settings(config_path):
 
     _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
 
-    _config.detide_mod = mod_config.getboolean("detide_mod", fallback=True)
+    _config.detide_mod = mod_config.getboolean("detide_mod", fallback=False)
     _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
     _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
     _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=True)

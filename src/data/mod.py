@@ -171,8 +171,6 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
 
     exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
-    print(exp_t_list)
-    quit()
     # logger.debug(
     #     exp_t_list
     # )
