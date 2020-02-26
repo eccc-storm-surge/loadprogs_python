@@ -126,15 +126,11 @@ def main(config_path: Path = None):
             # detide observation data if specified in config file
             if config.detide_obs:
                 obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
-            else:
-                # still remove the long-term mean
-                obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
-            # diags for detiding
-            if config.plot_detiding_diag:
-                msg = f"plotting timeseries for {s.station_id}"
-                logging.info(msg)
-                if config.detide_obs:
+                # diags for detiding
+                if config.plot_detiding_diag:
+                    msg = f"plotting timeseries for {s.station_id}"
+                    logging.info(msg)
                     # Create time series and power spectrum plots for observational data
                     plot_ts_and_spectre(hourly_series=obs_data,
                                         data_label="{}_{}".format(config.label, s.station_id),
@@ -146,6 +142,10 @@ def main(config_path: Path = None):
 
                     # Create tidal constituents csv file for observational data
                     s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
+
+            else:
+                # still remove the long-term mean
+                obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
             # deprecated
             # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
@@ -208,7 +208,6 @@ def main(config_path: Path = None):
 
             # align model and observation timeseries in time
             mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-
             mod_data.dropna(inplace=True)
 
             if config.remove_anal_period_mean:
