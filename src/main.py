@@ -45,7 +45,7 @@ from data import mod
 from data.obs import Station
 from util.plot_ts_and_spectre import plot_ts_and_spectre
 
-from configs import parse_config_settings
+from util.configs import parse_config_settings
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -166,17 +166,8 @@ def main(config_path: Path = None):
 
             # detide model time series if requested
             if config.detide_mod:
-                logger.info("Detiding model outputs.")
-                assert not any(mod_data["time"].isna())
 
-                # for b2b operations
-                select_crit = mod_data["valid_hour"] <= config.b2b_freq_hours
-                select_crit = select_crit & (mod_data["valid_hour"] > 0) # remove t=0
-                mod_data_twl = mod_data.loc[select_crit, :]
-                mod_data_twl.sort_values("time", inplace=True)
-                logger.debug(mod_data_twl.head())
-
-                mod_data_twl.set_index("time", inplace=True)
+                mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
                 for c in mod_member_keys:
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(), 
@@ -189,20 +180,20 @@ def main(config_path: Path = None):
                     # filtering
                     if config.mod_do_filtering:
                         mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
-
+                    
                     # diags for detiding
                     if config.plot_detiding_diag:
                         msg = f"plotting timeseries for mod at {s.station_id}"
                         logging.info(msg)
-
-                        plot_ts_and_spectre(
-                            mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index] -
-                            mod_to_filter.loc[mod_data_twl.index],
-                            "mod_{}_{}".format(config.label, s.station_id),
-                            img_dir=config.out_dir,
-                            subplot_titles=None,
-                            raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
-                            tides=mod_tides, sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
+                                         
+                        plot_ts_and_spectre(hourly_series=mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
+                                                          - mod_to_filter.loc[mod_data_twl.index],
+                                            data_label="mod_{}_{}".format(config.label, s.station_id),
+                                            img_dir=config.out_dir,
+                                            subplot_titles=None,
+                                            raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
+                                            tides=mod_tides,
+                                            sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
 
                         mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
 
@@ -211,19 +202,7 @@ def main(config_path: Path = None):
             mod_data.dropna(inplace=True)
 
             if config.remove_anal_period_mean:
-                tmean = mod_data.loc[(mod_data["valid_hour"] <= config.b2b_freq_hours) & (mod_data["valid_hour"] > 0), f"{s.station_id}_obs"].mean()
-                mod_data.loc[:, f"{s.station_id}_obs"] -= tmean
-
-                logger.debug(f"tmean({s.station_id})={tmean}")
-
-                # mean to be removed from each member calculated based on the control member, which is assumed
-                # to be the first in the list
-
-                where_cond = (mod_data["valid_hour"] <= config.b2b_freq_hours) & (mod_data["valid_hour"] > 0)
-                tmean = mod_data.loc[where_cond, mod_member_keys[0]].mean()
-
-                for cn in mod_member_keys:
-                    mod_data.loc[:, cn] -= tmean  # remove long time mean only of the control member
+                mod_data = mod.remove_analysis_period_mean(mod_data, station=s, mod_member_keys=mod_member_keys, config=config)
 
             # select only runs run_freq_hours apart (usually it is 36h)
             mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
@@ -243,7 +222,6 @@ def main(config_path: Path = None):
                 )
                 fout.write(line)
 
-            ######## Sam's changes for write table in sql function #############
             if config.output_sql:
                 sql_out_dir = config.out_dir / ("surge_" + config.label + ".sqlite")
                 mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)

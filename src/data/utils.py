@@ -1,3 +1,4 @@
+# Utility functions for model/observation time series
 
 import pandas as pd
 import numpy as np
