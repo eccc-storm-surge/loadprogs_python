@@ -1,0 +1,94 @@
+import configparser
+import logging
+
+from argparse import Namespace
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+def parse_config_settings(config_path):
+
+    logging.info(f"Processing {config_path} ...")
+
+    if config_path is None:
+        config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
+
+    _config = Namespace()
+
+    cparser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"), interpolation=configparser.ExtendedInterpolation())
+    cparser.read(config_path)
+
+    #cparser_data = "[top]\n" + config_path.open().read()
+    #cparser.read_string(cparser_data)
+    #cparser = cparser["top"]
+
+    mod_config = cparser["mod"]
+    obs_config = cparser["obs"]
+    misc_config = cparser["misc"]
+
+    ################ mod ##########################
+    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+
+    _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
+
+    _config.b2b_freq_hours=int(mod_config["b2b_freq_hours"])
+    _config.run_freq_hours=int(mod_config["run_freq_hours"])
+    _config.dt_texp_from_tbeg = timedelta(hours=mod_config.getint("dt_texp_from_tbeg_hours", fallback=0))
+
+    msg = f"back to back frequency should be less or equal to run_freq_hours, but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"
+    assert _config.b2b_freq_hours <= _config.run_freq_hours, msg
+
+    _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
+
+    _config.detide_mod = mod_config.getboolean("detide_mod", fallback=False)
+    _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
+    _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
+    _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=True)
+    #################################################
+
+    ################# obs ########################
+    _config.obs_datatype = obs_config["obs_datatype"]
+
+    _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+
+    _config.station_info = Path(obs_config["station_info"])
+    _config.txt_obs_dir = Path(obs_config["txt_obs_dir"])
+    _config.canhys_sql_dir = Path(obs_config["canhys_sql_dir"])
+    _config.canhys_translator = Path(obs_config["canhys_station_id_translation_dict"])
+
+    _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
+    _config.obs_do_filtering = obs_config.get("obs_do_filtering", fallback=False)
+    ##############################################
+
+    ################# misc ##########################
+    _config.label = misc_config["label"]
+
+    #_config.dt_texp_from_tbeg = timedelta(hours=0)
+    #if "dt_texp_from_tbeg_hours" in misc_config:
+    #    _config.dt_texp_from_tbeg = timedelta(hours=int(misc_config["dt_texp_from_tbeg_hours"]))
+
+    _config.out_dir = Path(misc_config["prepared_for_scoring_dir"])
+    _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
+    _config.output_sql = misc_config.getboolean("output_sql", False)
+
+    _config.n_members = misc_config.getint("n_members", fallback=0)
+    _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
+    ##################################################   
+
+    for k, v in vars(_config).items():
+        print(f"{k} => {v}, ({type(v)})")
+
+    return _config
+
+
+if __name__ == "__main__":
+    import time
+    t0 = time.perf_counter()
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # debug code for running module directly
+    parse_config_settings(config_path=Path("/home/siy000/projects/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160_test.cfg"))
+    print(f"Execution time: {time.perf_counter() - t0} seconds.")
