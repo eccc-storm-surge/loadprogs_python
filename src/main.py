@@ -172,7 +172,6 @@ def main(config_path: Path = None):
                 for c in mod_member_keys:
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(), 
                                                                                               constituents=config.detide_mod_constituents)
-
                     # remove longterm mean
                     mod_data.loc[:, c] -= mod_data_twl[c].mean()
                     # detiding

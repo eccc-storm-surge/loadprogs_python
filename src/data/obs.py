@@ -27,7 +27,7 @@ def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
     s = Station()
 
     s.data = data_
-    s.get_detided_series(do_filtering=do_filtering, constiuents=constituents)
+    s.get_detided_series(do_filtering=do_filtering, constituents=constituents)
 
     return s.data["tides"], s.data["filtered"], s.ttidecon
 
@@ -205,12 +205,12 @@ class Station(object):
     def get_twl_data_vector(self):
         return self.data["twl"].values.copy()
 
-    def get_detided_series(self, do_filtering=True, constiuents=None):
+    def get_detided_series(self, do_filtering=True, constituents=None):
         key = "detided"
         if key in self.data and do_filtering == self.do_filtering:
             return self.data[key]
 
-        self._detide(do_filtering=do_filtering, constituents=constiuents)
+        self._detide(do_filtering=do_filtering, constituents=constituents)
         self.do_filtering = do_filtering
         return self.data[key]
 
