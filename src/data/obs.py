@@ -307,16 +307,17 @@ class Station(object):
         self.data["filtered"] = filtered_part
     
 
-def load_station_data_from_obs_dir():
-    pass
+def load_station_data_from_obs_dir(config):
+
+    func_pointers = {"txt": load_station_data_from_txt_dir,
+                     "sqlite": load_station_data_from_canhys_dir}
+
+    return func_pointers[config.obs_datatype](config)
 
 
-def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, translator_path: Path = None,
-                                      beg_time_obs: datetime = None,
-                                      end_time_obs: datetime = None,
-                                      do_filtering=False):
+def load_station_data_from_canhys_dir(config):
 
-    st_info = pd.read_csv(station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
+    st_info = pd.read_csv(config.station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
     st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
 
     st_info_recs = {}
@@ -333,7 +334,7 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
     4          Sept-Iles QC    02780  50.158207  293.627502  ......    293.627502
     '''
 
-    translator = pd.read_csv(translator_path, usecols=(1, 2), 
+    translator = pd.read_csv(config.translator_path, usecols=(1, 2), 
                                               names=["canhys", "real"],
                                               sep="|").astype(str)
 
@@ -350,7 +351,7 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
     station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in st_info["NO"]}
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
-    for sql_file in sql_inp_dir.iterdir():
+    for sql_file in config.sql_inp_dir.iterdir():
         logger.debug(f"processing file: {sql_file}")
         if not sql_file.is_file():
             continue
@@ -364,7 +365,7 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
             logger.debug(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
-        if beg_time_obs <= record_date and record_date <= end_time_obs:
+        if config.beg_time_obs <= record_date and record_date <= config.end_time_obs:
             conn = sqlite3.connect(sql_file)
             cursor = conn.cursor()
 
@@ -389,26 +390,26 @@ def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_pat
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
-    stations = [Station(do_filtering=do_filtering,
+    stations = [Station(do_filtering=config.do_filtering,
                         station_info=st_info_recs[station_id],
                         obs_datatype="sql",
                         precalculated_df=real_ids_to_dfs[station_id]) for station_id in st_info_recs]
 
-    for stn in stations:
-        stn.remove_data_before(beg_time_obs)
-
+    for s in stations:
+        s.remove_data_before(config.beg_time_obs)
+        s.remove_data_after(config.end_time_obs)
+        
     return stations
 
         
-def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: Path = None, beg_time_obs: datetime = None,
-                                   do_filtering=False):
+def load_station_data_from_txt_dir(config):
 
     stations = []
 
-    st_info = pd.read_csv(station_info_path, skiprows=2, header=0,
+    st_info = pd.read_csv(config.station_info_path, skiprows=2, header=0,
                           sep=r"\s+", converters={"NO": str})
 
-    for inp_file in txt_inp_dir.iterdir():
+    for inp_file in config.txt_inp_dir.iterdir():
         if not inp_file.is_file():
             continue
 
@@ -425,12 +426,12 @@ def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: 
             st_info_rec["lat"] = row["LAT"]
 
         if not any(where):
-            logger.info(f"{station_id} is not found in the {station_info_path} file.")
+            logger.info(f"{station_id} is not found in the {config.station_info_path} file.")
             continue
 
         logger.debug(f"station_info_rec={st_info_rec}")
 
-        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=do_filtering, obs_datatype="txt")
+        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=config.do_filtering, obs_datatype="txt")
 
         # skip stations with no data
         if s.get_data_len_since() > 0:
@@ -439,9 +440,9 @@ def load_station_data_from_txt_dir(txt_inp_dir=Path("data"), station_info_path: 
             logger.debug(f"No data for {s.station_id}, skipping ...")
 
     # make sure that the obs time-series starts on the specified datetime
-    for stn in stations:
-        stn.remove_data_before(start_date=beg_time_obs)
-        s.remove_data_after(end_date=end_time_obs)
+    for s in stations:
+        s.remove_data_before(start_date=config.beg_time_obs)
+        s.remove_data_after(end_date=config.end_time_obs)
 
     # Make sure that there is enough obs data for de-tiding
     # stations = [s for s in stations if s.get_data_len_since(start_date=beg_time_obs) >= MIN_DATA_LEN_FOR_DETIDING]
