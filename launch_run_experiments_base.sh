@@ -4,7 +4,7 @@ DEPS_SIY=~siy000/projects/
 #Use Sasha's python path
 . /fs/homeu1/eccc/cmd/cmde/olh001/.profile_python3_test
 
-RDSPS_160_CONFIG_FILE="${DEPS_SIY}/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"
+RDSPS_160_CONFIG_FILE="${DEPS_SIY}/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160_test.cfg"
 RDSPS_170_CONFIG_FILE="${DEPS_SIY}/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_par_170.cfg"
 
 export PYTHONPATH=${DEPS_SIY}/loadprogs_python/src:${PYTHONPATH}
