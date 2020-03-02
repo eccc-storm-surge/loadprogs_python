@@ -5,6 +5,16 @@ Port of the loadprogs_base.ksh (the one that was using MATLAB before) to the Pyt
 
 using the T_tide port to Python from here: https://github.com/moflaher/ttide_py.git
 
+
+Usage
+=========
+To load the scripts and modules into your environment:
+
+```
+. ssmuse-sh -d ~sssm001/ssm/loadprogs/1.0.0
+```
+
+
 Notes
 =====
 
