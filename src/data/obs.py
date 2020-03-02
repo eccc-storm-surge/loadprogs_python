@@ -145,6 +145,8 @@ class Station(object):
         self.data = df
         ###############################################################
 
+    def assign_data(self, df):
+        pass
 
     def drop_all_except_longest_year(self):
         """
@@ -213,9 +215,6 @@ class Station(object):
             return
 
         self._data = self.data[self.data.index <= end_date]
-
-
-
 
     def __str__(self):
         return f"{self.name} ({self.station_id})"
@@ -306,6 +305,10 @@ class Station(object):
         self.ttidecon = con
 
         self.data["filtered"] = filtered_part
+    
+
+def load_station_data_from_obs_dir():
+    pass
 
 
 def load_station_data_from_canhys_dir(sql_inp_dir=Path("data"), station_info_path: Path = None, translator_path: Path = None,
