@@ -8,14 +8,6 @@ RDSPS_170_CONFIG_FILE="${DEPS_SIY}/loadprogs_python/configs/rdsps/migration_2019
 
 export PYTHONPATH=${DEPS_SIY}/loadprogs_python/src:${PYTHONPATH}
 
-# For debugging
-python ${DEPS_SIY}/loadprogs_python/src/main.py
-
-# The main experiment
-#python ${DEPS_SIY}/loadprogs_python/src/experiments/run_experiments_base.py \
-#--cfg_paths ${RDSPS_160_CONFIG_FILE} ${RDSPS_170_CONFIG_FILE} \
-#--debug
-
-# Diagnostic script for CanHys SQL feed
-#python ${DEPS_SIY}/loadprogs_python/src/util/canhys_feed_diag.py \
-#	--debug
+python ${DEPS_SIY}/loadprogs_python/src/experiments/run_experiments_base.py \
+--cfg_paths ${RDSPS_160_CONFIG_FILE} ${RDSPS_170_CONFIG_FILE} \
+--debug
