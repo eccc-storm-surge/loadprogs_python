@@ -52,7 +52,7 @@ class Station(object):
             if "time" in self._data:
                 logger.debug("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
-            
+
             logger.debug(self._data.head())
 
             # all times are in UTC
@@ -83,7 +83,7 @@ class Station(object):
             #print(self._data)
             #quit()
 
-    def __init__(self, data_file=None, do_filtering=False, station_info=None, obs_datatype: str = "txt", **kwargs):
+    def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
         self.data_file = data_file
 
@@ -96,6 +96,7 @@ class Station(object):
         # do filtering after de-tiding ? (Butterworth)
         self.do_filtering = do_filtering
 
+        # Fallback if station record is not supplied
         if station_info is None:
             if data_file is not None:
                 self._parse_header(data_file)
@@ -108,45 +109,8 @@ class Station(object):
 
         self.ttidecon = None
 
-        ############################################################
-        # parse the data file, if provided
-        if data_file is not None:
-
-            # try parsing prepared data, if does not work, then try raw station data parser
-            if obs_datatype == "txt":
-                try:
-                    df = pd.read_csv(data_file, header=None, sep=r"\s+")
-                    logger.debug(df.head())
-
-                    df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
-
-                    df.rename({5: "twl"}, inplace=True, axis="columns")
-                    df = df.loc[:, ["time", "twl"]]
-
-                except ValueError:
-                    df = pd.read_csv(data_file,
-                                     converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
-                                     header=None,
-                                     skiprows=8,
-                                     names=["time", "twl"],
-                                     usecols=[0, 1])
-
-        elif obs_datatype == "sql":
-            try:
-                df = kwargs["precalculated_df"]
-                #print("Before frequency conversion")
-                #print(df)
-            except KeyError:
-                df = None
-
-        else:
-            df = None
-
-        self.data = df
-        ###############################################################
-
     def assign_data(self, df):
-        pass
+        self.data = df
 
     def drop_all_except_longest_year(self):
         """
@@ -305,24 +269,14 @@ class Station(object):
         self.ttidecon = con
 
         self.data["filtered"] = filtered_part
-    
+
 
 def load_station_data_from_obs_dir(config):
 
-    func_pointers = {"txt": load_station_data_from_txt_dir,
+    loading_funcs = {"txt": load_station_data_from_txt_dir,
                      "sqlite": load_station_data_from_canhys_dir}
 
-    return func_pointers[config.obs_datatype](config)
-
-
-def load_station_data_from_canhys_dir(config):
-
-    st_info = pd.read_csv(config.station_info_path, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
-    st_info["NO"] = st_info["NO"].map(lambda x: x.zfill(5))
-
-    st_info_recs = {}
-    for row_index, row in st_info.iterrows():
-        st_info_recs[row["NO"]] = {"name": row["ID"], "id": row["NO"], "lon": row["LON"], "lat": row["LAT"]}
+    st_info = pd.read_csv(config.station_info, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
 
     '''
     >>> print(st_info.head(5).to_string())
@@ -334,7 +288,34 @@ def load_station_data_from_canhys_dir(config):
     4          Sept-Iles QC    02780  50.158207  293.627502  ......    293.627502
     '''
 
-    translator = pd.read_csv(config.translator_path, usecols=(1, 2), 
+    st_info_recs = {}
+    for row_index, row in st_info.iterrows():
+        st_info_recs[row["NO"]] = {"name": row["ID"], "id": row["NO"], "lon": row["LON"], "lat": row["LAT"]}
+
+    obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
+    print(obs_st_ids_to_data)
+    print(config.beg_time_obs)
+    print(config.end_time_obs)
+    quit()
+
+    # initialize list of stations without data added yet
+    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
+                for st_id in st_info_recs
+                if st_id in obs_st_ids_to_data]
+
+    for s in stations:
+        s.assign_data(obs_st_ids_to_data[s.station_id])
+        #s.remove_data_before(config.beg_time_obs)
+        #s.remove_data_after(config.end_time_obs)
+
+    return stations
+
+
+def load_station_data_from_canhys_dir(station_records, config):
+
+    #station_records["id"] = None
+
+    translator = pd.read_csv(config.translator_path, usecols=(1, 2),
                                               names=["canhys", "real"],
                                               sep="|").astype(str)
 
@@ -348,17 +329,17 @@ def load_station_data_from_canhys_dir(config):
     4  10012  05AA028
     '''
 
-    station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in st_info["NO"]}
+    station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in station_records}
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
     for sql_file in config.sql_inp_dir.iterdir():
         logger.debug(f"processing file: {sql_file}")
         if not sql_file.is_file():
             continue
-        
+
         if not sql_file.name.endswith("sql"):
             continue
-        
+
         try:
             record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
@@ -377,7 +358,7 @@ def load_station_data_from_canhys_dir(config):
             for canhys_id in canhys_ids_to_dfs:
                 st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
                 canhys_ids_to_dfs[canhys_id] += [st_data]
-        
+
         else:
             logger.debug(f"Date of {sql_file.name} not within range defined in config, skipping..")
 
@@ -386,68 +367,49 @@ def load_station_data_from_canhys_dir(config):
                                                                                      .reset_index(drop=True) \
                                                                                      .sort_values(by="datetimeutc") \
                                                                                      .rename(columns={"datetimeutc": "time", "datavalue": "twl"}) for c_id in canhys_ids_to_dfs}
-    
+
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
-    stations = [Station(do_filtering=config.do_filtering,
-                        station_info=st_info_recs[station_id],
-                        obs_datatype="sql",
-                        precalculated_df=real_ids_to_dfs[station_id]) for station_id in st_info_recs]
+    return real_ids_to_dfs
 
-    for s in stations:
-        s.remove_data_before(config.beg_time_obs)
-        s.remove_data_after(config.end_time_obs)
-        
-    return stations
 
-        
-def load_station_data_from_txt_dir(config):
+def load_station_data_from_txt_dir(station_records, config):
 
-    stations = []
+    real_ids_to_dfs = {}
 
-    st_info = pd.read_csv(config.station_info_path, skiprows=2, header=0,
-                          sep=r"\s+", converters={"NO": str})
-
-    for inp_file in config.txt_inp_dir.iterdir():
+    for inp_file in config.obs_dir.iterdir():
         if not inp_file.is_file():
             continue
 
         if not inp_file.name.endswith(".dat"):
             continue
 
-        station_id = inp_file.name[1:-4]
-        st_info_rec = {"id": station_id}
+        inp_file_st_id = inp_file.name[1:-4]
 
-        where = st_info["NO"] == station_id
-        for row_index, row in st_info[where].iterrows():
-            st_info_rec["name"] = row["ID"]
-            st_info_rec["lon"] = row["LON"]
-            st_info_rec["lat"] = row["LAT"]
+        if inp_file_st_id not in station_records:
+            logger.info(f"{inp_file_st_id} is not found in {config.station_info} file.")
 
-        if not any(where):
-            logger.info(f"{station_id} is not found in the {config.station_info_path} file.")
-            continue
+        try:
+            df = pd.read_csv(inp_file, header=None, sep=r"\s+")
+            logger.debug(df.head())
 
-        logger.debug(f"station_info_rec={st_info_rec}")
+            df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
-        s = Station(data_file=inp_file, station_info=st_info_rec, do_filtering=config.do_filtering, obs_datatype="txt")
+            df.rename({5: "twl"}, inplace=True, axis="columns")
+            df = df.loc[:, ["time", "twl"]]
 
-        # skip stations with no data
-        if s.get_data_len_since() > 0:
-            stations.append(s)
-        else:
-            logger.debug(f"No data for {s.station_id}, skipping ...")
+        except ValueError:
+            df = pd.read_csv(inp_file,
+                             converters={0: lambda f: datetime.strptime(f, "%Y/%m/%d %H:%M")},
+                             header=None,
+                             skiprows=8,
+                             names=["time", "twl"],
+                             usecols=[0, 1])
 
-    # make sure that the obs time-series starts on the specified datetime
-    for s in stations:
-        s.remove_data_before(start_date=config.beg_time_obs)
-        s.remove_data_after(end_date=config.end_time_obs)
+        real_ids_to_dfs[inp_file_st_id] = df
 
-    # Make sure that there is enough obs data for de-tiding
-    # stations = [s for s in stations if s.get_data_len_since(start_date=beg_time_obs) >= MIN_DATA_LEN_FOR_DETIDING]
-
-    return stations
+    return real_ids_to_dfs
 
 
 if __name__ == "__main__":

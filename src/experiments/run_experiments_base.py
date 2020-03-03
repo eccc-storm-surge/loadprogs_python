@@ -35,4 +35,3 @@ if __name__ == '__main__':
         p.start()
 
     logger.info(f"Execution time: {time.perf_counter() - t0}")
-

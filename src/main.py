@@ -80,14 +80,27 @@ def main(config_path: Path = None):
     config.read_string(config_data)
     config = config["top"]
 
+    obs_config_ns = argparse.Namespace()
+
+    obs_config_ns.obs_dir = Path(config["obs_dir"])
+    obs_config_ns.station_info = Path(config["station_info"])
+
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    obs_config_ns.beg_time = beg_time
+
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    obs_config_ns.end_time = end_time
 
     beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    obs_config_ns.beg_time_obs = beg_time_obs
+
     if "dateend_obs" in config:
         end_time_obs = datetime.strptime(config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    elif end_time:
+        end_time_obs = end_time
     else:
         end_time_obs = None
+    obs_config_ns.end_time_obs = end_time_obs
 
     mod_nomvar = "ETAS"
     if "mod_nomvar" in config:
@@ -108,37 +121,35 @@ def main(config_path: Path = None):
     detide_obs = True
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
+    obs_config_ns.detide_obs = detide_obs
 
     # whether to detide model timeseries
     detide_mod = False
     if "detide_mod" in config:
         detide_mod = int(config["detide_mod"]) == 1
+    obs_config_ns.detide_mod = detide_mod
 
     detide_mod_constituents = None
     if detide_mod:
         if "detide_mod_constituents" in config:
             detide_mod_constituents = config["detide_mod_constituents"].split(",")
+    obs_config_ns.detide_mod_constituents = detide_mod_constituents
 
     dt_texp_from_tbeg = timedelta(hours=0)
     if "dt_texp_from_tbeg_hours" in config:
         dt_texp_from_tbeg = timedelta(hours=int(config["dt_texp_from_tbeg_hours"]))
+    obs_config_ns.dt_texp_from_tbeg = dt_texp_from_tbeg
 
     out_dir = Path(config["prepared_for_scoring_dir"])
 
-    #### for debugging --Sam
-    if out_dir.exists():
-        make_new = True
-        if make_new:
-            shutil.rmtree(out_dir)
-    ###################
-
     out_dir.mkdir(exist_ok=True, parents=True)
-    
+
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
 
     output_sql = False
     if "output_sql" in config:
         output_sql = (int(config["output_sql"]) == 1)
+    obs_config_ns.output_sql = output_sql
 
     # do nothing if the output file already exists
     if out_file.exists():
@@ -150,18 +161,22 @@ def main(config_path: Path = None):
     plot_detiding_diag = True
     if "plot_detiding_diag" in config:
         plot_detiding_diag = config["plot_detiding_diag"].strip() != "0"
+    obs_config_ns.plot_detiding_diag = plot_detiding_diag
 
     remove_anal_period_mean = True
     if "remove_anal_period_mean" in config:
         remove_anal_period_mean = int(config["remove_anal_period_mean"])
+    obs_config_ns.remove_anal_period_mean = remove_anal_period_mean
 
     obs_do_filtering = False
     if "detide_obs_filtering" in config:
         obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
+    obs_config_ns.obs_do_filtering = obs_do_filtering
 
     mod_do_filtering = False
     if "detide_mod_filtering" in config:
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
+    obs_config_ns.mod_do_filtering = mod_do_filtering
 
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
@@ -169,21 +184,14 @@ def main(config_path: Path = None):
     # Sam's changes to obs
     ########################################################################
     # Load obs and do de-tiding (the list of stations is from the .obs file)
-    obs_datatype = config["obs_datatype"]
+    obs_config_ns.obs_datatype = config["obs_datatype"]
 
-    if obs_datatype == "txt":
-        stations = obs.load_station_data_from_txt_dir(Path(config["obs_dir"]),
-                                                      config["station_info"],
-                                                      beg_time_obs=beg_time_obs,
-                                                      do_filtering=obs_do_filtering)
+    stations = obs.load_station_data_from_obs_dir(obs_config_ns)
 
-    elif obs_datatype == "sql":
-        stations = obs.load_station_data_from_canhys_dir(Path(config["canhys_sql_dir"]),
-                                                         config["station_info"],
-                                                         config["canhys_station_id_translation_dict"],
-                                                         beg_time_obs=beg_time_obs,
-                                              end_time_obs=end_time_obs,
-                                                         do_filtering=obs_do_filtering)
+    for s in stations:
+        print(s.station_id)
+        print(s.data)
+    quit()
     ########################################################################
 
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
@@ -214,7 +222,7 @@ def main(config_path: Path = None):
     if len(model_points) == 0:
         msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
-    
+
     with out_file.open("w") as fout:
         # split model data based on station
         mod_groups_by_station = model_points.groupby("station_id")
@@ -321,7 +329,7 @@ def main(config_path: Path = None):
                             raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
                             tides=mod_tides, sup_title=config["label"].upper() + f": {s.name} ({s.station_id})")
 
-                        # Create tidal constituents csv file for model data 
+                        # Create tidal constituents csv file for model data
                         mod_ttide_con.classic_style(to_file=str(out_dir / f"{s.station_id}_mod_tides.csv"))
 
             #print("model data 1")
@@ -341,7 +349,7 @@ def main(config_path: Path = None):
 
             mod_data.dropna(inplace=True)
 
-            # Remove mean of data from analysis period from overall model time series 
+            # Remove mean of data from analysis period from overall model time series
             if remove_anal_period_mean:
                 tmean = mod_data.loc[(mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0), f"{s.station_id}_obs"].mean()
                 mod_data.loc[:, f"{s.station_id}_obs"] -= tmean
@@ -382,7 +390,7 @@ def main(config_path: Path = None):
                 conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
                 mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
             #####################################################################
-    
+
 
     logger.info(f"Finished processing {config_path} .")
 
