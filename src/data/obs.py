@@ -111,6 +111,7 @@ class Station(object):
 
     def assign_data(self, df):
         self.data = df
+        return self
 
     def drop_all_except_longest_year(self):
         """
@@ -168,6 +169,7 @@ class Station(object):
             return
 
         self._data = self.data[self.data.index >= start_date]
+        return self
 
     def remove_data_after(self, end_date: datetime = None):
         """
@@ -179,6 +181,7 @@ class Station(object):
             return
 
         self._data = self.data[self.data.index <= end_date]
+        return self
 
     def __str__(self):
         return f"{self.name} ({self.station_id})"
@@ -295,45 +298,41 @@ def load_station_data_from_obs_dir(config):
     obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
 
     # initialize list of stations without data added yet
-    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
-                for st_id in st_info_recs
-                if st_id in obs_st_ids_to_data]
-
-    for s in stations:
-        s.assign_data(obs_st_ids_to_data[s.station_id])
-        #s.remove_data_before(config.beg_time_obs)
-        #s.remove_data_after(config.end_time_obs)
+    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id]) \
+                                           .assign_data(obs_st_ids_to_data[st_id]) \
+                                           .remove_data_before(config.beg_time_obs) \
+                                           .remove_data_after(config.end_time_obs) \
+                                           for st_id in st_info_recs
+                                           if st_id in obs_st_ids_to_data]
 
     return stations
 
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    #station_records["id"] = None
+    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|") \
+                               .astype(str) \
+                               .apply(lambda x: x.apply(lambda y: y.lstrip("0"))) \
+                               .set_index("real")
 
-    translator = pd.read_csv(config.translator_path, usecols=(1, 2),
-                                              names=["canhys", "real"],
-                                              sep="|").astype(str)
+    canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
-    '''
-    >>> print(translator.head(5).to_string())
-      canhys     real
-    0  10002  05AA008
-    1  10004  05AA011
-    2  10006  05AA022
-    3  10008  05AA024
-    4  10012  05AA028
-    '''
+    #print(real_to_canhys_mapping); print(real_to_canhys_mapping.loc["2780"]); quit()
 
-    station_info_canhys_ids = {translator.loc[(translator.real == real_id), "canhys"].iat[0] for real_id in station_records}
+    station_info_canhys_ids = [real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in station_records]
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
+    #print(station_info_canhys_ids); quit()
+
     for sql_file in config.sql_inp_dir.iterdir():
+        #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
         logger.debug(f"processing file: {sql_file}")
         if not sql_file.is_file():
+            logger.debug(f"{sql_file.name} is not a file, skipping...")
             continue
 
         if not sql_file.name.endswith("sql"):
+            logger.debug(f"{sql_file.name} does not have the correct suffix '_sql', skipping")
             continue
 
         try:
@@ -359,14 +358,15 @@ def load_station_data_from_canhys_dir(station_records, config):
             logger.debug(f"Date of {sql_file.name} not within range defined in config, skipping..")
 
     # Translate station ids from CanHys to real as well as merge time series for each station
-    real_ids_to_dfs = {translator.loc[(translator.canhys == c_id), "real"].iat[0]: pd.concat(canhys_ids_to_dfs[c_id]) \
-                                                                                     .reset_index(drop=True) \
-                                                                                     .sort_values(by="datetimeutc") \
-                                                                                     .rename(columns={"datetimeutc": "time", "datavalue": "twl"}) for c_id in canhys_ids_to_dfs}
+    real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id]) \
+                                                                        .reset_index(drop=True) \
+                                                                        .rename(columns={"datetimeutc": "time", "datavalue": "twl"})
+                                                                        for canhys_id in canhys_ids_to_dfs}
 
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
+    #print(real_ids_to_dfs); quit()
     return real_ids_to_dfs
 
 

@@ -80,7 +80,9 @@ def main(config_path: Path = None):
     obs_config_ns = argparse.Namespace()
 
     obs_config_ns.obs_dir = Path(config["obs_dir"])
+    obs_config_ns.sql_inp_dir = Path(config["canhys_sql_dir"])
     obs_config_ns.station_info = Path(config["station_info"])
+    obs_config_ns.translator_path = Path(config["canhys_station_id_translation_dict"])
 
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     obs_config_ns.beg_time = beg_time
