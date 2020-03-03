@@ -342,6 +342,11 @@ def main(config_path: Path = None):
                     row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
+                
+            if output_sql:
+                mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
+                conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
+                mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
 
     logger.info(f"Finished processing {config_path} .")
 
