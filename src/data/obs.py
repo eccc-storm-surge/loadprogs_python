@@ -293,10 +293,6 @@ def load_station_data_from_obs_dir(config):
         st_info_recs[row["NO"]] = {"name": row["ID"], "id": row["NO"], "lon": row["LON"], "lat": row["LAT"]}
 
     obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
-    print(obs_st_ids_to_data)
-    print(config.beg_time_obs)
-    print(config.end_time_obs)
-    quit()
 
     # initialize list of stations without data added yet
     stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
@@ -389,6 +385,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         if inp_file_st_id not in station_records:
             logger.info(f"{inp_file_st_id} is not found in {config.station_info} file.")
+            continue
 
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")

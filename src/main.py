@@ -40,11 +40,8 @@ from data.obs import Station
 
 from util.plot_ts_and_spectre import plot_ts_and_spectre
 import numpy as np
-import pandas as pd
 
 import logging
-import shutil
-import sqlite3
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -117,13 +114,12 @@ def main(config_path: Path = None):
     msg = f"back to back frequency should be less or equal to run_freq_hours, but got {b2b_freq_hours} and {run_freq_hours}, respectively"
     assert b2b_freq_hours <= run_freq_hours, msg
 
-    # whether to detide observed time series
     detide_obs = True
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
     obs_config_ns.detide_obs = detide_obs
 
-    # whether to detide model timeseries
+     # whether to detide model timeseries
     detide_mod = False
     if "detide_mod" in config:
         detide_mod = int(config["detide_mod"]) == 1
@@ -141,15 +137,8 @@ def main(config_path: Path = None):
     obs_config_ns.dt_texp_from_tbeg = dt_texp_from_tbeg
 
     out_dir = Path(config["prepared_for_scoring_dir"])
-
     out_dir.mkdir(exist_ok=True, parents=True)
-
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
-
-    output_sql = False
-    if "output_sql" in config:
-        output_sql = (int(config["output_sql"]) == 1)
-    obs_config_ns.output_sql = output_sql
 
     # do nothing if the output file already exists
     if out_file.exists():
@@ -178,10 +167,14 @@ def main(config_path: Path = None):
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
     obs_config_ns.mod_do_filtering = mod_do_filtering
 
+    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
+    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
+    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
+
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
-    # Sam's changes to obs
+    # Sam's changes
     ########################################################################
     # Load obs and do de-tiding (the list of stations is from the .obs file)
     obs_config_ns.obs_datatype = config["obs_datatype"]
@@ -189,18 +182,11 @@ def main(config_path: Path = None):
     stations = obs.load_station_data_from_obs_dir(obs_config_ns)
 
     for s in stations:
-        print(s.station_id)
-        print(s.data)
-    quit()
+        logger.info(s.station_id)
+        logger.info(s.data)
     ########################################################################
 
-    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
-
-    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
-    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
-
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
-
 
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config["station_info"])
@@ -214,39 +200,28 @@ def main(config_path: Path = None):
                                           run_freq_hours=b2b_freq_hours,
                                           dt_texp_from_tbeg=dt_texp_from_tbeg)
 
-
     origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=run_freq_hours))
-
-    print(origin_dates_of_interest)
 
     if len(model_points) == 0:
         msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
 
     with out_file.open("w") as fout:
-        # split model data based on station
         mod_groups_by_station = model_points.groupby("station_id")
 
-        ### debug logging code
         for k, g in mod_groups_by_station:
             logger.debug(f"{k} ({type(k)}) => {g}")
-
-        print("\nnext...\n")
 
         logger.debug(mod_groups_by_station.head())
         for c in mod_groups_by_station:
             logger.debug(c)
-        ###
 
         # Dump corresponding obs and mod data into a file for scoring
-        # loop over stations from obs
         for s in stations:
             logger.debug(f"{s.station_id}, {type(s.station_id)}")
 
-            # get model data for a single station
             mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
-            # detide observational data if specified in config file
             if detide_obs:
                 obs_data = s.get_detided_series(do_filtering=obs_do_filtering)
             else:
@@ -257,8 +232,6 @@ def main(config_path: Path = None):
             if plot_detiding_diag and detide_obs:
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
-
-                # Create time series and power spectrum plots for observational data
                 plot_ts_and_spectre(obs_data,
                                     "{}_{}".format(config["label"], s.station_id),
                                     img_dir=out_dir,
@@ -267,7 +240,6 @@ def main(config_path: Path = None):
                                     tides=s.data["tides"],
                                     sup_title=f"OBS : {s.name} ({s.station_id})")
 
-                # Create tidal constituents csv file for observational data
                 s.ttidecon.classic_style(to_file=str(out_dir / f"{s.station_id}_obs_tides.csv"))
 
             # deprecated
@@ -319,7 +291,6 @@ def main(config_path: Path = None):
                         msg = f"plotting timeseries for mod at {s.station_id}"
                         logging.info(msg)
 
-                        # plot time series and power spectrum for model data
                         plot_ts_and_spectre(
                             mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index] -
                             mod_to_filter.loc[mod_data_twl.index],
@@ -329,27 +300,13 @@ def main(config_path: Path = None):
                             raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
                             tides=mod_tides, sup_title=config["label"].upper() + f": {s.name} ({s.station_id})")
 
-                        # Create tidal constituents csv file for model data
                         mod_ttide_con.classic_style(to_file=str(out_dir / f"{s.station_id}_mod_tides.csv"))
 
-            #print("model data 1")
-            #print(mod_data)
-            #print("obs data 1")
-            #print(obs_data)
-
             # align model and observation timeseries in time
-            # For a single station: create new column in its model dataframe for matching obs timeseries data
             mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-
-            #print("model data 2")
-            #print(mod_data.dropna())
-            #print("obs data 2")
-            #print(obs_data)
-            #quit()
 
             mod_data.dropna(inplace=True)
 
-            # Remove mean of data from analysis period from overall model time series
             if remove_anal_period_mean:
                 tmean = mod_data.loc[(mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0), f"{s.station_id}_obs"].mean()
                 mod_data.loc[:, f"{s.station_id}_obs"] -= tmean
@@ -370,11 +327,10 @@ def main(config_path: Path = None):
 
             rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (
                 len(mod_data)) ** 0.5
-
             logger.debug(f"rmse({s.station_id})={rmse}")
+
             logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
 
-            ######## Sam's changes for write table in sql function #############
             for row_index, row in mod_data.iterrows():
                 line = out_line_format.format(
                     int(row["valid_hour"]),
@@ -385,13 +341,6 @@ def main(config_path: Path = None):
                 )
                 fout.write(line)
 
-            if output_sql:
-                mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
-                conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
-                mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
-            #####################################################################
-
-
     logger.info(f"Finished processing {config_path} .")
 
 
@@ -400,4 +349,9 @@ if __name__ == '__main__':
     import time
     t0 = time.perf_counter()
     # main_pn_vs_p0()
+
+    ## For testing done by Sam
+    main(config_path=Path("/home/siy000/projects/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"))
+    ##
+
     logger.debug(f"Execution time: {time.perf_counter() - t0}")
