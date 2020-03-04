@@ -29,7 +29,7 @@ col 6: modelled value
 """
 
 import configparser
-import argparse
+from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -42,6 +42,7 @@ from util.plot_ts_and_spectre import plot_ts_and_spectre
 import numpy as np
 
 import logging
+import sqlite3
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ def main(config_path: Path = None):
     config.read_string(config_data)
     config = config["top"]
 
-    obs_config_ns = argparse.Namespace()
+    obs_config_ns = Namespace()
 
     obs_config_ns.obs_dir = Path(config["obs_dir"])
     obs_config_ns.sql_inp_dir = Path(config["canhys_sql_dir"])
@@ -116,7 +117,7 @@ def main(config_path: Path = None):
     msg = f"back to back frequency should be less or equal to run_freq_hours, but got {b2b_freq_hours} and {run_freq_hours}, respectively"
     assert b2b_freq_hours <= run_freq_hours, msg
 
-    detide_obs = True
+    detide_obs = False
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
     obs_config_ns.detide_obs = detide_obs
@@ -141,6 +142,7 @@ def main(config_path: Path = None):
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
+    output_sql=config["output_sql"]
 
     # do nothing if the output file already exists
     if out_file.exists():
@@ -178,14 +180,10 @@ def main(config_path: Path = None):
 
     # Sam's changes
     ########################################################################
-    # Load obs and do de-tiding (the list of stations is from the .obs file)
+    # Load obs (the list of stations is from the .obs file)
     obs_config_ns.obs_datatype = config["obs_datatype"]
 
     stations = obs.load_station_data_from_obs_dir(obs_config_ns)
-
-    for s in stations:
-        logger.info(s.station_id)
-        logger.info(s.data)
     ########################################################################
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
@@ -342,7 +340,7 @@ def main(config_path: Path = None):
                     row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
-                
+
             if output_sql:
                 mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
                 conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
