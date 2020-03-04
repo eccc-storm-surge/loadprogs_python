@@ -178,13 +178,9 @@ def main(config_path: Path = None):
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
-    # Sam's changes
-    ########################################################################
     # Load obs (the list of stations is from the .obs file)
     obs_config_ns.obs_datatype = config["obs_datatype"]
-
     stations = obs.load_station_data_from_obs_dir(obs_config_ns)
-    ########################################################################
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 
@@ -353,10 +349,5 @@ if __name__ == '__main__':
     # main_levelling_v01()
     import time
     t0 = time.perf_counter()
-    # main_pn_vs_p0()
-
-    ## For testing done by Sam
-    main(config_path=Path("/home/siy000/projects/loadprogs_python/configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"))
-    ##
-
+    main_pn_vs_p0()
     logger.debug(f"Execution time: {time.perf_counter() - t0}")
