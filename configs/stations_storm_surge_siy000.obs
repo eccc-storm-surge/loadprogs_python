@@ -1,9 +1,0 @@
-Obs 3.1
-Storm surge observation stations
-ID                            NO             LAT            LON            DATA.REJECTED  DATA.J         DATA.I         DATA.DJ        DATA.DI        DATA.J_OLD     DATA.I_OLD     DATA.LAT_OLD   DATA.LON_OLD   
-"Eastport ME"                 8410140        44.763676      292.961487     0              84             150            0              0              84             150            44.763676      292.961487     
-"Belledune NB"                2145           47.894047      294.193420     0              178            187            0              0              178            187            47.894047      294.193420     
-"Riviere-au-Renard QC"        2330           48.992680      295.658752     0              211            231            0              0              211            231            48.992680      295.658752     
-"Rimouski QC"                 2985           48.459965      291.462952     0              195            105            0              0              195            105            48.459965      291.462952     
-"Sept-Iles QC"                2780           50.158207      293.627502     0              246            170            0              0              246            170            50.158207      293.627502     
-"Cap-aux-Meules QC"           1970           47.360844      298.156311     0              162            306            0              0              162            306            47.360844      298.156311     
