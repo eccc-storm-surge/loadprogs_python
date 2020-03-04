@@ -310,6 +310,8 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
+    assert(not config.beg_time_obs | config.end_time_obs)
+
     real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|") \
                                .astype(str) \
                                .apply(lambda x: x.apply(lambda y: y.lstrip("0"))) \
@@ -366,7 +368,6 @@ def load_station_data_from_canhys_dir(station_records, config):
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
-    #print(real_ids_to_dfs); quit()
     return real_ids_to_dfs
 
 
