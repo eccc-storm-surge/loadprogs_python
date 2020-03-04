@@ -81,12 +81,9 @@ def main(config_path: Path = None):
     # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
-    for k, v in config.items():
-        logger.debug(f"{k} => {v}, ({type(v)})")
 
     # Load obs (the list of stations is from the .obs file)
-    obs_config_ns.obs_datatype = config["obs_datatype"]
-    stations = obs.load_station_data_from_obs_dir(obs_config_ns)
+    stations = obs.load_station_data_from_obs_dir(config)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
@@ -170,7 +167,7 @@ def main(config_path: Path = None):
                 mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
                 for c in mod_member_keys:
-                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(), 
+                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
                                                                                               constituents=config.detide_mod_constituents)
                     # remove longterm mean
                     mod_data.loc[:, c] -= mod_data_twl[c].mean()
@@ -179,12 +176,12 @@ def main(config_path: Path = None):
                     # filtering
                     if config.mod_do_filtering:
                         mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
-                    
+
                     # diags for detiding
                     if config.plot_detiding_diag:
                         msg = f"plotting timeseries for mod at {s.station_id}"
                         logging.info(msg)
-                                         
+
                         plot_ts_and_spectre(hourly_series=mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
                                                           - mod_to_filter.loc[mod_data_twl.index],
                                             data_label="mod_{}_{}".format(config.label, s.station_id),

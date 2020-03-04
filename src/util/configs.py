@@ -43,7 +43,7 @@ def parse_config_settings(config_path):
     _config.detide_mod = mod_config.getboolean("detide_mod", fallback=False)
     _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
     _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
-    _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=True)
+    _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=False)
     #################################################
 
     ################# obs ########################
@@ -53,11 +53,11 @@ def parse_config_settings(config_path):
     _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
     _config.station_info = Path(obs_config["station_info"])
-    _config.txt_obs_dir = Path(obs_config["txt_obs_dir"])
+    _config.obs_dir = Path(obs_config["obs_dir"])
     _config.canhys_sql_dir = Path(obs_config["canhys_sql_dir"])
     _config.canhys_translator = Path(obs_config["canhys_station_id_translation_dict"])
 
-    _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
+    _config.detide_obs = obs_config.getboolean("detide_obs", fallback=False)
     _config.obs_do_filtering = obs_config.get("obs_do_filtering", fallback=False)
     ##############################################
 
@@ -74,7 +74,7 @@ def parse_config_settings(config_path):
 
     _config.n_members = misc_config.getint("n_members", fallback=0)
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
-    ##################################################   
+    ##################################################
 
     for k, v in vars(_config).items():
         print(f"{k} => {v}, ({type(v)})")

@@ -146,7 +146,7 @@ def prepare_mod_sql_data(mod_data, mod_members, stn):
     df = df.rename(columns={f"{stn.station_id}_obs": "obs"}) \
            .reindex(columns=["valid_hour", "station_id", "lat", "lon", "time", "obs", *mod_members]) \
            .sort_values(by="time")
-    
+
     return df
 
 
@@ -310,7 +310,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
 
     for cn in mod_member_keys:
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
-    
+
     return df
 
 
