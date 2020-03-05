@@ -64,10 +64,6 @@ def parse_config_settings(config_path):
     ################# misc ##########################
     _config.label = misc_config["label"]
 
-    #_config.dt_texp_from_tbeg = timedelta(hours=0)
-    #if "dt_texp_from_tbeg_hours" in misc_config:
-    #    _config.dt_texp_from_tbeg = timedelta(hours=int(misc_config["dt_texp_from_tbeg_hours"]))
-
     _config.out_dir = Path(misc_config["prepared_for_scoring_dir"])
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
     _config.output_sql = misc_config.getboolean("output_sql", False)
