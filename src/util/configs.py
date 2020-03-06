@@ -25,7 +25,9 @@ def parse_config_settings(config_path):
     obs_config = cparser["obs"]
     misc_config = cparser["misc"]
 
-    ################ mod ##########################
+    #--------------------------------------------
+    # Model configurations
+    #--------------------------------------------
     _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
@@ -44,9 +46,11 @@ def parse_config_settings(config_path):
     _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
     _config.mod_do_filtering = mod_config.get("mod_do_filtering", fallback=False)
     _config.remove_anal_period_mean = mod_config.get("remove_anal_period_mean", fallback=False)
-    #################################################
+    #--------------------------------------------
 
-    ################# obs ########################
+    #--------------------------------------------
+    # Observation configurations
+    #--------------------------------------------
     _config.obs_datatype = obs_config["obs_datatype"]
 
     _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -59,9 +63,11 @@ def parse_config_settings(config_path):
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=False)
     _config.obs_do_filtering = obs_config.get("obs_do_filtering", fallback=False)
-    ##############################################
+    #--------------------------------------------
 
-    ################# misc ##########################
+    #--------------------------------------------
+    # Miscellaneous configurations
+    #--------------------------------------------
     _config.label = misc_config["label"]
 
     _config.out_dir = Path(misc_config["prepared_for_scoring_dir"])
@@ -70,7 +76,7 @@ def parse_config_settings(config_path):
 
     _config.n_members = misc_config.getint("n_members", fallback=0)
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
-    ##################################################
+    #--------------------------------------------
 
     for k, v in vars(_config).items():
         print(f"{k} => {v}, ({type(v)})")
