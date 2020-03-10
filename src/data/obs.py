@@ -324,8 +324,8 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     assert None not in [config.beg_time_obs, config.end_time_obs]
 
-    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters={1: str, 2: str}) \
-                               .apply(lambda x: x.apply(lambda y: y.lstrip("0"))) \
+    _converters = {col: lambda x: x.lstrip("0") for col in (1,2)}
+    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters=_converters) \
                                .set_index("real")
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
