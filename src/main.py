@@ -78,18 +78,16 @@ def main(config_path: Path = None):
     config.read_string(config_data)
     config = config["top"]
 
-    obs_config_ns = Namespace()
+    obs_config = Namespace()
 
-    obs_config_ns.obs_dir = Path(config["obs_dir"])
-    obs_config_ns.sql_inp_dir = Path(config["canhys_sql_dir"])
-    obs_config_ns.station_info = Path(config["station_info"])
-    obs_config_ns.translator_path = Path(config["canhys_station_id_translation_dict"])
+    obs_config.obs_dir = Path(config["obs_dir"])
+    obs_config.sql_inp_dir = Path(config["canhys_sql_dir"])
+    obs_config.station_info = Path(config["station_info"])
+    obs_config.translator_path = Path(config["canhys_station_id_translation_dict"])
 
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    obs_config_ns.beg_time = beg_time
 
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    obs_config_ns.end_time = end_time
 
     if "datestart_obs" in config:
         beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -97,7 +95,7 @@ def main(config_path: Path = None):
         beg_time_obs = beg_time
     else:
         beg_time_obs = None
-    obs_config_ns.beg_time_obs = beg_time_obs
+    obs_config.beg_time_obs = beg_time_obs
 
     if "dateend_obs" in config:
         end_time_obs = datetime.strptime(config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -105,7 +103,7 @@ def main(config_path: Path = None):
         end_time_obs = end_time
     else:
         end_time_obs = None
-    obs_config_ns.end_time_obs = end_time_obs
+    obs_config.end_time_obs = end_time_obs
 
     mod_nomvar = "ETAS"
     if "mod_nomvar" in config:
@@ -125,24 +123,21 @@ def main(config_path: Path = None):
     detide_obs = False
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
-    obs_config_ns.detide_obs = detide_obs
+    obs_config.detide_obs = detide_obs
 
      # whether to detide model timeseries
     detide_mod = False
     if "detide_mod" in config:
         detide_mod = int(config["detide_mod"]) == 1
-    obs_config_ns.detide_mod = detide_mod
 
     detide_mod_constituents = None
     if detide_mod:
         if "detide_mod_constituents" in config:
             detide_mod_constituents = config["detide_mod_constituents"].split(",")
-    obs_config_ns.detide_mod_constituents = detide_mod_constituents
 
     dt_texp_from_tbeg = timedelta(hours=0)
     if "dt_texp_from_tbeg_hours" in config:
         dt_texp_from_tbeg = timedelta(hours=int(config["dt_texp_from_tbeg_hours"]))
-    obs_config_ns.dt_texp_from_tbeg = dt_texp_from_tbeg
 
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -159,22 +154,19 @@ def main(config_path: Path = None):
     plot_detiding_diag = True
     if "plot_detiding_diag" in config:
         plot_detiding_diag = config["plot_detiding_diag"].strip() != "0"
-    obs_config_ns.plot_detiding_diag = plot_detiding_diag
 
     remove_anal_period_mean = True
     if "remove_anal_period_mean" in config:
         remove_anal_period_mean = int(config["remove_anal_period_mean"])
-    obs_config_ns.remove_anal_period_mean = remove_anal_period_mean
 
     obs_do_filtering = False
     if "detide_obs_filtering" in config:
         obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
-    obs_config_ns.obs_do_filtering = obs_do_filtering
+    obs_config.obs_do_filtering = obs_do_filtering
 
     mod_do_filtering = False
     if "detide_mod_filtering" in config:
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
-    obs_config_ns.mod_do_filtering = mod_do_filtering
 
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
     member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
@@ -184,8 +176,8 @@ def main(config_path: Path = None):
         logger.debug(f"{k} => {v}, ({type(v)})")
 
     # Load obs (the list of stations is from the .obs file)
-    obs_config_ns.obs_datatype = config["obs_datatype"]
-    stations = obs.load_station_data_from_obs_dir(obs_config_ns)
+    obs_config.obs_datatype = config["obs_datatype"]
+    stations = obs.load_station_data_from_obs_dir(obs_config)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 
