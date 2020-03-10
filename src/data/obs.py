@@ -50,10 +50,10 @@ class Station(object):
         if self._data is not None and len(self._data) > 0:
 
             if "time" in self._data:
-                logger.debug("setting time as index for the purpose of resampling")
+                logger.info("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
 
-            logger.debug(self._data.head())
+            logger.info(self._data.head())
 
             # all times are in UTC
             if self._data.index.tz is None:
@@ -143,7 +143,7 @@ class Station(object):
                     year_of_interest = y
                     data_of_interest = group
 
-            logger.debug(f"{y}: n={len(group)}")
+            logger.info(f"{y}: n={len(group)}")
 
         self._data = data_of_interest.dropna().resample("60T", base=self.data.index[0].minute).asfreq()
 
@@ -231,7 +231,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
-        logger.debug(f"Before t_tide: v.shape={v.shape}")
+        logger.info(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v, synth=0, lat=self.latitude, ray=0.5, constitnames=constituents)
         v_notide = v - con["xout"].squeeze()
 
@@ -339,19 +339,19 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     for sql_file in config.sql_inp_dir.iterdir():
         #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
-        logger.debug(f"processing file: {sql_file}")
+        logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
-            logger.debug(f"{sql_file.name} is not a file, skipping...")
+            logger.info(f"{sql_file.name} is not a file, skipping...")
             continue
 
         if not sql_file.name.endswith("sql"):
-            logger.debug(f"{sql_file.name} does not have the correct suffix '_sql', skipping")
+            logger.info(f"{sql_file.name} does not have the correct suffix '_sql', skipping")
             continue
 
         try:
             record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
-            logger.debug(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
+            logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
         if config.beg_time_obs <= record_date and record_date <= config.end_time_obs:
@@ -360,7 +360,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
             cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
             if not cursor.fetchone():
-                logger.debug(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
+                logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
                 continue
 
             for canhys_id in canhys_ids_to_dfs:
@@ -368,7 +368,7 @@ def load_station_data_from_canhys_dir(station_records, config):
                 canhys_ids_to_dfs[canhys_id] += [st_data]
 
         else:
-            logger.debug(f"Date of {sql_file.name} not within range defined in config, skipping..")
+            logger.info(f"Date of {sql_file.name} not within range defined in config, skipping..")
 
     # Translate station ids from CanHys to real as well as merge time series for each station
     real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id]) \
@@ -401,7 +401,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
-            logger.debug(df.head())
+            logger.info(df.head())
 
             df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
