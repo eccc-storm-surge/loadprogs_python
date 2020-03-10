@@ -299,30 +299,20 @@ def load_station_data_from_obs_dir(config):
 
     # initialize list of stations without data added yet
 
-    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id]) \
-                                           .assign_data(obs_st_ids_to_data[st_id]) \
-                                           .remove_data_before(config.beg_time_obs) \
-                                           .remove_data_after(config.end_time_obs) \
+    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
+                                           .assign_data(obs_st_ids_to_data[st_id])
+                                           .remove_data_before(config.beg_time_obs)
+                                           .remove_data_after(config.end_time_obs)
                                            for st_id in st_info_recs
                                            if st_id in obs_st_ids_to_data]
-    '''
-    stations = []
-    for st_id in st_info_recs:
-        if st_id in obs_st_ids_to_data:
-            station = Station(do_filtering=config.obs_do_filtering, station_info=st_info_rec[st_id]) \
-                             .assign_data(obs_st_ids_to_data[st_id]) \
-                             .remove_data_before(config.beg_time_obs) \
-                             .remove_data_after(config.end_time_obs)
-
-            stations += [station]
-    '''
 
     return stations
 
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    assert None not in [config.beg_time_obs, config.end_time_obs]
+    msg = "Observation start or end date is not valid"
+    assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
     _converters = {col: lambda x: x.lstrip("0") for col in (1,2)}
     real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters=_converters) \
@@ -371,8 +361,8 @@ def load_station_data_from_canhys_dir(station_records, config):
             logger.info(f"Date of {sql_file.name} not within range defined in config, skipping..")
 
     # Translate station ids from CanHys to real as well as merge time series for each station
-    real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id]) \
-                                                                        .reset_index(drop=True) \
+    real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id])
+                                                                        .reset_index(drop=True)
                                                                         .rename(columns={"datetimeutc": "time", "datavalue": "twl"})
                                                                         for canhys_id in canhys_ids_to_dfs}
 
