@@ -327,7 +327,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     #print(station_info_canhys_ids); quit()
 
-    for sql_file in config.sql_inp_dir.iterdir():
+    for sql_file in sorted(config.sql_inp_dir.iterdir()):
         #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
         logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
@@ -344,21 +344,25 @@ def load_station_data_from_canhys_dir(station_records, config):
             logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
-        if config.beg_time_obs <= record_date and record_date <= config.end_time_obs:
-            conn = sqlite3.connect(sql_file)
-            cursor = conn.cursor()
+        if record_date >= config.beg_time_obs:# and record_date <= config.end_time_obs:
+            if record_date <= config.end_time_obs:
+                conn = sqlite3.connect(sql_file)
+                cursor = conn.cursor()
 
-            cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
-            if not cursor.fetchone():
-                logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
-                continue
+                cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
+                if not cursor.fetchone():
+                    logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
+                    continue
 
-            for canhys_id in canhys_ids_to_dfs:
-                st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-                canhys_ids_to_dfs[canhys_id] += [st_data]
+                for canhys_id in canhys_ids_to_dfs:
+                    st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
+                    canhys_ids_to_dfs[canhys_id] += [st_data]
 
+            else:
+                logger.info(f"Date of {sql_file.name} is after observation end date, finishing..")
+                break
         else:
-            logger.info(f"Date of {sql_file.name} not within range defined in config, skipping..")
+            logger.info(f"Date of {sql_file.name} is before observation start date, skipping..")
 
     # Translate station ids from CanHys to real as well as merge time series for each station
     real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id])
@@ -368,6 +372,8 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
+
+    print(real_ids_to_dfs["2780"]); quit()
 
     return real_ids_to_dfs
 
