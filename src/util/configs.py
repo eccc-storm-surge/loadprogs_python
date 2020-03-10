@@ -5,6 +5,8 @@ from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 def parse_config_settings(config_path):
 
     logging.info(f"Processing {config_path} ...")
@@ -17,10 +19,6 @@ def parse_config_settings(config_path):
     cparser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"), interpolation=configparser.ExtendedInterpolation())
     cparser.read(config_path)
 
-    #cparser_data = "[top]\n" + config_path.open().read()
-    #cparser.read_string(cparser_data)
-    #cparser = cparser["top"]
-
     mod_config = cparser["mod"]
     obs_config = cparser["obs"]
     misc_config = cparser["misc"]
@@ -28,8 +26,11 @@ def parse_config_settings(config_path):
     #--------------------------------------------
     # Model configurations
     #--------------------------------------------
-    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H") \
+                                   .replace(tzinfo=timezone.utc)
+
+    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H") \
+                                   .replace(tzinfo=timezone.utc)
 
     _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
 
@@ -37,7 +38,8 @@ def parse_config_settings(config_path):
     _config.run_freq_hours=int(mod_config["run_freq_hours"])
     _config.dt_texp_from_tbeg = timedelta(hours=mod_config.getint("dt_texp_from_tbeg_hours", fallback=0))
 
-    msg = f"back to back frequency should be less or equal to run_freq_hours, but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"
+    msg = f"""back to back frequency should be less or equal to run_freq_hours,
+              but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"""
     assert _config.b2b_freq_hours <= _config.run_freq_hours, msg
 
     _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
@@ -53,8 +55,11 @@ def parse_config_settings(config_path):
     #--------------------------------------------
     _config.obs_datatype = obs_config["obs_datatype"]
 
-    _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H") \
+                                   .replace(tzinfo=timezone.utc)
+
+    _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H") \
+                                   .replace(tzinfo=timezone.utc)
 
     _config.station_info = Path(obs_config["station_info"])
     _config.obs_dir = Path(obs_config["obs_dir"])
@@ -79,7 +84,7 @@ def parse_config_settings(config_path):
     #--------------------------------------------
 
     for k, v in vars(_config).items():
-        print(f"{k} => {v}, ({type(v)})")
+        logger.info(f"{k} => {v}, ({type(v)})")
 
     return _config
 
