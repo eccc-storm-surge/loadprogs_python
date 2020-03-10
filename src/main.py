@@ -91,7 +91,12 @@ def main(config_path: Path = None):
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     obs_config_ns.end_time = end_time
 
-    beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    if "datestart_obs" in config:
+        beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    elif beg_time:
+        beg_time_obs = beg_time
+    else:
+        beg_time_obs = None
     obs_config_ns.beg_time_obs = beg_time_obs
 
     if "dateend_obs" in config:
