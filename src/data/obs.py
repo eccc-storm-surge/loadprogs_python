@@ -309,12 +309,12 @@ def load_station_data_from_obs_dir(config):
     stations = []
     for st_id in st_info_recs:
         if st_id in obs_st_ids_to_data:
-            station = Station(do_filtering=config.obs_do_filtering, station_info=st_info_rec[st_id])
-            station.assign_data(obs_st_ids_to_data[st_id])
-            station.remove_data_before(config.beg_time_obs)
-            station.remove_data_after(config.end_time_obs)
+            station = Station(do_filtering=config.obs_do_filtering, station_info=st_info_rec[st_id]) \
+                             .assign_data(obs_st_ids_to_data[st_id]) \
+                             .remove_data_before(config.beg_time_obs) \
+                             .remove_data_after(config.end_time_obs)
 
-            stations += station
+            stations += [station]
             
     return stations
 
