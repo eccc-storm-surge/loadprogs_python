@@ -298,7 +298,7 @@ def load_station_data_from_obs_dir(config):
     obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
 
     # initialize list of stations without data added yet
-    '''
+
     stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id]) \
                                            .assign_data(obs_st_ids_to_data[st_id]) \
                                            .remove_data_before(config.beg_time_obs) \
@@ -315,7 +315,8 @@ def load_station_data_from_obs_dir(config):
                              .remove_data_after(config.end_time_obs)
 
             stations += [station]
-            
+    '''
+
     return stations
 
 
@@ -323,8 +324,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     assert None not in [config.beg_time_obs, config.end_time_obs]
 
-    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|") \
-                               .astype(str) \
+    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters={1: str, 2: str}) \
                                .apply(lambda x: x.apply(lambda y: y.lstrip("0"))) \
                                .set_index("real")
 
