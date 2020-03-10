@@ -321,7 +321,7 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    assert(not config.beg_time_obs | config.end_time_obs)
+    assert None not in [config.beg_time_obs, config.end_time_obs]
 
     real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|") \
                                .astype(str) \
