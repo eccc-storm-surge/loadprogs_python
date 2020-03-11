@@ -311,6 +311,8 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
+    import time; t0 = time.perf_counter()
+
     msg = "Observation start or end date is not valid"
     assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
@@ -344,7 +346,7 @@ def load_station_data_from_canhys_dir(station_records, config):
             logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
-        if record_date >= config.beg_time_obs:# and record_date <= config.end_time_obs:
+        if record_date >= config.beg_time_obs:
             if record_date <= config.end_time_obs:
                 conn = sqlite3.connect(sql_file)
                 cursor = conn.cursor()
@@ -354,9 +356,21 @@ def load_station_data_from_canhys_dir(station_records, config):
                     logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
                     continue
 
-                for canhys_id in canhys_ids_to_dfs:
-                    st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-                    canhys_ids_to_dfs[canhys_id] += [st_data]
+                # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
+                query = f"""SELECT siteid, datetimeutc, datavalue
+                            FROM datavalue 
+                            WHERE siteid 
+                            IN ({','.join(station_info_canhys_ids)});"""
+
+                data_for_all_stns = pd.read_sql(sql=query, con=conn).astype(str).groupby("siteid")
+
+                for canhys_id in station_info_canhys_ids:
+                    try:
+                        st_data = data_for_all_stns.get_group(canhys_id)
+                        canhys_ids_to_dfs[canhys_id] += [st_data]
+                    except KeyError:
+                        logger.info(f"   \--> CanHys id {canhys_id} not found within table, skipping..")
+                        continue
 
             else:
                 logger.info(f"Date of {sql_file.name} is after observation end date, finishing..")
@@ -372,8 +386,6 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
-
-    print(real_ids_to_dfs["2780"]); quit()
 
     return real_ids_to_dfs
 
