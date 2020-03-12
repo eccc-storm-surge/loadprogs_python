@@ -310,26 +310,19 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    import time; t0 = time.perf_counter()
-
     msg = "Observation start or end date is not valid"
     assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
     _converters = {col: lambda x: x.lstrip("0") for col in (1,2)}
-    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters=_converters) \
+    real_to_canhys_mapping = pd.read_csv(config.canhys_translator, usecols=(1, 2), names=["canhys", "real"], sep="|", converters=_converters) \
                                .set_index("real")
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
-    #print(real_to_canhys_mapping); print(real_to_canhys_mapping.loc["2780"]); quit()
-
     station_info_canhys_ids = [real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in station_records]
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
-    #print(station_info_canhys_ids); quit()
-
-    for sql_file in sorted(config.sql_inp_dir.iterdir()):
-        #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
+    for sql_file in sorted(config.canhys_sql_dir.iterdir()):
         logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
             logger.info(f"{sql_file.name} is not a file, skipping...")
@@ -361,14 +354,14 @@ def load_station_data_from_canhys_dir(station_records, config):
                             WHERE siteid 
                             IN ({','.join(station_info_canhys_ids)});"""
 
-                data_for_all_stns = pd.read_sql(sql=query, con=conn).astype(str).groupby("siteid")
+                data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid")
 
                 for canhys_id in station_info_canhys_ids:
                     try:
-                        st_data = data_for_all_stns.get_group(canhys_id)
+                        st_data = data_for_all_stns.get_group(int(canhys_id))
                         canhys_ids_to_dfs[canhys_id] += [st_data]
                     except KeyError:
-                        logger.info(f"   \--> CanHys id {canhys_id} not found within table, skipping..")
+                        logger.info(fr"   \--> CanHys id {canhys_id} not found within table, skipping..")
                         continue
 
             else:
