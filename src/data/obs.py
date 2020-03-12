@@ -311,8 +311,6 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    import time; t0 = time.perf_counter()
-
     msg = "Observation start or end date is not valid"
     assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
@@ -362,14 +360,14 @@ def load_station_data_from_canhys_dir(station_records, config):
                             WHERE siteid 
                             IN ({','.join(station_info_canhys_ids)});"""
 
-                data_for_all_stns = pd.read_sql(sql=query, con=conn).astype(str).groupby("siteid")
+                data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid")
 
                 for canhys_id in station_info_canhys_ids:
                     try:
-                        st_data = data_for_all_stns.get_group(canhys_id)
+                        st_data = data_for_all_stns.get_group(int(canhys_id))
                         canhys_ids_to_dfs[canhys_id] += [st_data]
                     except KeyError:
-                        logger.info(f"   \--> CanHys id {canhys_id} not found within table, skipping..")
+                        logger.info(fr"   \--> CanHys id {canhys_id} not found within table, skipping..")
                         continue
 
             else:
