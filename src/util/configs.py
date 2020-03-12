@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def parse_config_settings(config_path):
 
@@ -67,7 +68,7 @@ def parse_config_settings(config_path):
     _config.canhys_translator = Path(obs_config["canhys_station_id_translation_dict"])
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=False)
-    _config.obs_do_filtering = obs_config.get("obs_do_filtering", fallback=False)
+    _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
     #--------------------------------------------
 
     #--------------------------------------------
