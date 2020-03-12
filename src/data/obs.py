@@ -50,10 +50,10 @@ class Station(object):
         if self._data is not None and len(self._data) > 0:
 
             if "time" in self._data:
-                logger.debug("setting time as index for the purpose of resampling")
+                logger.info("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
 
-            logger.debug(self._data.head())
+            logger.info(self._data.head())
 
             # all times are in UTC
             if self._data.index.tz is None:
@@ -143,7 +143,7 @@ class Station(object):
                     year_of_interest = y
                     data_of_interest = group
 
-            logger.debug(f"{y}: n={len(group)}")
+            logger.info(f"{y}: n={len(group)}")
 
         self._data = data_of_interest.dropna().resample("60T", base=self.data.index[0].minute).asfreq()
 
@@ -230,7 +230,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
-        logger.debug(f"Before t_tide: v.shape={v.shape}")
+        logger.info(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v, synth=0, lat=self.latitude, ray=0.5, constitnames=constituents)
         v_notide = v - con["xout"].squeeze()
 
@@ -297,10 +297,11 @@ def load_station_data_from_obs_dir(config):
     obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
 
     # initialize list of stations without data added yet
-    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id]) \
-                                           .assign_data(obs_st_ids_to_data[st_id]) \
-                                           .remove_data_before(config.beg_time_obs) \
-                                           .remove_data_after(config.end_time_obs) \
+
+    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
+                                           .assign_data(obs_st_ids_to_data[st_id])
+                                           .remove_data_before(config.beg_time_obs)
+                                           .remove_data_after(config.end_time_obs)
                                            for st_id in st_info_recs
                                            if st_id in obs_st_ids_to_data]
 
@@ -309,11 +310,13 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
-    assert(not config.beg_time_obs | config.end_time_obs)
+    import time; t0 = time.perf_counter()
 
-    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|") \
-                               .astype(str) \
-                               .apply(lambda x: x.apply(lambda y: y.lstrip("0"))) \
+    msg = "Observation start or end date is not valid"
+    assert None not in [config.beg_time_obs, config.end_time_obs], msg
+
+    _converters = {col: lambda x: x.lstrip("0") for col in (1,2)}
+    real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2), names=["canhys", "real"], sep="|", converters=_converters) \
                                .set_index("real")
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
@@ -325,42 +328,58 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     #print(station_info_canhys_ids); quit()
 
-    for sql_file in config.sql_inp_dir.iterdir():
+    for sql_file in sorted(config.sql_inp_dir.iterdir()):
         #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
-        logger.debug(f"processing file: {sql_file}")
+        logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
-            logger.debug(f"{sql_file.name} is not a file, skipping...")
+            logger.info(f"{sql_file.name} is not a file, skipping...")
             continue
 
         if not sql_file.name.endswith("sql"):
-            logger.debug(f"{sql_file.name} does not have the correct suffix '_sql', skipping")
+            logger.info(f"{sql_file.name} does not have the correct suffix '_sql', skipping")
             continue
 
         try:
             record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
-            logger.debug(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
+            logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
-        if config.beg_time_obs <= record_date and record_date <= config.end_time_obs:
-            conn = sqlite3.connect(sql_file)
-            cursor = conn.cursor()
+        if record_date >= config.beg_time_obs:
+            if record_date <= config.end_time_obs:
+                conn = sqlite3.connect(sql_file)
+                cursor = conn.cursor()
 
-            cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
-            if not cursor.fetchone():
-                logger.debug(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
-                continue
+                cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
+                if not cursor.fetchone():
+                    logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
+                    continue
 
-            for canhys_id in canhys_ids_to_dfs:
-                st_data = pd.read_sql(sql=f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-                canhys_ids_to_dfs[canhys_id] += [st_data]
+                # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
+                query = f"""SELECT siteid, datetimeutc, datavalue
+                            FROM datavalue 
+                            WHERE siteid 
+                            IN ({','.join(station_info_canhys_ids)});"""
 
+                data_for_all_stns = pd.read_sql(sql=query, con=conn).astype(str).groupby("siteid")
+
+                for canhys_id in station_info_canhys_ids:
+                    try:
+                        st_data = data_for_all_stns.get_group(canhys_id)
+                        canhys_ids_to_dfs[canhys_id] += [st_data]
+                    except KeyError:
+                        logger.info(f"   \--> CanHys id {canhys_id} not found within table, skipping..")
+                        continue
+
+            else:
+                logger.info(f"Date of {sql_file.name} is after observation end date, finishing..")
+                break
         else:
-            logger.debug(f"Date of {sql_file.name} not within range defined in config, skipping..")
+            logger.info(f"Date of {sql_file.name} is before observation start date, skipping..")
 
     # Translate station ids from CanHys to real as well as merge time series for each station
-    real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id]) \
-                                                                        .reset_index(drop=True) \
+    real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id])
+                                                                        .reset_index(drop=True)
                                                                         .rename(columns={"datetimeutc": "time", "datavalue": "twl"})
                                                                         for canhys_id in canhys_ids_to_dfs}
 
@@ -389,7 +408,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
-            logger.debug(df.head())
+            logger.info(df.head())
 
             df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
