@@ -4,7 +4,7 @@
 RDSPS_160_CONFIG_FILE="configs/rdsps/migration_2019_par/rdsps_fc_ops_160.cfg"
 RDSPS_170_CONFIG_FILE="configs/rdsps/migration_2019_par/rdsps_fc_par_170.cfg"
 
-export PYTHONPATH=${DEPS_SIY}/loadprogs_python/src:${PYTHONPATH}
+export PYTHONPATH=src:${PYTHONPATH}
 
 python src/experiments/run_experiments_base.py \
 --cfg_paths ${RDSPS_160_CONFIG_FILE} \
