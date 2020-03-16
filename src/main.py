@@ -29,6 +29,7 @@ col 6: modelled value
 """
 
 import configparser
+from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -41,6 +42,7 @@ from util.plot_ts_and_spectre import plot_ts_and_spectre
 import numpy as np
 
 import logging
+import sqlite3
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -76,14 +78,32 @@ def main(config_path: Path = None):
     config.read_string(config_data)
     config = config["top"]
 
+    obs_config = Namespace()
+
+    obs_config.obs_dir = Path(config["obs_dir"])
+    obs_config.sql_inp_dir = Path(config["canhys_sql_dir"])
+    obs_config.station_info = Path(config["station_info"])
+    obs_config.translator_path = Path(config["canhys_station_id_translation_dict"])
+
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+
     end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
-    beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    if "datestart_obs" in config:
+        beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    elif beg_time:
+        beg_time_obs = beg_time
+    else:
+        beg_time_obs = None
+    obs_config.beg_time_obs = beg_time_obs
+
     if "dateend_obs" in config:
         end_time_obs = datetime.strptime(config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    elif end_time:
+        end_time_obs = end_time
     else:
         end_time_obs = None
+    obs_config.end_time_obs = end_time_obs
 
     mod_nomvar = "ETAS"
     if "mod_nomvar" in config:
@@ -100,12 +120,12 @@ def main(config_path: Path = None):
     msg = f"back to back frequency should be less or equal to run_freq_hours, but got {b2b_freq_hours} and {run_freq_hours}, respectively"
     assert b2b_freq_hours <= run_freq_hours, msg
 
-    # whether to detide observed time series
-    detide_obs = True
+    detide_obs = False
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
+    obs_config.detide_obs = detide_obs
 
-    # whether to detide model timeseries
+     # whether to detide model timeseries
     detide_mod = False
     if "detide_mod" in config:
         detide_mod = int(config["detide_mod"]) == 1
@@ -122,6 +142,7 @@ def main(config_path: Path = None):
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
+    output_sql=config["output_sql"]
 
     # do nothing if the output file already exists
     if out_file.exists():
@@ -139,28 +160,24 @@ def main(config_path: Path = None):
         remove_anal_period_mean = int(config["remove_anal_period_mean"])
 
     obs_do_filtering = False
-    mod_do_filtering = False
-
     if "detide_obs_filtering" in config:
         obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
+    obs_config.obs_do_filtering = obs_do_filtering
 
+    mod_do_filtering = False
     if "detide_mod_filtering" in config:
         mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
 
     # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
-
     member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     for k, v in config.items():
         logger.debug(f"{k} => {v}, ({type(v)})")
 
-    # Load obs and do de-tiding (the list of stations is from the .obs file)
-    stations = obs.load_station_data_from_dir(Path(config["obs_dir"]).expanduser(),
-                                              config["station_info"],
-                                              beg_time_obs=beg_time_obs,
-                                              end_time_obs=end_time_obs,
-                                              do_filtering=obs_do_filtering)
+    # Load obs (the list of stations is from the .obs file)
+    obs_config.obs_datatype = config["obs_datatype"]
+    stations = obs.load_station_data_from_obs_dir(obs_config)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
 
@@ -316,6 +333,11 @@ def main(config_path: Path = None):
                     row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
+
+            if output_sql:
+                mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
+                conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
+                mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
 
     logger.info(f"Finished processing {config_path} .")
 
