@@ -10,13 +10,13 @@ from util.crosspec import crosspec
 
 
 def main():
-    st_id = "665"
+    st_id = "8410140"
 
-    data_dir = "/home/olh001/MATLAB/detide/data/obs/merged_2016_2017/"
+    data_dir = "/home/olh001/data/eccc-ppp3/sse_obs/merged/2019_on_20200106"
 
     data_file = Path(data_dir) / f"X{st_id}.dat"
 
-    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503},
+    s = Station(data_file=data_file, station_info={"name": "Eastport ME", "id": st_id, "lat": 44.763676, "lon": 292.961487},
                 do_filtering=True)
 
     print(s.data)
@@ -91,6 +91,7 @@ def main():
 
 
     plt.show()
+
 
 
 

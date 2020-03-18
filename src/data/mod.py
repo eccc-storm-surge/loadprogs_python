@@ -116,7 +116,7 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
 
         df_list.append(group)
 
-    df = pd.concat(df_list, axis=1, join_axes=[df_list[0].index])
+    df = pd.concat(df_list, axis=1).reindex(df_list[0].index)
 
     logger.debug(df.head())
     logger.debug("column names")

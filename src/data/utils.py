@@ -48,7 +48,7 @@ def remove_small_chunks(series: pd.Series, lowest_duration_hours=24, inplace=Fal
 
     labels = pd.Series(data=ndimage.label((~series.isnull()).values)[0], index=series.index)
 
-    print(series.head(600))
+    #print(series.head(600))
 
     series_ = series
     if not inplace:

@@ -3,33 +3,35 @@
 from pathlib import Path
 from main import main
 
-from multiprocessing import Process
+from multiprocessing import Process, Lock
 import argparse
+import logging
 
-
-debug = True
 
 if __name__ == '__main__':
-    processes = []
+    import time
+    t0 = time.perf_counter()
 
-    parser = argparse.ArgumentParser()
+    logger = logging.getLogger(__name__)
+
+    parser = argparse.ArgumentParser(description="run experiment")
 
     parser.add_argument("--cfg_paths", nargs="+")
-    parser.add_argument("--debug", nargs="?", type=int, default=0)
+    parser.add_argument("-d", "--debug", action="store_true")
 
     args = parser.parse_args()
 
     cfg_paths = args.cfg_paths
-    debug = args.debug == 1
 
-    if debug:
-        for cp in cfg_paths:
-            main(config_path=Path(cp))
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
 
-    else:
-        pl = [Process(target=main, kwargs=dict(config_path=Path(p)))
-              for p in cfg_paths]
-        processes.extend(pl)
+    processes = []
 
-        for p in processes:
-            p.start()
+    pl = [Process(target=main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
+    processes.extend(pl)
+
+    for p in processes:
+        p.start()
+
+    logger.info(f"Execution time: {time.perf_counter() - t0}")

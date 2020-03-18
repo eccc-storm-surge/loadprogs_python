@@ -1,26 +1,23 @@
 from pathlib import Path
-
-from data.obs import Station
-
 from data import obs
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def test_get_tides_and_filter_hourly():
-    st_id = "8443970"
+def test_get_tides_and_filter_hourly(test_do_filtering):
 
-    data_dir = "/home/olh001/MATLAB/detide/data/obs/merged_2016_2017/"
+    st_id = "8410140"
+    data_dir = "/home/olh001/data/eccc-ppp3/sse_obs/merged/2019_on_20200106"
 
     data_file = Path(data_dir) / f"X{st_id}.dat"
 
-    s = Station(data_file=data_file, station_info={"name": st_id, "id": st_id, "lat": 42.3539, "lon": -71.0503},
-                do_filtering=True)
+    s = obs.Station(data_file=data_file, station_info={"name": "Eastport ME", "id": st_id, "lat": 44.763676, "lon": 292.961487},
+                do_filtering=test_do_filtering)
 
     print(s.data)
 
-    s.get_detided_series(do_filtering=True)
+    s.get_detided_series(do_filtering=test_do_filtering)
 
     df = pd.DataFrame.from_dict({"time": s.data.index, "twl": s.data["twl"].values})
 
@@ -33,9 +30,10 @@ def test_get_tides_and_filter_hourly():
     print(desc)
 
     s.data["detided"].plot(color="r")
-    other.plot(color="b")
+    # other.plot(color="b")
+
     plt.show()
 
 
 if __name__ == '__main__':
-    test_get_tides_and_filter_hourly()
+    test_get_tides_and_filter_hourly(False)
