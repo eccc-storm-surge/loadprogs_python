@@ -1,0 +1,4 @@
+Obs 3.1
+Storm surge observation stations
+ID                            NO             LAT            LON            DATA.REJECTED  DATA.J         DATA.I         DATA.DJ        DATA.DI        DATA.J_OLD     DATA.I_OLD     DATA.LAT_OLD   DATA.LON_OLD   
+"Sept-Iles QC"                2780           50.158207      293.627502     0              246            170            0              0              246            170            50.158207      293.627502     
