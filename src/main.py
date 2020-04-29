@@ -80,10 +80,14 @@ def main(config_path: Path = None):
 
     obs_config = Namespace()
 
+    obs_config.obs_datatype = config.get("obs_datatype", "txt")
+
     obs_config.obs_dir = Path(config["obs_dir"])
-    obs_config.sql_inp_dir = Path(config["canhys_sql_dir"])
+    # options proper to the canhys obs source
+    if obs_config.obs_datatype == "sqlite":
+        obs_config.translator_path = Path(config["canhys_station_id_translation_dict"])
+
     obs_config.station_info = Path(config["station_info"])
-    obs_config.translator_path = Path(config["canhys_station_id_translation_dict"])
 
     beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
@@ -142,7 +146,7 @@ def main(config_path: Path = None):
     out_dir = Path(config["prepared_for_scoring_dir"])
     out_dir.mkdir(exist_ok=True, parents=True)
     out_file = out_dir / ("surge_" + config["label"] + ".dat")
-    output_sql=config["output_sql"]
+    output_sql = int(config.get("output_sql", "0") == 1)
 
     # do nothing if the output file already exists
     if out_file.exists():
@@ -176,7 +180,6 @@ def main(config_path: Path = None):
         logger.debug(f"{k} => {v}, ({type(v)})")
 
     # Load obs (the list of stations is from the .obs file)
-    obs_config.obs_datatype = config["obs_datatype"]
     stations = obs.load_station_data_from_obs_dir(obs_config)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]

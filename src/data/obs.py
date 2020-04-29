@@ -327,7 +327,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     #print(station_info_canhys_ids); quit()
 
-    for sql_file in sorted(config.sql_inp_dir.iterdir()):
+    for sql_file in sorted(config.obs_dir.iterdir()):
         #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
         logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
