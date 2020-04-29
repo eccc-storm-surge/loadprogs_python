@@ -124,7 +124,7 @@ def main(config_path: Path = None):
     msg = f"back to back frequency should be less or equal to run_freq_hours, but got {b2b_freq_hours} and {run_freq_hours}, respectively"
     assert b2b_freq_hours <= run_freq_hours, msg
 
-    detide_obs = False
+    detide_obs = True
     if "detide_obs" in config:
         detide_obs = (int(config["detide_obs"]) == 1)
     obs_config.detide_obs = detide_obs
