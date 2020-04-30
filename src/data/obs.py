@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from datetime import timedelta
 
 import pandas as pd
 
@@ -59,10 +60,14 @@ class Station(object):
             if self._data.index.tz is None:
                 self._data.index = self._data.index.tz_localize("UTC")
 
-                # remove duplicate dates in index before converting to frequency
-                self._data = self._data[~self._data.index.duplicated()]
-                self._data = self._data[self._data.index.minute == 0]
-                self._data = self._data.resample("60T").first()
+            # remove duplicate dates in index before converting to frequency
+            # self._data = self._data[~self._data.index.duplicated()]
+            # self._data = self._data[self._data.index.minute == 0]
+            # self._data = self._data.resample("60T").first()
+
+            # self._data = self._data.asfreq(timedelta(minutes=30))
+            # self._data = self._data.interpolate(method="time", limit=1)
+            # self._data = self._data[self._data.index.minute == 0]
 
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, thresh_std_fraction=1.5)
@@ -70,18 +75,20 @@ class Station(object):
 
             self._data.dropna(inplace=True)
 
-            # self._data = self._data.resample("60T", base=self._data.index[0].minute).asfreq()
+
+            dt = timedelta(hours=1)
+            dt_half = timedelta(seconds=dt.total_seconds() // 2)
 
             # take into account some obs that might have
             # 30 minutes in their time stamps not 00 (i.e NL)
-            #obs_data_f = self._data.asfreq("30T").fillna(method="ffill", limit=1)
-            #obs_data_b = self._data.asfreq("30T").fillna(method="bfill", limit=1)
+            obs_data_f = self._data.asfreq(dt_half).fillna(method="ffill", limit=1)
+            obs_data_b = self._data.asfreq(dt_half).fillna(method="bfill", limit=1)
+            self._data = 0.5 * (obs_data_b + obs_data_f)
+            self._data.dropna(inplace=True)
+            self._data = self._data[self._data.index.minute == 0]
 
-            #self._data = 0.5 * (obs_data_b + obs_data_f)
-
-            #print("after frequency conversion")
-            #print(self._data)
-            #quit()
+            # guess the timestep
+            self.data_dt = timedelta(seconds=(self._data.index[1] - self._data.index[0]).total_seconds())
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
@@ -232,7 +239,13 @@ class Station(object):
         v -= np.nanmean(v)
 
         logger.info(f"Before t_tide: v.shape={v.shape}")
-        con = t_tide(v, synth=0, lat=self.latitude, ray=0.5, constitnames=constituents)
+        con = t_tide(v,
+                     dt=self.data_dt.total_seconds() / 3600.,
+                     synth=0,
+                     lat=self.latitude,
+                     ray=0.5,
+                     constitnames=constituents)
+
         v_notide = v - con["xout"].squeeze()
 
         filtered_part = 0
