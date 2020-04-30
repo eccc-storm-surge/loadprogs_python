@@ -75,7 +75,6 @@ class Station(object):
 
             self._data.dropna(inplace=True)
 
-
             dt = timedelta(hours=1)
             dt_half = timedelta(seconds=dt.total_seconds() // 2)
 
@@ -85,7 +84,7 @@ class Station(object):
             obs_data_b = self._data.asfreq(dt_half).fillna(method="bfill", limit=1)
             self._data = 0.5 * (obs_data_b + obs_data_f)
             self._data.dropna(inplace=True)
-            self._data = self._data[self._data.index.minute == 0]
+            self._data = self._data[self._data.index.minute == 0] # temporary solution, think of smth better
 
             # guess the timestep
             self.data_dt = timedelta(seconds=(self._data.index[1] - self._data.index[0]).total_seconds())
