@@ -83,11 +83,14 @@ class Station(object):
             obs_data_f = self._data.asfreq(dt_half).fillna(method="ffill", limit=1)
             obs_data_b = self._data.asfreq(dt_half).fillna(method="bfill", limit=1)
             self._data = 0.5 * (obs_data_b + obs_data_f)
-            self._data.dropna(inplace=True)
+            # self._data.dropna(inplace=True)
             self._data = self._data[self._data.index.minute == 0] # temporary solution, think of smth better
 
+            logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
+            # raise Exception
+
             # guess the timestep
-            self.data_dt = timedelta(seconds=(self._data.index[1] - self._data.index[0]).total_seconds())
+            self.data_dt = dt
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
