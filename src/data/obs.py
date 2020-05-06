@@ -175,7 +175,7 @@ class Station(object):
         :return:
         """
         if start_date is None or self.data is None:
-            return
+            return self
 
         self._data = self.data[self.data.index >= start_date]
         return self
@@ -187,7 +187,7 @@ class Station(object):
         :return:
         """
         if end_date is None or self.data is None:
-            return
+            return self
 
         self._data = self.data[self.data.index <= end_date]
         return self
