@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
-
+    
     processes = []
 
     pl = [Process(target=main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]

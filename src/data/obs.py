@@ -28,7 +28,7 @@ def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
     s = Station()
 
     s.data = data_
-    s.get_detided_series(do_filtering=do_filtering, constiuents=constituents)
+    s.get_detided_series(do_filtering=do_filtering, constituents=constituents)
 
     return s.data["tides"], s.data["filtered"], s.ttidecon
 
@@ -215,12 +215,12 @@ class Station(object):
     def get_twl_data_vector(self):
         return self.data["twl"].values.copy()
 
-    def get_detided_series(self, do_filtering=True, constiuents=None):
+    def get_detided_series(self, do_filtering=True, constituents=None):
         key = "detided"
         if key in self.data and do_filtering == self.do_filtering:
             return self.data[key]
 
-        self._detide(do_filtering=do_filtering, constituents=constiuents)
+        self._detide(do_filtering=do_filtering, constituents=constituents)
         self.do_filtering = do_filtering
         return self.data[key]
 
@@ -337,15 +337,10 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
-    #print(real_to_canhys_mapping); print(real_to_canhys_mapping.loc["2780"]); quit()
-
     station_info_canhys_ids = [real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in station_records]
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
-    #print(station_info_canhys_ids); quit()
-
-    for sql_file in sorted(config.obs_dir.iterdir()):
-        #print(len(list(config.sql_inp_dir.iterdir()))); print(sorted(config.sql_inp_dir.iterdir())[0]); quit()
+    for sql_file in sorted(config.canhys_sql_dir.iterdir()):
         logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
             logger.info(f"{sql_file.name} is not a file, skipping...")
@@ -403,7 +398,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
     return real_ids_to_dfs
-
+    
 
 def load_station_data_from_txt_dir(station_records, config):
 

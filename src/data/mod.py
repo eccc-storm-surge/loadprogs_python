@@ -16,6 +16,8 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from util.plot_ts_and_spectre import plot_ts_and_spectre
+
 
 def get_member_id_from_file_path(fpath: Path):
     return fpath.name.split("_")[-1]
@@ -137,6 +139,17 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
     return df
 
 
+def prepare_mod_sql_data(mod_data, mod_members, stn):
+
+    df = mod_data.copy()
+    df = df.assign(lat=stn.latitude, lon=stn.longitude)
+    df = df.rename(columns={f"{stn.station_id}_obs": "obs"}) \
+           .reindex(columns=["valid_hour", "station_id", "lat", "lon", "time", "obs", *mod_members]) \
+           .sort_values(by="time")
+
+    return df
+
+
 def get_mod_timeseries(stations, mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",
@@ -171,14 +184,13 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
 
     exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
-    # logger.debug(
-    #     exp_t_list
-    # )
+    # logger.debug(exp_t_list)
 
     for member_id in member_ids:
         for exp_t in exp_t_list:
             logger.info(f"treating experiment: {exp_t}")
             data_files = mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}")
+            # logger.debug(data_files)
 
             # sort by name
             data_files = [p for p in sorted(data_files, key=lambda ip: ip.name)]
@@ -261,6 +273,45 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     t0 = do.min()
     t1 = do.max()
     return pd.date_range(t0, t1, freq=run_freq_dt)
+
+
+def get_mod_twl_for_b2b(mod_data, config):
+
+    df = mod_data.copy()
+    logger.info("Detiding model outputs.")
+    assert not any(df["time"].isna())
+
+    # for b2b operations
+    select_crit = df["valid_hour"] <= config.b2b_freq_hours
+    select_crit = select_crit & (df["valid_hour"] > 0) # remove t=0
+    mod_data_twl = df.loc[select_crit, :]
+    mod_data_twl.sort_values("time", inplace=True)
+    logger.debug(mod_data_twl.head())
+
+    mod_data_twl.set_index("time", inplace=True)
+
+    return mod_data_twl
+
+
+def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
+
+    df = mod_data.copy()
+
+    tmean = df.loc[(df["valid_hour"] <= config.b2b_freq_hours) & (df["valid_hour"] > 0), f"{station.station_id}_obs"].mean()
+    df.loc[:, f"{station.station_id}_obs"] -= tmean
+
+    logger.debug(f"tmean({station.station_id})={tmean}")
+
+    # mean to be removed from each member calculated based on the control member, which is assumed
+    # to be the first in the list
+
+    where_cond = (df["valid_hour"] <= config.b2b_freq_hours) & (df["valid_hour"] > 0)
+    tmean = df.loc[where_cond, mod_member_keys[0]].mean()
+
+    for cn in mod_member_keys:
+        df.loc[:, cn] -= tmean  # remove long time mean only of the control member
+
+    return df
 
 
 def main():
