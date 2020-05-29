@@ -54,40 +54,39 @@ class Station(object):
                 logger.info("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
 
-            logger.info(self._data.head())
+            logger.info("\n%s\n", self._data.head())
+
 
             # all times are in UTC
-            if self._data.index.tz is None:
-                self._data.index = self._data.index.tz_localize("UTC")
+            if hasattr(self._data.index, "tz"):
+                if self._data.index.tz is None:
+                    self._data.index = self._data.index.tz_localize("UTC")
 
             # remove duplicate dates in index before converting to frequency
-            # self._data = self._data[~self._data.index.duplicated()]
-            # self._data = self._data[self._data.index.minute == 0]
-            # self._data = self._data.resample("60T").first()
-
-            # self._data = self._data.asfreq(timedelta(minutes=30))
-            # self._data = self._data.interpolate(method="time", limit=1)
-            # self._data = self._data[self._data.index.minute == 0]
+            self._data = self._data[~self._data.index.duplicated()]  # just in case
 
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, thresh_std_fraction=1.5)
-            utils.remove_small_chunks(self._data["twl"], inplace=True, lowest_duration_hours=12)
 
-            self._data.dropna(inplace=True)
-
+            # target time step
             dt = timedelta(hours=1)
             dt_half = timedelta(seconds=dt.total_seconds() // 2)
 
-            # take into account some obs that might have
-            # 30 minutes in their time stamps not 00 (i.e NL)
-            obs_data_f = self._data.asfreq(dt_half).fillna(method="ffill", limit=1)
-            obs_data_b = self._data.asfreq(dt_half).fillna(method="bfill", limit=1)
-            self._data = 0.5 * (obs_data_b + obs_data_f)
-            # self._data.dropna(inplace=True)
-            self._data = self._data[self._data.index.minute == 0] # temporary solution, think of smth better
+            minute_index = pd.date_range(self._data.index.min(),
+                                         self._data.index.max(),
+                                         freq=timedelta(minutes=1))
+
+            self._data = self._data.reindex(self._data.index.union(minute_index), axis=0)
+            self._data = self._data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))
+            self._data = self._data[self._data.index.minute == 0]
+
+            # assumes the data are hourly at this point
+            utils.remove_small_chunks(self._data["twl"], lowest_duration_hours=24, inplace=True)
+
 
             logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
-            # raise Exception
+
+            logger.info("obs processed (before detiding): \n%s\n", self._data.head())
 
             # guess the timestep
             self.data_dt = dt
@@ -368,8 +367,8 @@ def load_station_data_from_canhys_dir(station_records, config):
 
                 # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
                 query = f"""SELECT siteid, datetimeutc, datavalue
-                            FROM datavalue 
-                            WHERE siteid 
+                            FROM datavalue
+                            WHERE siteid
                             IN ({','.join(station_info_canhys_ids)});"""
 
                 data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid")
@@ -398,7 +397,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
 
     return real_ids_to_dfs
-    
+
 
 def load_station_data_from_txt_dir(station_records, config):
 
@@ -419,7 +418,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
-            logger.info(df.head())
+            logger.info("raw obs data:\n%s\n", df.head())
 
             df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
 
