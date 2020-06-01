@@ -49,7 +49,6 @@ def parse_config_settings(config_path):
     _config.detide_mod = mod_config.getboolean("detide_mod", fallback=False)
     _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
     _config.mod_do_filtering = mod_config.getboolean("mod_do_filtering", fallback=False)
-    _config.remove_anal_period_mean = mod_config.getboolean("remove_anal_period_mean", fallback=True)
     _config.n_members = mod_config.getint("n_members", fallback=0)
     # --------------------------------------------
 
@@ -88,6 +87,7 @@ def parse_config_settings(config_path):
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
     _config.output_sql = misc_config.getboolean("output_sql", fallback=False)
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
+    _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     # --------------------------------------------
 
     for k, v in vars(_config).items():

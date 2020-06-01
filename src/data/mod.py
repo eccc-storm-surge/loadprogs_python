@@ -294,7 +294,14 @@ def get_mod_twl_for_b2b(mod_data, config):
 
 
 def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
-
+    """
+    removes analysis period mean from the model and observations
+    :param mod_data:
+    :param station:
+    :param mod_member_keys:
+    :param config:
+    :return:
+    """
     df = mod_data.copy()
 
     tmean = df.loc[(df["valid_hour"] <= config.b2b_freq_hours) & (df["valid_hour"] > 0), f"{station.station_id}_obs"].mean()
