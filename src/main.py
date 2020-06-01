@@ -112,12 +112,25 @@ def main(config_path: Path = None):
 
         # Dump corresponding obs and mod data into a file for scoring
         for s in stations:
+
+            logger.info("\n--------------------\n processing station  '%s' (%s)"
+                        "\n--------------------\n", s.name, s.station_id)
+
             # get model data for corresponding station
             mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
             # detide observation data if specified in config file
             if config.detide_obs:
-                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
+                try:
+                    obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
+                except ValueError as ve:
+                    logger.debug(ve)
+                    msg = """Smth went wrong during detiding of %s,
+                             re-run with --debug option to get more information.
+                             Skipping %s!
+                    """
+                    logger.info(msg, s.station_id, s.station_id)
+                    continue
 
                 # diags for detiding
                 if config.plot_detiding_diag:
