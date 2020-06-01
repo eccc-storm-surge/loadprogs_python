@@ -20,6 +20,7 @@ SSM_FULLNAME=${SSM_NAME}_${VERSION}_${PLAT}
 SSM_BASE=data
 SSM_TEST=${HOME}/ssm/${SSM_NAME}
 SSM_OFFICIEL=/fs/ssm/eccc/cmd/cmde/wave/${SSM_NAME}
+SSM_create_tag=0
 
 mkdir -p ${SSM_BASE}
 
@@ -59,10 +60,12 @@ if [[ -n $(git status --untracked-files=no --porcelain) ]]; then
   exit 1
 fi
 
-if [[ -n $(git tag -l "$VERSION") ]]; then
-  git tag -d $VERSION
+if [ "${SSM_create_tag}" = 1 ]; then
+  if [[ -n $(git tag -l "$VERSION") ]]; then
+    git tag -d $VERSION
+  fi
+  git tag $VERSION
 fi
-git tag $VERSION
 
 mkdir -p $SSM_WORK/bin $SSM_WORK/lib $SSM_WORK/.ssm.d
 
