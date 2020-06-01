@@ -14,6 +14,12 @@ To load the scripts and modules into your environment:
 . ssmuse-sh -d ~sssm001/ssm/loadprogs/2.0.0
 ```
 
+If you do not have your own python environment, the following could be used:
+
+```
+. ssmuse-sh -d ~sssm001/ssm/surgepy/1.0.0
+```
+
 
 Notes
 =====
