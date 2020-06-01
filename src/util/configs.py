@@ -47,7 +47,11 @@ def parse_config_settings(config_path):
     _config.mod_nomvar = mod_config.get("mod_nomvar", fallback="ETAS")
 
     _config.detide_mod = mod_config.getboolean("detide_mod", fallback=False)
-    _config.detide_mod_constituents = mod_config.getboolean("detide_mod_constituents", fallback=None)
+    _config.detide_mod_constituents = mod_config.get("detide_mod_constituents", fallback=None)
+
+    if _config.detide_mod_constituents is not None:
+        _config.detide_mod_constituents = [tok.strip() for tok in _config.detide_mod_constituents.split(",")]
+
     _config.mod_do_filtering = mod_config.getboolean("mod_do_filtering", fallback=False)
     _config.n_members = mod_config.getint("n_members", fallback=0)
     # --------------------------------------------
