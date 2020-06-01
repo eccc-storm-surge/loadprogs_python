@@ -16,7 +16,13 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="run experiment")
 
-    parser.add_argument("--cfg_paths", nargs="+")
+    cfg_arg_names = [
+        "--cfg_paths",
+        "--cfg",
+        "--cfgs"
+    ]
+
+    parser.add_argument(*cfg_arg_names, nargs="+")
     parser.add_argument("-d", "--debug", action="store_true",
                          default=False, required=False)
 
