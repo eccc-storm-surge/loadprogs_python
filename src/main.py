@@ -162,7 +162,8 @@ def main(config_path: Path = None):
                         msg = f"plotting timeseries for mod at {s.station_id}"
                         logging.info(msg)
 
-                        plot_ts_and_spectre(hourly_series=mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
+                        plot_ts_and_spectre(hourly_series=mod_data_twl[c]
+                                                          - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
                                                           - mod_to_filter.loc[mod_data_twl.index],
                                             data_label="mod_{}_{}".format(config.label, s.station_id),
                                             img_dir=config.out_dir,
@@ -173,7 +174,14 @@ def main(config_path: Path = None):
 
                         mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
 
+            #  debugging
+            logger.debug(
+                "obs time which is not in mod_data[time]: %s",
+                obs_data.index.difference(mod_data["time"])
+            )
+
             # align model and observation timeseries in time
+            obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].unique()))
             mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
             mod_data.dropna(inplace=True)
 
