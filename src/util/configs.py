@@ -67,12 +67,13 @@ def parse_config_settings(config_path):
         _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H") \
             .replace(tzinfo=timezone.utc)
 
-    _config.station_info = Path(obs_config["station_info"])
-    _config.obs_dir = Path(obs_config["obs_dir"])
+    _config.station_info = Path(obs_config["station_info"]).expanduser()
+    _config.obs_dir = Path(obs_config["obs_dir"]).expanduser()
 
     if _config.obs_datatype in ["sqlite", "canhys"]:
-        _config.canhys_sql_dir = Path(obs_config.get("canhys_sql_dir"))
+        _config.canhys_sql_dir = Path(obs_config.get("canhys_sql_dir")).expanduser()
         _config.canhys_translator = Path(obs_config.get("canhys_station_id_translation_dict"))
+        _config.canhys_translator = _config.canhys_translator.expanduser()
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
@@ -83,7 +84,7 @@ def parse_config_settings(config_path):
     # --------------------------------------------
     _config.label = misc_config["label"]
 
-    _config.out_dir = Path(misc_config["prepared_for_scoring_dir"])
+    _config.out_dir = Path(misc_config["prepared_for_scoring_dir"]).expanduser()
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
     _config.output_sql = misc_config.getboolean("output_sql", fallback=False)
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
