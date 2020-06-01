@@ -20,6 +20,12 @@ If you do not have your own python environment, the following could be used:
 . ssmuse-sh -d ~sssm001/ssm/surgepy/1.0.0
 ```
 
+To read model outputs from standard RPN files, `rpnpy` is used:
+
+```
+. r.load.dot eccc/mrd/rpn/libs/19.5 eccc/mrd/rpn/MIG/ENV/x/rpnpy/2.1-u1.rc11
+```
+
 
 Notes
 =====
