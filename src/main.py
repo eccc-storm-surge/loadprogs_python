@@ -110,116 +110,102 @@ def main(config_path: Path = None):
         for k, g in mod_groups_by_station:
             logger.debug(f"{k} ({type(k)}) => {g}")
 
-        logger.debug(mod_groups_by_station.head())
-        for c in mod_groups_by_station:
-            logger.debug(c)
+            # Dump corresponding obs and mod data into a file for scoring
+            for s in stations:
+                # get model data for corresponding station
+                mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
-    mod_groups_by_station = model_points.groupby("station_id")
-
-    for k, g in mod_groups_by_station:
-        logger.debug(f"{k} ({type(k)}) => {g}")
-
-        # Dump corresponding obs and mod data into a file for scoring
-        for s in stations:
-            # get model data for corresponding station
-            mod_data = mod_groups_by_station.get_group(s.station_id).copy()
-
-            # detide observation data if specified in config file
-            if config.detide_obs:
-                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
-
-                # diags for detiding
-                if config.plot_detiding_diag:
-                    msg = f"plotting timeseries for {s.station_id}"
-                    logging.info(msg)
-                    # Create time series and power spectrum plots for observational data
-                    plot_ts_and_spectre(hourly_series=obs_data,
-                                        data_label="{}_{}".format(config.label, s.station_id),
-                                        img_dir=config.out_dir,
-                                        subplot_titles=None,
-                                        raw_data=s.data["twl-mean"],
-                                        tides=s.data["tides"],
-                                        sup_title=f"OBS : {s.name} ({s.station_id})")
-
-                    # Create tidal constituents csv file for observational data
-                    s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
-
-            else:
-                # still remove the long-term mean
-                obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
-
-            # deprecated
-            # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-
-            s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
-
-            # detide model time series if requested
-            if config.detide_mod:
-
-                mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
-
-                for c in mod_member_keys:
-                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
-                                                                                              constituents=config.detide_mod_constituents)
-                    # remove longterm mean
-                    mod_data.loc[:, c] -= mod_data_twl[c].mean()
-                    # detiding
-                    mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
-                    # filtering
-                    if config.mod_do_filtering:
-                        mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
+                # detide observation data if specified in config file
+                if config.detide_obs:
+                    obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
 
                     # diags for detiding
                     if config.plot_detiding_diag:
-                        msg = f"plotting timeseries for mod at {s.station_id}"
+                        msg = f"plotting timeseries for {s.station_id}"
                         logging.info(msg)
-
-                        plot_ts_and_spectre(hourly_series=mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
-                                                          - mod_to_filter.loc[mod_data_twl.index],
-                                            data_label="mod_{}_{}".format(config.label, s.station_id),
+                        # Create time series and power spectrum plots for observational data
+                        plot_ts_and_spectre(hourly_series=obs_data,
+                                            data_label="{}_{}".format(config.label, s.station_id),
                                             img_dir=config.out_dir,
                                             subplot_titles=None,
-                                            raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
-                                            tides=mod_tides,
-                                            sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
+                                            raw_data=s.data["twl-mean"],
+                                            tides=s.data["tides"],
+                                            sup_title=f"OBS : {s.name} ({s.station_id})")
 
-                        mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
+                        # Create tidal constituents csv file for observational data
+                        s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
 
-            # align model and observation timeseries in time
-            mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-            mod_data.dropna(inplace=True)
+                else:
+                    # still remove the long-term mean
+                    obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
-            if config.remove_anal_period_mean:
-                mod_data = mod.remove_analysis_period_mean(mod_data, station=s, mod_member_keys=mod_member_keys, config=config)
 
-            # select only runs run_freq_hours apart (usually it is 36h)
-            mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
 
-            rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
-            logger.debug(f"rmse({s.station_id})={rmse}")
+                # detide model time series if requested
+                if config.detide_mod:
 
-        logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
+                    mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
-        logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
+                    for c in mod_member_keys:
+                        mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
+                                                                                                  constituents=config.detide_mod_constituents)
+                        # remove longterm mean
+                        mod_data.loc[:, c] -= mod_data_twl[c].mean()
+                        # detiding
+                        mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
+                        # filtering
+                        if config.mod_do_filtering:
+                            mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
-        with config.out_file.open("a") as fout:
-            for row_index, row in mod_data.iterrows():
-                line = out_line_format.format(
-                    int(row["valid_hour"]),
-                    s.station_id,
-                    s.latitude, s.longitude,
-                    row["time"].strftime("%Y%m%d%H"),
-                    row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
-                )
-                fout.write(line)
+                        # diags for detiding
+                        if config.plot_detiding_diag:
+                            msg = f"plotting timeseries for mod at {s.station_id}"
+                            logging.info(msg)
 
-        if config.output_sql:
-            sql_out_dir = config.out_dir / ("surge_" + config.label + ".sqlite")
-            mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
-            conn = sqlite3.connect(sql_out_dir)
-            mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists='append')
+                            plot_ts_and_spectre(hourly_series=mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
+                                                              - mod_to_filter.loc[mod_data_twl.index],
+                                                data_label="mod_{}_{}".format(config.label, s.station_id),
+                                                img_dir=config.out_dir,
+                                                subplot_titles=None,
+                                                raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
+                                                tides=mod_tides,
+                                                sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
+
+                            mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
+
+                # align model and observation timeseries in time
+                mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+                mod_data.dropna(inplace=True)
+
+                if config.remove_anal_period_mean:
+                    mod_data = mod.remove_analysis_period_mean(mod_data, station=s, mod_member_keys=mod_member_keys, config=config)
+
+                # select only runs run_freq_hours apart (usually it is 36h)
+                mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
+
+                rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
+                logger.debug(f"rmse({s.station_id})={rmse}")
+                logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
+                logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
+
+                for row_index, row in mod_data.iterrows():
+                    line = out_line_format.format(
+                        int(row["valid_hour"]),
+                        s.station_id,
+                        s.latitude, s.longitude,
+                        row["time"].strftime("%Y%m%d%H"),
+                        row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
+                    )
+                    fout.write(line)
+
+                if config.output_sql:
+                    sql_out_dir = config.out_dir / ("surge_" + config.label + ".sqlite")
+                    mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
+                    conn = sqlite3.connect(sql_out_dir)
+                    mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists='append')
 
     logger.info(f"Finished processing {config_path} .")
+    logger.info(f"Output file: {config.out_file} .")
 
 
 if __name__ == '__main__':
