@@ -139,8 +139,6 @@ def main(config_path: Path = None):
                 # still remove the long-term mean
                 obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
-
-
             # detide model time series if requested
             if config.detide_mod:
 
@@ -151,10 +149,16 @@ def main(config_path: Path = None):
                                                                                               constituents=config.detide_mod_constituents)
                     # remove longterm mean
                     mod_data.loc[:, c] -= mod_data_twl[c].mean()
+
+                    # get the union index
+                    t_index = mod_tides.index.union(mod_data["time"].unique())
+                    mod_tides = mod_tides.reindex(t_index)
+
                     # detiding
                     mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
                     # filtering
                     if config.mod_do_filtering:
+                        mod_to_filter = mod_to_filter.reindex(t_index)
                         mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
                     # diags for detiding
