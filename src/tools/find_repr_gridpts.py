@@ -27,7 +27,7 @@ def read_cmd_args():
                         help="path to a file containing obs station "
                              "metadata (coordinates, ids, names) + model grid indices starting from 1")
 
-    parser.add_argument("--mod-files", required=True,
+    parser.add_argument("--mod-files", required=True, nargs="+",
                         help="Path pattern (*,?) to the model output files")
 
     parser.add_argument("--obs-dir", required=True, type=Path,
@@ -80,7 +80,7 @@ def read_cmd_args():
     if args.end_time is not None:
         args.end_time = args.end_time.replace(tzinfo=pytz.UTC)
 
-    print(args)
+    # print(args)
 
     # sanity checks
     if not args.obs_index_in.exists():
@@ -89,10 +89,7 @@ def read_cmd_args():
     if not args.obs_dir.exists():
         raise IOError(f"Not found: {args.obs_dir}")
 
-    mod_path_pattern = Path(str(args.mod_files))
-    mod_dir = mod_path_pattern.parent
-
-    mod_files = list(mod_dir.glob(mod_path_pattern.name))
+    mod_files = args.mod_files
 
     if len(mod_files) == 0:
         raise IOError(f"No files found matching: {args.mod_files}")
@@ -102,6 +99,7 @@ def read_cmd_args():
 
 
 def main():
+
     cmd_args = read_cmd_args()
 
     # parameters for the observations
