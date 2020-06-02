@@ -2,15 +2,22 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import pandas as pd
+from pykdtree.kdtree import KDTree
+from rpnpy.librmn.interp import EzscintError
+
 from data import obs
 from typing import List
 
 from rpnpy.librmn import all as rmn
 from rpnpy.rpndate import RPNDate
 
+from data.obs import Station
+from util import lat_lon
+
 rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
 import logging
+import numpy as np
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -274,7 +281,6 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     t1 = do.max()
     return pd.date_range(t0, t1, freq=run_freq_dt)
 
-
 def get_mod_twl_for_b2b(mod_data, config):
 
     df = mod_data.copy()
@@ -318,6 +324,112 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     for cn in mod_member_keys:
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
 
+
+
+def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
+                                  nnearest=9,
+                                  nomvar="ETAS", typvar="P@",
+                                  dist_upper_bound=None):
+    """
+    get timeseries for nnearest grid points to each station in the list of stations
+    :param dist_upper_bound:
+    :param typvar:
+    :param nomvar:
+    :param stations:
+    :param data_files:
+    :param nnearest:
+    :returns a pandas dataframe with rows as time and columns as multiindex (stationid, (0, ..., nnearest))
+
+    """
+
+    station_id_to_indices = {}
+
+    # get spatial indices corresponding to each station
+    fu = rmn.fstopenall(str(data_files[0]))
+
+    key = rmn.fstinf(fu, nomvar=nomvar, typvar=typvar)
+    meta = rmn.fstprm(key)
+
+    key_mask = rmn.fstinf(fu, nomvar=nomvar, typvar="@@")
+    mask = rmn.fstluk(key_mask)["d"]
+
+    try:
+        grid = rmn.readGrid(fu, meta)["subgrid"][0]
+        gd_lat_lon = rmn.gdll(grid)
+        gd_lons, gd_lats = gd_lat_lon["lon"], gd_lat_lon["lat"]
+    except EzscintError:
+        # for unsupported grids
+        gd_lons = rmn.fstlir(fu, nomvar="LON", dtype=np.float32)
+        gd_lats = rmn.fstlir(fu, nomvar="LAT", dtype=np.float32)
+
+        # try ^^, >>
+        if gd_lons is None:
+            gd_lons = rmn.fstlir(fu, nomvar=">>", dtype=np.float32)
+            gd_lats = rmn.fstlir(fu, nomvar="^^", dtype=np.float32)
+
+        gd_lons = gd_lons["d"]
+        gd_lats = gd_lats["d"]
+
+    rmn.fstcloseall(fu)
+
+    xs, ys, zs = lat_lon.lon_lat_to_cartesian(gd_lons[mask > 0.5], gd_lats[mask > 0.5])
+    ktree = KDTree(np.array(list(zip(xs, ys, zs))))
+
+    i_mat, j_mat = np.indices(gd_lons.shape)
+
+    for s in stations:
+
+        xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
+        dists, inds = ktree.query(np.array([(xt, yt, zt),], dtype=np.float32), k=nnearest)
+
+        if dist_upper_bound is not None:
+            inds = inds[dists <= dist_upper_bound]
+
+        if len(inds) == 0:
+            continue
+
+        station_id_to_indices[s.station_id] = [
+            (i_mat[mask> 0.5][i], j_mat[mask > 0.5][i]) for i in inds.squeeze()
+        ]
+
+    # station_id, gd_point_ind
+    column_idx = pd.MultiIndex.from_tuples([
+        (i, j) for i in station_id_to_indices for j in station_id_to_indices[i]],
+        names=["station_id", "gd_indices"]
+    )
+
+
+
+    df_list = [pd.DataFrame(), ] * len(data_files)
+    for ifile, fpath in enumerate(data_files):
+        logger.info(f"mod: reading {fpath}")
+        fu = rmn.fstopenall(str(fpath))
+        keys = rmn.fstinl(fu, nomvar=nomvar, typvar=typvar)
+        dates = [None] * len(keys)
+
+        data = {}
+        for idx in column_idx:
+            data[idx] = [None] * len(dates)
+
+        for ikey, key in enumerate(keys):
+            rec = rmn.fstluk(key)
+
+            dates[ikey] = RPNDate(rec["datev"]).toDateTime()
+            for idx in column_idx:
+                data[idx][ikey] = rec["d"][idx[1]]
+                # print(idx[1], rec["d"][idx[1]])
+
+        df = pd.DataFrame.from_dict(data=data)
+        df.index = dates
+        df.columns = column_idx
+
+        df_list[ifile] = df
+
+        rmn.fstcloseall(fu)
+
+    # merge all data into a single dataframe
+    df = pd.concat(df_list, axis=0)
+    df.sort_index(axis=0, inplace=True)
     return df
 
 

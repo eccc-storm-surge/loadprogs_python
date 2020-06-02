@@ -10,6 +10,7 @@ from data.obs import Station
 from util.crosspec import crosspec
 import numpy as np
 
+plt.rcParams["font.size"] = 13
 
 def plot_ts_and_spectre(hourly_series: pd.Series, data_label="",
                         img_dir: Path = None, subplot_titles=None,
@@ -25,7 +26,7 @@ def plot_ts_and_spectre(hourly_series: pd.Series, data_label="",
     if img_dir is None:
         img_dir = Path(".")
 
-    gs = GridSpec(4, 1, hspace=0.8)
+    gs = GridSpec(4, 1, hspace=0.4, top=0.96)
     fig = plt.figure(figsize=(10, 12))
 
     if sup_title is not None:
