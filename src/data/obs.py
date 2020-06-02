@@ -55,10 +55,6 @@ class Station(object):
                 self._data.set_index("time", inplace=True)
 
             logger.info("\n%s\n", self._data.head())
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
 
             # all times are in UTC
             if hasattr(self._data.index, "tz"):
