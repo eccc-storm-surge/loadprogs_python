@@ -28,21 +28,24 @@ col 6: modelled value
 [...]
 """
 
-import configparser
 from argparse import Namespace
+import configparser
+import logging
+import numpy as np
+import pandas as pd
+import shutil
+import sqlite3
+
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# Custom modules
 from data import obs
-
 from data import mod
 from data.obs import Station
-
 from util.plot_ts_and_spectre import plot_ts_and_spectre
-import numpy as np
 
-import logging
-import sqlite3
+from util.configs import parse_config_settings
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -66,287 +69,168 @@ def main_levelling_v01():
 
 
 def main(config_path: Path = None):
-
-    logging.info(f"Processing {config_path} ...")
-
-    if config_path is None:
-        config_path = Path("configs/gem5_research_cycle/rdsps_pseudo-analysis_experimental.cfg")
-
-    config = configparser.ConfigParser(inline_comment_prefixes=("#", ";"),
-                                       interpolation=configparser.ExtendedInterpolation())
-    config_data = "[top]\n" + config_path.open().read()
-    config.read_string(config_data)
-    config = config["top"]
-
-    obs_config = Namespace()
-
-    obs_config.obs_datatype = config.get("obs_datatype", "txt")
-
-    obs_config.obs_dir = Path(config["obs_dir"])
-    # options proper to the canhys obs source
-    if obs_config.obs_datatype == "sqlite":
-        obs_config.translator_path = Path(config["canhys_station_id_translation_dict"])
-
-    obs_config.station_info = Path(config["station_info"])
-
-    beg_time = datetime.strptime(config["datestart"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-
-    end_time = datetime.strptime(config["dateend"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-
-    if "datestart_obs" in config:
-        beg_time_obs = datetime.strptime(config["datestart_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    elif beg_time:
-        beg_time_obs = beg_time
-    else:
-        beg_time_obs = None
-    obs_config.beg_time_obs = beg_time_obs
-
-    if "dateend_obs" in config:
-        end_time_obs = datetime.strptime(config["dateend_obs"], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-    elif end_time:
-        end_time_obs = end_time
-    else:
-        end_time_obs = None
-    obs_config.end_time_obs = end_time_obs
-
-    mod_nomvar = "ETAS"
-    if "mod_nomvar" in config:
-        mod_nomvar = config["mod_nomvar"]
-
-    if "nmembers" in config:
-        n_members = int(config["nmembers"])
-    else:
-        n_members = 0
-
-    run_freq_hours = int(config["run_freq_hours"])
-    b2b_freq_hours = int(config["b2b_freq_hours"])
-
-    msg = f"back to back frequency should be less or equal to run_freq_hours, but got {b2b_freq_hours} and {run_freq_hours}, respectively"
-    assert b2b_freq_hours <= run_freq_hours, msg
-
-    detide_obs = True
-    if "detide_obs" in config:
-        detide_obs = (int(config["detide_obs"]) == 1)
-    obs_config.detide_obs = detide_obs
-
-     # whether to detide model timeseries
-    detide_mod = False
-    if "detide_mod" in config:
-        detide_mod = int(config["detide_mod"]) == 1
-
-    detide_mod_constituents = None
-    if detide_mod:
-        if "detide_mod_constituents" in config:
-            detide_mod_constituents = config["detide_mod_constituents"].split(",")
-
-    dt_texp_from_tbeg = timedelta(hours=0)
-    if "dt_texp_from_tbeg_hours" in config:
-        dt_texp_from_tbeg = timedelta(hours=int(config["dt_texp_from_tbeg_hours"]))
-
-    out_dir = Path(config["prepared_for_scoring_dir"])
-    out_dir.mkdir(exist_ok=True, parents=True)
-    out_file = out_dir / ("surge_" + config["label"] + ".dat")
-    output_sql = int(config.get("output_sql", "0") == 1)
+    config = parse_config_settings(config_path)
 
     # do nothing if the output file already exists
-    if out_file.exists():
-        logger.info(f"(INFO) Already exists, won't redo:\n{out_file}")
-        return
+    if config.out_file.exists():
+        logging.info(f"(INFO) Already exists, won't redo:\n{config.out_file}")
+    else:
+        config.out_dir.mkdir(exist_ok=True, parents=True)
 
-    date_format = "%Y%m%d%H"
-
-    plot_detiding_diag = True
-    if "plot_detiding_diag" in config:
-        plot_detiding_diag = config["plot_detiding_diag"].strip() != "0"
-
-    remove_anal_period_mean = True
-    if "remove_anal_period_mean" in config:
-        remove_anal_period_mean = int(config["remove_anal_period_mean"])
-
-    obs_do_filtering = False
-    if "detide_obs_filtering" in config:
-        obs_do_filtering = (int(config["detide_obs_filtering"]) == 1)
-    obs_config.obs_do_filtering = obs_do_filtering
-
-    mod_do_filtering = False
-    if "detide_mod_filtering" in config:
-        mod_do_filtering = (int(config["detide_mod_filtering"]) == 1)
-
-    # valid_hour, station id, lat, lon, date of validity, obs value, mod value 1, ..., mod value n
-    member_ids = ["{:03d}".format(i) for i in range(n_members)] if n_members >= 1 else [""]
+    # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
+    member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
-    for k, v in config.items():
-        logger.debug(f"{k} => {v}, ({type(v)})")
-
     # Load obs (the list of stations is from the .obs file)
-    stations = obs.load_station_data_from_obs_dir(obs_config)
+    stations = obs.load_station_data_from_obs_dir(config)
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
-
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
-    station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config["station_info"])
+    station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info)
 
-    mod_dir = Path(config["mod_dir"]).expanduser()
-    model_points = mod.get_mod_timeseries(stations, mod_dir,
+    model_points = mod.get_mod_timeseries(stations=stations,
+                                          mod_data_path=config.mod_dir,
                                           station_id_to_grid_indices=station_to_model_grid_map,
-                                          start_time=beg_time,
-                                          end_time=end_time,
-                                          member_ids=member_ids, mod_nomvar=mod_nomvar,
-                                          run_freq_hours=b2b_freq_hours,
-                                          dt_texp_from_tbeg=dt_texp_from_tbeg)
+                                          start_time=config.beg_time_mod,
+                                          end_time=config.end_time_mod,
+                                          member_ids=member_ids, mod_nomvar=config.mod_nomvar,
+                                          run_freq_hours=config.b2b_freq_hours,
+                                          dt_texp_from_tbeg=config.dt_texp_from_tbeg)
 
-    origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=run_freq_hours))
+    # forecast start dates based on run_freq_hours
+    origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=config.run_freq_hours))
 
     if len(model_points) == 0:
-        msg = f"Could not find {mod_nomvar} in {mod_dir}, please check your data or load_progs config file.."
+        msg = f"Could not find {config.mod_nomvar} in {config.mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
 
+    with config.out_file.open("w") as fout:
+        mod_groups_by_station = model_points.groupby("station_id")
 
-    mod_groups_by_station = model_points.groupby("station_id")
+        for k, g in mod_groups_by_station:
+            logger.debug(f"{k} ({type(k)}) => {g}")
 
-    for k, g in mod_groups_by_station:
-        logger.debug(f"{k} ({type(k)}) => {g}")
+        # Dump corresponding obs and mod data into a file for scoring
+        for s in stations:
 
-    logger.debug(mod_groups_by_station.head())
-    for c in mod_groups_by_station:
-        logger.debug(c)
+            logger.info("\n--------------------\n processing station  '%s' (%s)"
+                        "\n--------------------\n", s.name, s.station_id)
 
-    # Dump corresponding obs and mod data into a file for scoring
-    for s in stations:
-        logger.debug(f"{s.station_id}, {type(s.station_id)}")
+            # get model data for corresponding station
+            mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
-        mod_data = mod_groups_by_station.get_group(s.station_id).copy()
-
-        if detide_obs:
-            obs_data = s.get_detided_series(do_filtering=obs_do_filtering)
-        else:
-            # still remove the long-term mean
-            obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
-
-        # diags for detiding
-        if plot_detiding_diag and detide_obs:
-            msg = f"plotting timeseries for {s.station_id}"
-            logging.info(msg)
-            plot_ts_and_spectre(obs_data,
-                                "{}_{}".format(config["label"], s.station_id),
-                                img_dir=out_dir,
-                                subplot_titles=None,
-                                raw_data=s.data["twl-mean"],
-                                tides=s.data["tides"],
-                                sup_title=f"OBS : {s.name} ({s.station_id})")
-
-            s.ttidecon.classic_style(to_file=str(out_dir / f"{s.station_id}_obs_tides.csv"))
-
-        # deprecated
-        # mod_data[f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-
-        # Newer note (20190502): this is changed to be as in the MATLAB version of loadprogs, i.e. remove mean of
-        # the observed data in the aligned table
-
-        # take the time mean over the same time points as the model (unless there is missing data)
-        # Note: some time points will be added to the mean few times in a similar way as the model has
-        # several values for the same time (with different lead times), this does not change the scores,
-        # but makes the scatter plots
-        # obs_data = obs_data.reindex(mod_data["time"])
-
-        # remove the mean over the current period from the data (to be more consistent with mod)
-        # if obs_remove_anal_period_mean:
-        #    obs_data -= obs_data.mean(skipna=True, axis=0)
-        #
-
-        # detide model time series if requested
-        if detide_mod:
-            logger.info("Detiding model outputs.")
-            assert not any(mod_data["time"].isna())
-
-            # for b2b operations
-            select_crit = mod_data["valid_hour"] <= b2b_freq_hours
-            select_crit = select_crit & (mod_data["valid_hour"] > 0) # remove t=0
-            mod_data_twl = mod_data.loc[select_crit, :]
-            mod_data_twl.sort_values("time", inplace=True)
-            logger.debug(mod_data_twl.head())
-
-            mod_data_twl.set_index("time", inplace=True)
-
-            for c in mod_member_keys:
-                mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
-                    mod_data_twl.loc[:, c].to_frame(), constituents=detide_mod_constituents)
-
-                # remove longterm mean
-                mod_data.loc[:, c] -= mod_data_twl[c].mean()
-                # detiding
-                mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
-
-                # filtering
-                if mod_do_filtering:
-                    mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
+            # detide observation data if specified in config file
+            if config.detide_obs:
+                try:
+                    obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
+                except ValueError as ve:
+                    logger.debug(ve)
+                    msg = """Smth went wrong during detiding of %s,
+                             re-run with --debug option to get more information.
+                             Skipping %s!
+                    """
+                    logger.info(msg, s.station_id, s.station_id)
+                    continue
 
                 # diags for detiding
-                if plot_detiding_diag:
-                    msg = f"plotting timeseries for mod at {s.station_id}"
+                if config.plot_detiding_diag:
+                    msg = f"plotting timeseries for {s.station_id}"
                     logging.info(msg)
+                    # Create time series and power spectrum plots for observational data
+                    plot_ts_and_spectre(hourly_series=obs_data,
+                                        data_label="{}_{}".format(config.label, s.station_id),
+                                        img_dir=config.out_dir,
+                                        subplot_titles=None,
+                                        raw_data=s.data["twl-mean"],
+                                        tides=s.data["tides"],
+                                        sup_title=f"OBS : {s.name} ({s.station_id})")
 
-                    plot_ts_and_spectre(
-                        mod_data_twl[c] - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index] -
-                        mod_to_filter.loc[mod_data_twl.index],
-                        "mod_{}_{}".format(config["label"], s.station_id),
-                        img_dir=out_dir,
-                        subplot_titles=None,
-                        raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
-                        tides=mod_tides, sup_title=config["label"].upper() + f": {s.name} ({s.station_id})")
+                    # Create tidal constituents csv file for observational data
+                    s.ttidecon.classic_style(to_file=str(config.out_dir / f"{s.station_id}_obs_tides.csv"))
 
-                    mod_ttide_con.classic_style(to_file=str(out_dir / f"{s.station_id}_mod_tides.csv"))
+            else:
+                # still remove the long-term mean
+                obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
 
-        # align model and observation timeseries in time
-        mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+            # detide model time series if requested
+            if config.detide_mod:
 
-        mod_data.dropna(inplace=True)
+                mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
-        if remove_anal_period_mean:
-            tmean = mod_data.loc[(mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0), f"{s.station_id}_obs"].mean()
-            mod_data.loc[:, f"{s.station_id}_obs"] -= tmean
+                for c in mod_member_keys:
+                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
+                                                                                              constituents=config.detide_mod_constituents)
+                    # remove longterm mean
+                    mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
-            logger.debug(f"tmean({s.station_id})={tmean}")
+                    # get the union index
+                    t_index = mod_tides.index.union(mod_data["time"].unique())
+                    mod_tides = mod_tides.reindex(t_index)
 
-            # mean to be removed from each member calculated based on the control member, which is assumed
-            # to be the first in the list
+                    # detiding
+                    mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
+                    # filtering
+                    if config.mod_do_filtering:
+                        mod_to_filter = mod_to_filter.reindex(t_index)
+                        mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
-            where_cond = (mod_data["valid_hour"] <= b2b_freq_hours) & (mod_data["valid_hour"] > 0)
-            tmean = mod_data.loc[where_cond, mod_member_keys[0]].mean()
+                    # diags for detiding
+                    if config.plot_detiding_diag:
+                        msg = f"plotting timeseries for mod at {s.station_id}"
+                        logging.info(msg)
 
-            for cn in mod_member_keys:
-                mod_data.loc[:, cn] -= tmean  # remove long time mean only of the control member
+                        plot_ts_and_spectre(hourly_series=mod_data_twl[c]
+                                                          - mod_data_twl[c].mean() - mod_tides.loc[mod_data_twl.index]
+                                                          - mod_to_filter.loc[mod_data_twl.index],
+                                            data_label="mod_{}_{}".format(config.label, s.station_id),
+                                            img_dir=config.out_dir,
+                                            subplot_titles=None,
+                                            raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
+                                            tides=mod_tides,
+                                            sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
 
-        # select only runs run_freq_hours apart (usually it is 36h)
-        mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
+                        mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
 
-        if len(mod_data) > 0:
-            rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (
-                len(mod_data)) ** 0.5
+            #  debugging
+            logger.debug(
+                "obs time which is not in mod_data[time]: %s",
+                obs_data.index.difference(mod_data["time"])
+            )
+
+            # align model and observation timeseries in time
+            obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].unique()))
+            mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+            mod_data.dropna(inplace=True)
+
+            if config.remove_anal_period_mean:
+                mod_data = mod.remove_analysis_period_mean(mod_data, station=s, mod_member_keys=mod_member_keys, config=config)
+
+            # select only runs run_freq_hours apart (usually it is 36h)
+            mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
+
+            rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
             logger.debug(f"rmse({s.station_id})={rmse}")
+            logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
+            logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
 
-        logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
-
-        logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
-
-        with out_file.open("a") as fout:
             for row_index, row in mod_data.iterrows():
                 line = out_line_format.format(
                     int(row["valid_hour"]),
                     s.station_id,
                     s.latitude, s.longitude,
-                    row["time"].strftime(date_format),
+                    row["time"].strftime("%Y%m%d%H"),
                     row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                 )
                 fout.write(line)
 
-        if output_sql:
-            mod_data = mod_data.rename(columns={f"{s.station_id}_obs": "obs"})
-            conn = sqlite3.connect(out_dir / ("surge_" + config["label"] + ".sqlite"))
-            mod_data.to_sql(name="data", con=conn, index=False, if_exists='append')
+            if config.output_sql:
+                sql_out_dir = config.out_dir / ("surge_" + config.label + ".sqlite")
+                mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
+                conn = sqlite3.connect(sql_out_dir)
+                mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists='append')
 
     logger.info(f"Finished processing {config_path} .")
+    logger.info(f"Output file: {config.out_file} .")
 
 
 if __name__ == '__main__':
