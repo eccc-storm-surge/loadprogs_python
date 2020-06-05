@@ -25,14 +25,20 @@ def parse_config_settings(config_path):
     obs_config = cparser["obs"]
     misc_config = cparser["misc"]
 
+    # for when the dates from the config are not used
+    dummy_date = "1900010100"
+
     # --------------------------------------------
     # Model configurations
     # --------------------------------------------
-    _config.beg_time_mod = datetime.strptime(mod_config["datestart_mod"], "%Y%m%d%H") \
+    _config.beg_time_mod = datetime.strptime(mod_config.get("datestart_mod", fallback=dummy_date), "%Y%m%d%H") \
         .replace(tzinfo=timezone.utc)
 
-    _config.end_time_mod = datetime.strptime(mod_config["dateend_mod"], "%Y%m%d%H") \
+    _config.end_time_mod = datetime.strptime(mod_config.get("dateend_mod", fallback=dummy_date), "%Y%m%d%H") \
         .replace(tzinfo=timezone.utc)
+
+    assert _config.end_time_mod <= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
+
 
     _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
 
@@ -65,7 +71,7 @@ def parse_config_settings(config_path):
     if "datestart_obs" in obs_config:
         _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H") \
             .replace(tzinfo=timezone.utc)
-
+    
     _config.end_time_obs = None
     if "dateend_obs" in obs_config:
         _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H") \

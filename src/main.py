@@ -40,7 +40,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 # Custom modules
-try: # when used as a component
+try:  # when used as a component
     from .data import obs
     from .data import mod
     from .data.obs import Station
