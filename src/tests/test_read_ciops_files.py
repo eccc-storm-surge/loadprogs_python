@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from data import mod
-from data.obs import Station
+from ..data import mod
+from ..data.obs import Station
 
 
 def test_read_one_file():

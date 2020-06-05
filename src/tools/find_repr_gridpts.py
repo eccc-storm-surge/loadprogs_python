@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytz
 
-from data import mod, obs
-from data.obs import Station
-from util import scores, obs_file
+from ..data import mod, obs
+from ..data.obs import Station
+from ..util import scores, obs_file
 import pandas as pd
 
 def read_cmd_args():

@@ -1,5 +1,5 @@
 from pathlib import Path
-from data import obs
+from ..data import obs
 
 import matplotlib.pyplot as plt
 import pandas as pd

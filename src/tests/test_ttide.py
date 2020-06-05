@@ -7,7 +7,7 @@ from datetime import datetime
 
 import ttide
 
-from data.obs import Station
+from ..data.obs import Station
 
 def test():
     st_id = "8443970"

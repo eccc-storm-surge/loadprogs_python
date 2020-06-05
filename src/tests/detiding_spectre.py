@@ -3,10 +3,10 @@ from pathlib import Path
 import numpy as np
 from scipy import signal
 
-from data.obs import Station
+from ..data.obs import Station
 import matplotlib.pyplot as plt
 
-from util.crosspec import crosspec
+from ..util.crosspec import crosspec
 
 
 def main():

@@ -4,12 +4,12 @@ from scipy.io import loadmat
 
 import matplotlib.pyplot as plt
 
-from data.obs import Station
-from util.crosspec import crosspec
+from ..data.obs import Station
+from ..util.crosspec import crosspec
 
 import numpy as np
 
-from util.plot_ts_and_spectre import plot_ts_and_spectre
+from ..util.plot_ts_and_spectre import plot_ts_and_spectre
 
 
 def test1():

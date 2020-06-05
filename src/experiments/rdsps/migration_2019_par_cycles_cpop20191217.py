@@ -1,5 +1,5 @@
 from pathlib import Path
-from main import main
+from ...main import main
 
 from multiprocessing import Process
 
