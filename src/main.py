@@ -53,10 +53,6 @@ except ImportError: # standalone
     from util.plot_ts_and_spectre import plot_ts_and_spectre
     from util.configs import parse_config_settings
 
-
-
-
-
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

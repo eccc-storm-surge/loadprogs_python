@@ -94,6 +94,10 @@ def read_cmd_args():
     if len(mod_files) == 0:
         raise IOError(f"No files found matching: {args.mod_files}")
 
+    if args.dist_upper_bound_m is not None:
+        args.dist_upper_bound_m = float(args.dist_upper_bound_m)
+
+
     args.mod_files = mod_files
     return args
 
