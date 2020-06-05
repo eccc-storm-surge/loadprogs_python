@@ -74,8 +74,18 @@ def main_levelling_v01():
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
 
 
-def main(config_path: Path = None):
+def main(config_path: Path = None, cfg_overrides: dict = None):
+    """
+    Entry point for processing a given simulation
+    Args:
+        config_path: path to the loadprogs config file
+        cfg_overrides: config properties to be overriden, useful for embedded use for monitoring
+    """
     config = parse_config_settings(config_path)
+
+    # apply overrides if provided
+    cfg_overrides = dict() if cfg_overrides is None else cfg_overrides
+    config.__dict__.update(cfg_overrides)
 
     # do nothing if the output file already exists
     if config.out_file.exists():
