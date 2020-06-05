@@ -40,12 +40,22 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 # Custom modules
-from .data import obs
-from .data import mod
-from .data.obs import Station
-from .util.plot_ts_and_spectre import plot_ts_and_spectre
+try: # when used as a component
+    from .data import obs
+    from .data import mod
+    from .data.obs import Station
+    from .util.plot_ts_and_spectre import plot_ts_and_spectre
+    from .util.configs import parse_config_settings
+except ImportError: # standalone
+    from data import obs
+    from data import mod
+    from data.obs import Station
+    from util.plot_ts_and_spectre import plot_ts_and_spectre
+    from util.configs import parse_config_settings
 
-from .util.configs import parse_config_settings
+
+
+
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
