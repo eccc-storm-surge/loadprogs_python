@@ -323,7 +323,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
 
     for cn in mod_member_keys:
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
-
+    return df
 
 
 def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
