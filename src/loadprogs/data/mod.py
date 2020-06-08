@@ -5,13 +5,13 @@ import pandas as pd
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
 
-from loadprogs.data import obs
+from . import obs
 from typing import List
 
 from rpnpy.librmn import all as rmn
 from rpnpy.rpndate import RPNDate
 
-from ..data.obs import Station
+from .obs import Station
 from ..util import lat_lon
 
 rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
