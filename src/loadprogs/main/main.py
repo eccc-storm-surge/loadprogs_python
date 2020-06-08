@@ -75,6 +75,11 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
     cfg_overrides = dict() if cfg_overrides is None else cfg_overrides
     config.__dict__.update(cfg_overrides)
 
+    for k, v in vars(config).items():
+        logger.info(f"{k} => {v}, ({type(v)})")
+
+
+
     # do nothing if the output file already exists
     if config.out_file.exists():
         logging.info(f"(INFO) Already exists, won't redo:\n{config.out_file}")

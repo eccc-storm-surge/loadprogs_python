@@ -100,9 +100,6 @@ def parse_config_settings(config_path):
     _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     # --------------------------------------------
 
-    for k, v in vars(_config).items():
-        logger.info(f"{k} => {v}, ({type(v)})")
-
     return _config
 
 
