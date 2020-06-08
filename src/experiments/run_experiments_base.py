@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
-from ..main import main
+from main import main
 
 from multiprocessing import Process, Lock
 import argparse
