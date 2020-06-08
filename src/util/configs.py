@@ -37,7 +37,7 @@ def parse_config_settings(config_path):
     _config.end_time_mod = datetime.strptime(mod_config.get("dateend_mod", fallback=dummy_date), "%Y%m%d%H") \
         .replace(tzinfo=timezone.utc)
 
-    assert _config.end_time_mod <= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
+    assert _config.end_time_mod >= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
 
 
     _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
