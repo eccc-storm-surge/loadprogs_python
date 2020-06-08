@@ -41,11 +41,11 @@ from pathlib import Path
 
 # Custom modules
 try:  # when used as a component
-    from .data import obs
-    from .data import mod
-    from .data.obs import Station
-    from .util.plot_ts_and_spectre import plot_ts_and_spectre
-    from .util.configs import parse_config_settings
+    from components.loadprogs.data import obs
+    from components.loadprogs.data import mod
+    from components.loadprogs.data.obs import Station
+    from components.loadprogs.util.plot_ts_and_spectre import plot_ts_and_spectre
+    from components.loadprogs.util.configs import parse_config_settings
 except ImportError: # standalone
     from data import obs
     from data import mod
