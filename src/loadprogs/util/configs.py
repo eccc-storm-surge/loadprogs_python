@@ -81,8 +81,8 @@ def parse_config_settings(config_path):
     _config.obs_dir = Path(obs_config["obs_dir"]).expanduser()
 
     if _config.obs_datatype in ["sqlite", "canhys"]:
-        _config.canhys_translator = Path(obs_config.get("canhys_station_id_translation_dict"))
-        _config.canhys_translator = _config.canhys_translator.expanduser()
+        _config.translator_path = Path(obs_config.get("canhys_station_id_translation_dict"))
+        _config.translator_path = _config.translator_path.expanduser()
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)

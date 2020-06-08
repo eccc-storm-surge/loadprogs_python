@@ -333,10 +333,13 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
-    station_info_canhys_ids = [real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in station_records]
+    station_info_canhys_ids = [
+        real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in real_to_canhys_mapping.index.intersection(station_records)
+    ]
+
     canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
 
-    for sql_file in sorted(config.canhys_sql_dir.iterdir()):
+    for sql_file in sorted(config.obs_dir.iterdir()):
         logger.info(f"processing file: {sql_file}")
         if not sql_file.is_file():
             logger.info(f"{sql_file.name} is not a file, skipping...")
