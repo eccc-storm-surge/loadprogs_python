@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from ttide import t_tide
 
-from data import utils
+from . import utils
 
 MIN_DATA_LEN_FOR_DETIDING = 2160
 
