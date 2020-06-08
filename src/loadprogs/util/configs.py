@@ -81,7 +81,6 @@ def parse_config_settings(config_path):
     _config.obs_dir = Path(obs_config["obs_dir"]).expanduser()
 
     if _config.obs_datatype in ["sqlite", "canhys"]:
-        _config.canhys_sql_dir = Path(obs_config.get("canhys_sql_dir")).expanduser()
         _config.canhys_translator = Path(obs_config.get("canhys_station_id_translation_dict"))
         _config.canhys_translator = _config.canhys_translator.expanduser()
 
