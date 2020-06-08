@@ -5,8 +5,8 @@ import pandas as pd
 from matplotlib.gridspec import GridSpec
 
 import matplotlib.pyplot as plt
-from loadprogs.data import Station
-from loadprogs.util import crosspec
+from ..data.obs import Station
+from ..util.crosspec import crosspec
 import numpy as np
 
 plt.rcParams["font.size"] = 13

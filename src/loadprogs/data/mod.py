@@ -11,8 +11,8 @@ from typing import List
 from rpnpy.librmn import all as rmn
 from rpnpy.rpndate import RPNDate
 
-from loadprogs.data import Station
-from loadprogs.util import lat_lon
+from ..data.obs import Station
+from ..util import lat_lon
 
 rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 

@@ -36,18 +36,10 @@ from datetime import timedelta
 from pathlib import Path
 
 # Custom modules
-try:  # when used as a component
-    from components.loadprogs.data import obs
-    from components.loadprogs.data import mod
-    from components.loadprogs.data.obs import Station
-    from components.loadprogs.util.plot_ts_and_spectre import plot_ts_and_spectre
-    from components.loadprogs.util.configs import parse_config_settings
-except ImportError: # standalone
-    from loadprogs.data import obs
-    from loadprogs.data import mod
-    from loadprogs.data import Station
-    from loadprogs.util import plot_ts_and_spectre
-    from loadprogs.util import parse_config_settings
+from ..data import obs
+from ..data import mod
+from ..util.plot_ts_and_spectre import plot_ts_and_spectre
+from ..util.configs import parse_config_settings
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)

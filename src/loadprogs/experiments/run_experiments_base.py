@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
-from loadprogs.main import main
+
+# absolute import as it is supposed to be used as main (standalone launch script) only!
+from loadprogs.main.main import main
 
 from multiprocessing import Process
 import argparse
