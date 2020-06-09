@@ -95,7 +95,15 @@ def parse_config_settings(config_path):
 
     _config.out_dir = Path(misc_config["prepared_for_scoring_dir"]).expanduser()
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
-    _config.output_sql = misc_config.getboolean("output_sql", fallback=False)
+    _config.output_txt = misc_config.getboolean("output_txt", fallback=True)
+
+    # allow either output_sql or output_sqlite parameter names, means the same thing
+    _config.output_sqlite = misc_config.getboolean("output_sql", fallback=False)
+    _config.output_sqlite = misc_config.getboolean("output_sqlite", fallback=_config.output_sqlite)
+    if _config.output_sqlite:
+        _config.out_file_sqlite = _config.out_dir / (_config.out_file.name[:-4] + ".sqlite")
+
+
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
     _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     # --------------------------------------------
