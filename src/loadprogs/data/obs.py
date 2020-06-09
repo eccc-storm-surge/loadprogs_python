@@ -323,6 +323,8 @@ def load_station_data_from_obs_dir(config):
 
 def load_station_data_from_canhys_dir(station_records, config):
 
+    t_tolerance = timedelta(hours=24)
+
     msg = "Observation start or end date is not valid"
     assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
@@ -356,37 +358,44 @@ def load_station_data_from_canhys_dir(station_records, config):
             logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
 
-        if record_date >= config.beg_time_obs:
-            if record_date <= config.end_time_obs:
-                conn = sqlite3.connect(sql_file)
-                cursor = conn.cursor()
+        # filter the dates
+        if config.beg_time_obs is not None:
+            if record_date + t_tolerance < config.beg_time_obs:
+                logger.info(
+                    f"Date of {sql_file.name} is before observation start date, skipping.. (tolerance={t_tolerance})")
+                continue
 
-                cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
-                if not cursor.fetchone():
-                    logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
-                    continue
+        if config.end_time_obs is not None:
+            if record_date - t_tolerance > config.end_time_obs:
+                logger.info(
+                    f"Date of {sql_file.name} is after observation end date, finishing.. (tolerance={t_tolerance})")
+                continue
 
-                # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-                query = f"""SELECT siteid, datetimeutc, datavalue
-                            FROM datavalue
-                            WHERE siteid
-                            IN ({','.join(station_info_canhys_ids)});"""
+        # read data
+        conn = sqlite3.connect(sql_file)
+        cursor = conn.cursor()
 
-                data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid") # TODO: maybe move the grouping to the sqlite query
+        cursor.execute("select name from sqlite_master where type='table' and name='datavalue'")
+        if not cursor.fetchone():
+            logger.info(f"Table 'datavalue' not found in {sql_file.name}, skipping..")
+            continue
 
-                for canhys_id in station_info_canhys_ids:
-                    try:
-                        st_data = data_for_all_stns.get_group(int(canhys_id))
-                        canhys_ids_to_dfs[canhys_id] += [st_data]
-                    except KeyError:
-                        logger.info(fr"   \--> CanHys id {canhys_id} not found within table, skipping..")
-                        continue
+        # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
+        query = f"""SELECT siteid, datetimeutc, datavalue
+                    FROM datavalue
+                    WHERE siteid
+                    IN ({','.join(station_info_canhys_ids)});"""
 
-            else:
-                logger.info(f"Date of {sql_file.name} is after observation end date, finishing..")
-                break
-        else:
-            logger.info(f"Date of {sql_file.name} is before observation start date, skipping..")
+        data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid") # TODO: maybe move the grouping to the sqlite query
+
+        for canhys_id in station_info_canhys_ids:
+            try:
+                st_data = data_for_all_stns.get_group(int(canhys_id))
+                canhys_ids_to_dfs[canhys_id] += [st_data]
+            except KeyError:
+                logger.info(fr"   \--> CanHys id {canhys_id} not found within table, skipping..")
+                continue
+
 
     # Translate station ids from CanHys to real as well as merge time series for each station
     real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id])
