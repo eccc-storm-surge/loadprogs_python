@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 import sqlite3
 from datetime import timedelta
@@ -337,7 +338,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in real_to_canhys_mapping.index.intersection(station_records)
     ]
 
-    canhys_ids_to_dfs = {canhys_id: [] for canhys_id in station_info_canhys_ids}
+    canhys_ids_to_dfs = defaultdict(list)
 
     for sql_file in sorted(config.obs_dir.iterdir()):
         logger.info(f"processing file: {sql_file}")
@@ -371,7 +372,7 @@ def load_station_data_from_canhys_dir(station_records, config):
                             WHERE siteid
                             IN ({','.join(station_info_canhys_ids)});"""
 
-                data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid")
+                data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid") # TODO: maybe move the grouping to the sqlite query
 
                 for canhys_id in station_info_canhys_ids:
                     try:
