@@ -218,7 +218,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
         # align model and observation timeseries in time
         obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].unique()))
         mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
-        mod_data.dropna(inplace=True)
+
+        if not config.keep_nan:
+            mod_data.dropna(inplace=True)
 
         if config.remove_anal_period_mean:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, mod_member_keys=mod_member_keys, config=config)
