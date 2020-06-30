@@ -243,8 +243,8 @@ class Station(object):
                      synth=0,
                      lat=self.latitude,
                      ray=0.5,
-                     constitnames=constituents)
-#                      , stime=self.data.index[0]) <- introduces weird shift, remove for now
+                     constitnames=constituents,
+                     stime=self.data.index[0])
 
         v_notide = v - con["xout"].squeeze()
 
