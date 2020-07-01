@@ -243,8 +243,7 @@ class Station(object):
                      synth=0,
                      lat=self.latitude,
                      ray=0.5,
-                     constitnames=constituents,
-                     stime=self.data.index[0])
+                     constitnames=constituents)
 
         v_notide = v - con["xout"].squeeze()
 

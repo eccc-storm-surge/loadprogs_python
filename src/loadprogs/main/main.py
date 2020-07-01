@@ -222,7 +222,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
         if not config.keep_nan:
             mod_data.dropna(inplace=True)
 
-       # remove analysis period mean from the mod and obs
+        # remove analysis period mean from the mod and obs
         if config.remove_anal_period_mean:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
                                 mod_member_keys=mod_member_keys, config=config)
