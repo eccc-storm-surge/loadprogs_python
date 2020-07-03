@@ -88,3 +88,18 @@ def break_into_chunks(dataframe: pd.DataFrame, max_chunk_size=1500, eliminate_no
         res.append(chunk)
 
     return res
+
+
+def remove_leading_trailing_nans(df: pd.DataFrame, focus_col="twl"):
+    """
+    Creates a copy of the input df
+    :param df:
+    :param focus_col:
+    :return: subset of the supplied dataset
+    """
+    focus_data = df[focus_col]
+    i_arr = np.where(focus_data.notna())
+    i_min = min(i_arr)
+    i_max = max(i_arr)
+
+    return df.loc[i_min:i_max, :]
