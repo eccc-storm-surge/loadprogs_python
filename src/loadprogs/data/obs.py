@@ -81,6 +81,8 @@ class Station(object):
             # assumes the data are hourly at this point
             utils.remove_small_chunks(self._data["twl"], lowest_duration_hours=24, inplace=True)
 
+            # remove leading/trailing nans if present
+            self._data = utils.remove_leading_trailing_nans(self._data, focus_col="twl")
 
             logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
 
@@ -243,7 +245,8 @@ class Station(object):
                      synth=0,
                      lat=self.latitude,
                      ray=0.5,
-                     constitnames=constituents)
+                     constitnames=constituents,
+                     stime=self._data.index[0])
 
         v_notide = v - con["xout"].squeeze()
 
