@@ -102,4 +102,4 @@ def remove_leading_trailing_nans(df: pd.DataFrame, focus_col="twl"):
     i_min = min(i_arr)
     i_max = max(i_arr)
 
-    return df.loc[i_min:i_max, :]
+    return df.iloc[i_min:i_max, :]
