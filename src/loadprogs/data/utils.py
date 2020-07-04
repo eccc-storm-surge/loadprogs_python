@@ -98,8 +98,11 @@ def remove_leading_trailing_nans(df: pd.DataFrame, focus_col="twl"):
     :return: subset of the supplied dataset
     """
     focus_data = df[focus_col]
-    i_arr = np.where(focus_data.notna().values)
+    i_arr = np.where(focus_data.notna().values)[0]
+
     i_min = min(i_arr)
     i_max = max(i_arr)
 
-    return df.iloc[i_min:i_max, :]
+
+
+    return df.iloc[i_min:i_max + 1, :]
