@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
+
 def parse_config_settings(config_path):
     logging.info(f"Processing {config_path} ...")
 
@@ -60,6 +62,11 @@ def parse_config_settings(config_path):
 
     _config.mod_do_filtering = mod_config.getboolean("mod_do_filtering", fallback=False)
     _config.n_members = mod_config.getint("n_members", fallback=0)
+
+    _config.min_nhours_for_detiding_mod = mod_config.getint("min_nhours_for_detiding",
+                                                            fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
+
+
     # --------------------------------------------
 
     # --------------------------------------------
@@ -86,6 +93,10 @@ def parse_config_settings(config_path):
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
+
+    _config.min_nhours_for_detiding_obs = obs_config.getint("min_nhours_for_detiding",
+                                                            fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
+
     # --------------------------------------------
 
     # --------------------------------------------
@@ -106,6 +117,7 @@ def parse_config_settings(config_path):
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
     _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
+
     # --------------------------------------------
 
     return _config
