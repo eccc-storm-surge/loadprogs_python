@@ -141,6 +141,13 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
         if config.detide_obs:
             try:
                 obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
+
+                n_valid_obs = len(obs_data.dropna())
+                if n_valid_obs < config.min_nhours_for_detiding_obs:
+                    logger.info(f"Not enough obs data for {s.station_id} ({n_valid_obs},"
+                                f" but obs:min_nhours_for_detiding={config.min_nhours_for_detiding_obs})")
+                    obs_data.loc[:] = np.nan
+
             except ValueError as ve:
                 logger.debug(ve)
                 msg = """Smth went wrong during detiding of %s,
