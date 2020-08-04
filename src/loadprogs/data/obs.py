@@ -64,7 +64,7 @@ class Station(object):
             self._data = self._data[~self._data.index.duplicated()]  # just in case
 
             # input data cleanup
-            # utils.remove_spikes(self._data["twl"], inplace=True, thresh_std_fraction=1.5)
+            # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
 
             # target time step
             dt = timedelta(hours=1)
@@ -73,6 +73,9 @@ class Station(object):
             minute_index = pd.date_range(self._data.index.min(),
                                          self._data.index.max(),
                                          freq=timedelta(minutes=1))
+
+            # remove spikes (like we had in canhys 176 instead of 4)
+            self._data["twl"] = utils.remove_spikes(self._data["twl"], whis=1.5)
 
             self._data = self._data.reindex(self._data.index.union(minute_index), axis=0)
             self._data = self._data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))

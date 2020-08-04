@@ -5,22 +5,28 @@ import numpy as np
 from scipy import ndimage
 
 
-def remove_spikes(series: pd.Series, thresh_std_fraction=0.9, inplace=False):
+def remove_spikes(series: pd.Series, whis=1.5, inplace=False):
     """
     Fill spikes with NA
     :param series:
-    :param thresh_std_fraction:
+    :param whis:
     :param inplace:
     :return:
     """
-    diff = series.diff().bfill().abs()
-    stde = series.std()
 
-    series_ = series
+    q3 = series.quantile(q=0.75)
+    q1 = series.quantile(q=0.25)
+    iqr = q3 - q1
+
     if not inplace:
         series_ = series.copy()
+    else:
+        series_ = series
 
-    series_[diff >= thresh_std_fraction * stde] = np.nan
+    eliminate = series_.values > (whis * iqr + q3)
+    eliminate = (series_.values < (-whis * iqr + q1)) | eliminate
+
+    series_[eliminate] = np.nan
 
     return series_
 
