@@ -28,6 +28,16 @@ def remove_spikes(series: pd.Series, whis=1.5, inplace=False):
 
     series_[eliminate] = np.nan
 
+    # discard the days when outliers occur
+    if np.any(eliminate):
+        # discard the day with outlier
+        day = pd.Timedelta(days=1)
+        outlier_dates = series_.index[eliminate].floor(day).unique()
+
+        for t in outlier_dates:
+            t2 = t + day
+            series_[(series_.index >= t) & (series_.index < t2)] = np.nan
+
     return series_
 
 
