@@ -87,6 +87,9 @@ class Station(object):
             # remove leading/trailing nans if present
             self._data = utils.remove_leading_trailing_nans(self._data, focus_col="twl")
 
+            # extend no-data region to eliminate spikes/trends at the edges
+            self._data["twl"] = utils.remove_edges(self._data["twl"])
+
             logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
 
             logger.info("obs processed (before detiding): \n%s\n", self._data.head())
@@ -103,6 +106,9 @@ class Station(object):
         self.name = ""
         self.latitude = None
         self.longitude = None
+
+        self._data = None
+        self.data_dt = None
 
         # do filtering after de-tiding ? (Butterworth)
         self.do_filtering = do_filtering

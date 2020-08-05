@@ -31,6 +31,32 @@ def remove_spikes(series: pd.Series, whis=1.5, inplace=False):
     return series_
 
 
+def remove_edges(series: pd.Series, inplace=False):
+    """
+    remove edge points (set nans) to the values at the edges of no-data regions
+    Args:
+        series: input time series
+        inplace: if True the input timeseries will be modified in place
+
+    Returns:
+        timeseries with extended no-data regions to remove possible trends at the edges
+
+    """
+    eliminate = series.diff(periods=1).isnull() | series.diff(periods=-1).isnull()
+
+    # special treatment of the edge points
+    if len(series) >= 2:
+        eliminate.iloc[0] = eliminate.iloc[1]
+        eliminate.iloc[-1] = eliminate.iloc[-2]
+
+    series_ = series
+    if not inplace:
+        series_ = series.copy()
+
+    series_[eliminate] = np.nan
+    return series_
+
+
 def strip_nans(series: pd.Series):
     """
     Remove nans in the beginning and end of the timeseries
@@ -45,7 +71,7 @@ def strip_nans(series: pd.Series):
 
 def remove_small_chunks(series: pd.Series, lowest_duration_hours=24, inplace=False):
     """
-    Remove data from small continuous chunks
+    Remove series from small continuous chunks
     :param series: assume that it is sorted by time
     :param lowest_duration_hours:
     :param inplace:
