@@ -160,22 +160,29 @@ def get_mod_timeseries(stations, mod_data_path: Path,
                        mod_nomvar="ETAS",
                        start_time=None, end_time=None,
                        member_ids=("",), run_freq_hours=12,
-                       dt_texp_from_tbeg=timedelta(hours=0)
+                       dt_texp_from_tbeg=timedelta(hours=0),
+                       allow_missing=False
                        ):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
     remove the time mean
 
     member id is derived from the last part (after the last underscore) of the output file name
-    :param run_freq_hours: Frequency of the experiment, if t ie a new experiment is started each t hours
-    :param member_ids:
-    :param end_time:
-    :param start_time:
-    :param mod_nomvar:
-    :param stations:
-    :param mod_data_path: (folder with simulation files)
-    :param station_id_to_grid_indices:
-    :return:
+
+    Args:
+        allow_missing:
+        run_freq_hours: Frequency of the experiment, if t ie a new experiment is started each t hours
+        member_ids:
+        end_time:
+        start_time:
+        mod_nomvar:
+        stations:
+        mod_data_path: (folder with simulation files)
+        station_id_to_grid_indices:
+
+    Returns:
+        data frame with model data
+
     """
 
     assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
@@ -194,8 +201,15 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     for member_id in member_ids:
         for exp_t in exp_t_list:
             logger.info(f"treating experiment: {exp_t}")
-            data_files = mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}")
+            data_files = list(mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}"))
             # logger.debug(data_files)
+
+            if len(data_files) == 0:
+                msg = f"Could not find any file for the experiment on {exp_t}"
+                if allow_missing:
+                    logger.info(msg)
+                else:
+                    raise IOError(msg)
 
             # sort by name
             data_files = [p for p in sorted(data_files, key=lambda ip: ip.name)]

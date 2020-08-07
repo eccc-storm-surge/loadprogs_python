@@ -14,7 +14,10 @@ plt.rcParams["font.size"] = 13
 def plot_ts_and_spectre(hourly_series: pd.Series, data_label="",
                         img_dir: Path = None, subplot_titles=None,
                         raw_data=None, tides=None, sup_title=None):
-    logging.basicConfig(level=logging.INFO)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
 
     min_period_h = 6.
     max_period_h = 24 * 30.

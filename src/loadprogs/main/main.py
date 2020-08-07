@@ -31,6 +31,7 @@ col 6: modelled value
 import logging
 import numpy as np
 import sqlite3
+import pandas as pd
 
 from datetime import timedelta
 from pathlib import Path
@@ -41,9 +42,6 @@ from ..data import mod
 from ..util.plot_ts_and_spectre import plot_ts_and_spectre
 from ..util.configs import parse_config_settings
 
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 def main_pn_vs_p0():
@@ -62,13 +60,18 @@ def main_levelling_v01():
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
 
 
-def main(config_path: Path = None, cfg_overrides: dict = None):
+def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod_data: bool = False):
     """
     Entry point for processing a given simulation
     Args:
+        allow_missing_mod_data: if True allows model data to be missing, otherwise fails
         config_path: path to the loadprogs config file
         cfg_overrides: config properties to be overriden, useful for embedded use for monitoring
     """
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     config = parse_config_settings(config_path)
 
     # apply overrides if provided
@@ -95,7 +98,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
         logger.info(f"No output requested, exiting!")
         return
 
-
     # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
     out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
@@ -114,10 +116,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
                                           end_time=config.end_time_mod,
                                           member_ids=member_ids, mod_nomvar=config.mod_nomvar,
                                           run_freq_hours=config.b2b_freq_hours,
-                                          dt_texp_from_tbeg=config.dt_texp_from_tbeg)
-
-    # forecast start dates based on run_freq_hours
-    origin_dates_of_interest = mod.get_list_of_origin_dates(model_points, run_freq_dt=timedelta(hours=config.run_freq_hours))
+                                          dt_texp_from_tbeg=config.dt_texp_from_tbeg,
+                                          allow_missing=allow_missing_mod_data)
 
     if len(model_points) == 0:
         msg = f"Could not find {config.mod_nomvar} in {config.mod_dir}, please check your data or load_progs config file.."
@@ -127,6 +127,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
 
     for k, g in mod_groups_by_station:
         logger.debug(f"{k} ({type(k)}) => {g}")
+
+    conn = None
 
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
@@ -222,9 +224,18 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
             obs_data.index.difference(mod_data["time"])
         )
 
+        # obs data to be saved
+        # obs_sql_data = obs_data.copy().to_frame(name="obs")
+        # obs_sql_data["time"] = obs_data.index
+        # obs_sql_data.reset_index(inplace=True)
+        # obs_sql_data.loc[:, "station_id"] = s.station_id
+
         # align model and observation timeseries in time
-        obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].unique()))
-        mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values
+        obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].drop_duplicates()))
+        mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values.squeeze()
+
+        logger.info(f"mod_data types: \n %s \n", mod_data.dtypes)
+
 
         if not config.keep_nan:
             mod_data.dropna(inplace=True)
@@ -234,10 +245,15 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
                                 mod_member_keys=mod_member_keys, config=config)
 
+        # forecast start dates based on run_freq_hours
+        origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
+                                                                run_freq_dt=timedelta(hours=config.run_freq_hours))
+
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
 
-        rmse = np.linalg.norm(mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
+        rmse = np.linalg.norm(
+            mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
         logger.debug(f"rmse({s.station_id})={rmse}")
         logger.debug(f"{s.station_id}: found {len(mod_data[s.station_id + '_obs'])} corresponding data values")
         logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
@@ -256,16 +272,29 @@ def main(config_path: Path = None, cfg_overrides: dict = None):
 
         if config.output_sqlite:
             mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
+
+            logger.info(f"mod_sql_data types: \n %s \n", mod_sql_data.dtypes)
+
             conn = sqlite3.connect(config.out_file_sqlite)
-            mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists='append')
+            mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists="append")
+            conn.commit()
+            # obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
+
+    if config.output_sqlite:
+        conn.close()
 
     logger.info(f"Finished processing {config_path} .")
     logger.info(f"Output file: {config.out_file} .")
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     # main_levelling_v01()
     import time
     t0 = time.perf_counter()
     main_pn_vs_p0()
-    logger.debug(f"Execution time: {time.perf_counter() - t0}")
+    logger.info(f"Execution time: {time.perf_counter() - t0}")
