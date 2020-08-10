@@ -5,6 +5,8 @@ from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+from loadprogs.util.config_interpolation import ExtendedEnvInterpolation
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -20,7 +22,7 @@ def parse_config_settings(config_path):
     _config = Namespace()
 
     cparser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"),
-                                        interpolation=configparser.ExtendedInterpolation())
+                                        interpolation=ExtendedEnvInterpolation())
     cparser.read(config_path)
 
     mod_config = cparser["mod"]
