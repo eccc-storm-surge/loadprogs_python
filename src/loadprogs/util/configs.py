@@ -5,7 +5,7 @@ from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from loadprogs.util.config_interpolation import ExtendedEnvInterpolation
+from .config_interpolation import ExtendedEnvInterpolation
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
