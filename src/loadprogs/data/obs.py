@@ -47,6 +47,11 @@ class Station(object):
 
         #self._data = df
 
+        # target time step
+        dt = timedelta(hours=1)
+        dt_half = timedelta(seconds=dt.total_seconds() // 2)
+        self.data_dt = dt
+
         if self._data is not None and len(self._data) > 0:
 
             if "time" in self._data:
@@ -66,9 +71,6 @@ class Station(object):
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
 
-            # target time step
-            dt = timedelta(hours=1)
-            dt_half = timedelta(seconds=dt.total_seconds() // 2)
 
             minute_index = pd.date_range(self._data.index.min(),
                                          self._data.index.max(),
@@ -94,8 +96,6 @@ class Station(object):
 
             logger.info("obs processed (before detiding): \n%s\n", self._data.head())
 
-            # guess the timestep
-            self.data_dt = dt
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6

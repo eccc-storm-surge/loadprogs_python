@@ -301,7 +301,7 @@ def get_mod_twl_for_b2b(mod_data, config):
 
     # for b2b operations
     select_crit = df["valid_hour"] <= config.b2b_freq_hours
-    select_crit = select_crit & (df["valid_hour"] > 0) # remove t=0
+    select_crit = select_crit & (df["valid_hour"] >= 0) # remove t=0
     mod_data_twl = df.loc[select_crit, :]
     mod_data_twl.sort_values("time", inplace=True)
     logger.debug(mod_data_twl.head())
