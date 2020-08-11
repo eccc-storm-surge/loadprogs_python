@@ -327,7 +327,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     """
     df = mod_data.copy()
 
-    tmean = df.loc[(df["valid_hour"] <= config.b2b_freq_hours) & (df["valid_hour"] > 0), f"{station.station_id}_obs"].mean()
+    tmean = df.loc[(df["valid_hour"] <= config.b2b_freq_hours), f"{station.station_id}_obs"].mean()
     df.loc[:, f"{station.station_id}_obs"] -= tmean
 
     logger.debug(f"tmean({station.station_id})={tmean}")
@@ -335,7 +335,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     # mean to be removed from each member calculated based on the control member, which is assumed
     # to be the first in the list
 
-    where_cond = (df["valid_hour"] <= config.b2b_freq_hours) & (df["valid_hour"] > 0)
+    where_cond = (df["valid_hour"] <= config.b2b_freq_hours) 
     tmean = df.loc[where_cond, mod_member_keys[0]].mean()
 
     for cn in mod_member_keys:
