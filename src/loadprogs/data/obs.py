@@ -11,8 +11,6 @@ from ttide import t_tide
 
 from . import utils
 
-MIN_DATA_LEN_FOR_DETIDING = 2160
-
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -230,6 +228,10 @@ class Station(object):
 
         self._detide(do_filtering=do_filtering, constituents=constituents)
         self.do_filtering = do_filtering
+
+        logger.debug("self.data[key]:\n%s\n", self.data[key])
+        logger.debug("key=%s", key)
+
         return self.data[key]
 
     def _detide(self, do_filtering=True, constituents=None):
@@ -237,7 +239,7 @@ class Station(object):
 
         :param do_filtering:
 
-            Detide and filter (if do_do_filtering=True) and save detided data to self.data["detided"]
+            Detide and filter (if do_filtering=True) and save detided data to self.data["detided"]
 
         """
 
@@ -248,6 +250,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
+        logger .debug("nanmean(v) = %s", np.nanmean(v))
         logger.info(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v,
                      dt=self.data_dt.total_seconds() / 3600.,
@@ -258,6 +261,8 @@ class Station(object):
                      stime=self._data.index[0], out_style=None)
 
         v_notide = v - con["xout"].squeeze()
+
+        logger.debug("v_notide: \n %s \n", v_notide)
 
         filtered_part = 0
         # filter
@@ -290,6 +295,9 @@ class Station(object):
 
         self.data["twl-mean"] = v
         self.data["detided"] = v_notide_filtered
+
+        logger.debug("detided: \n %s \n", self.data["detided"])
+        logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
 
         assert len(self.data) == len(v)
         self.data["tides"] = con["xout"]

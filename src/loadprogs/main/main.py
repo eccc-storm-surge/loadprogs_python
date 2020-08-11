@@ -69,6 +69,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         cfg_overrides: config properties to be overriden, useful for embedded use for monitoring
     """
 
+    logging.basicConfig()
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
@@ -150,6 +151,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                                 f" but obs:min_nhours_for_detiding={config.min_nhours_for_detiding_obs})")
                     obs_data.loc[:] = np.nan
 
+                logger.debug(" obs (after detiding): \n %s \n", obs_data)
             except ValueError as ve:
                 logger.debug(ve)
                 msg = """Smth went wrong during detiding of %s,
@@ -231,23 +233,32 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         # obs_sql_data.loc[:, "station_id"] = s.station_id
 
         # align model and observation timeseries in time
+
+        logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
+
         obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].drop_duplicates()))
+
+        logger.debug("(obs) after reindex: \n %s \n", obs_data.head())
+
         mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values.squeeze()
 
         logger.info(f"mod_data types: \n %s \n", mod_data.dtypes)
 
+        # forecast start dates based on run_freq_hours
+        origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
+                                                                run_freq_dt=timedelta(hours=config.run_freq_hours))
+
 
         if not config.keep_nan:
+            logger.debug("mod_data (before dropna): \n %s \n", mod_data.head())
             mod_data.dropna(inplace=True)
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data.head())
 
         # remove analysis period mean from the mod and obs
         if config.remove_anal_period_mean:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
                                 mod_member_keys=mod_member_keys, config=config)
 
-        # forecast start dates based on run_freq_hours
-        origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
-                                                                run_freq_dt=timedelta(hours=config.run_freq_hours))
 
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]

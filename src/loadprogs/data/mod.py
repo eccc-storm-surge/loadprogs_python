@@ -193,6 +193,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     n_exp = (end_time - start_time).total_seconds() // dt_run_freq.total_seconds() + 1
     n_exp = int(n_exp)
 
+    logger.setLevel(logging.DEBUG)
     logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
 
     exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
@@ -262,7 +263,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
     df = pd.concat(df_list, axis=1)
 
-    logger.debug(df.head())
+    logger.debug("\n %s \n", df.head())
     logger.debug("column names")
 
     df.reset_index(inplace=True)
@@ -275,7 +276,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     df.loc[:, "date_of_origin"] = df.loc[:, "time"] - df.loc[:, "valid_hour"].map(lambda ti: timedelta(hours=ti))
 
     logger.debug("model points")
-    logger.debug(df)
+    logger.debug("\n %s \n", df)
 
     return df
 
@@ -291,10 +292,14 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
 
     t0 = do.min()
     t1 = do.max()
+    logger.debug(f"t0={t0}; t1={t1}; run_freq_dt={run_freq_dt}")
+    logger.debug(mod_data.head())
+    logger.debug("do: \n %s \n", do)
+
     return pd.date_range(t0, t1, freq=run_freq_dt)
 
-def get_mod_twl_for_b2b(mod_data, config):
 
+def get_mod_twl_for_b2b(mod_data, config):
     df = mod_data.copy()
     logger.info("Detiding model outputs.")
     assert not any(df["time"].isna())
