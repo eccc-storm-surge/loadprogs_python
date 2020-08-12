@@ -3,6 +3,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 import sqlite3
 from datetime import timedelta
+from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
@@ -306,22 +308,60 @@ class Station(object):
         self.data["filtered"] = filtered_part
 
 
-def load_station_data_from_obs_dir(config):
+@lru_cache
+def read_station_metadata(station_info: Path) -> pd.DataFrame:
+    """
+    Args:
+        station_info: path to the station info file either .obs or .dat supported
 
+    Returns:
+        dataframe with station metadata parsed either from .obs or .dat file
+    """
+
+    if station_info.name.endswith(".obs"):
+        info = pd.read_csv(station_info, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
+
+        '''
+        >>> print(st_info.head(5).to_string())
+                             ID       NO        LAT         LON  ......  DATA.LON_OLD
+        0           Eastport ME  8410140  44.763676  292.961487  ......    292.961487
+        1          Belledune NB    02145  47.894047  294.193420  ......    294.193420
+        2  Riviere-au-Renard QC    02330  48.992680  295.658752  ......    295.658752
+        3           Rimouski QC    02985  48.459965  291.462952  ......    291.462952
+        4          Sept-Iles QC    02780  50.158207  293.627502  ......    293.627502
+        '''
+
+    elif station_info.name.endswith(".dat"):  # list of tide gauges as in the regional surge suites
+        colspecs = [
+            (0, 4), (5, 9), (10, 36), (37, None),
+        ]
+
+        info = pd.read_fwf(station_info, header=None, colspecs=colspecs)
+
+        # names
+        info[2] = info[2].map(lambda s: s.strip())
+
+        info.rename({0: "DATA.I", 1: "DATA.J", 2: "ID"}, inplace=True, axis=1)
+
+        rest = info[3].str.split(r"\s+", expand=True)
+
+        info["LON"] = rest[0].astype(float) * rest[1].map(lambda s: 1 if s == "E" else -1)
+        info["LAT"] = rest[2].astype(float) * rest[3].map(lambda s: 1 if s == "N" else -1)
+        info["NO"] = rest[5].astype(str)
+
+        info.drop(columns=[3, ], inplace=True)
+    else:
+        raise ValueError(f"Not supported type of the station info file, please change the extension and"
+                         f" reformat if required: {station_info.name}")
+
+    return info
+
+
+def load_station_data_from_obs_dir(config):
     loading_funcs = {"txt": load_station_data_from_txt_dir,
                      "sqlite": load_station_data_from_canhys_dir}
 
-    st_info = pd.read_csv(config.station_info, skiprows=2, header=0, sep=r"\s+", converters={"NO": str})
-
-    '''
-    >>> print(st_info.head(5).to_string())
-                         ID       NO        LAT         LON  ......  DATA.LON_OLD
-    0           Eastport ME  8410140  44.763676  292.961487  ......    292.961487
-    1          Belledune NB    02145  47.894047  294.193420  ......    294.193420
-    2  Riviere-au-Renard QC    02330  48.992680  295.658752  ......    295.658752
-    3           Rimouski QC    02985  48.459965  291.462952  ......    291.462952
-    4          Sept-Iles QC    02780  50.158207  293.627502  ......    293.627502
-    '''
+    st_info = read_station_metadata(config.station_info)
 
     st_info_recs = {}
     for row_index, row in st_info.iterrows():

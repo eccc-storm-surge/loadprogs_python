@@ -12,6 +12,8 @@ from rpnpy.librmn import all as rmn
 from rpnpy.rpndate import RPNDate
 
 from .obs import Station
+from .obs import read_station_metadata
+
 from ..util import lat_lon
 
 rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
@@ -32,7 +34,7 @@ def get_mod_col_name(member_id=""):
     return f"mod_{member_id}"
 
 
-def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file):
+def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file: Path):
     """
     :param stations:
     :param stations_info_file: Path to the file that contains correspondence between station ids and the (I, J) coordinates
@@ -40,13 +42,14 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
     :return: dict relating station_id to the corresponding grid indices, 0-based as in Python and C in the returned dictionaries
     """
 
-    df = pd.read_csv(stations_info_file, skiprows=2, header=0, sep=r"\s+")
+    df = read_station_metadata(stations_info_file)
+
+    df = df.set_index("NO")
 
     obs_mod_map = {}
     for s in stations:
-        place = df["NO"] == int(s.station_id)
-        i = df["DATA.I"][place].values[0]
-        j = df["DATA.J"][place].values[0]
+        i = df.loc[s.station_id, "DATA.I"]
+        j = df.loc[s.station_id, "DATA.J"]
 
         obs_mod_map[s.station_id] = (i - 1, j - 1)
 
