@@ -73,11 +73,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
-    config = parse_config_settings(config_path)
-
-    # apply overrides if provided
-    cfg_overrides = dict() if cfg_overrides is None else cfg_overrides
-    config.__dict__.update(cfg_overrides)
+    config = parse_config_settings(config_path, cfg_overrides)
 
     for k, v in vars(config).items():
         logger.info(f"{k} => {v}, ({type(v)})")

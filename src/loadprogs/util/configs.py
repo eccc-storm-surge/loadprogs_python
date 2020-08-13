@@ -13,7 +13,8 @@ logger.setLevel(logging.DEBUG)
 
 MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
 
-def parse_config_settings(config_path):
+
+def parse_config_settings(config_path, cfg_overrides: dict):
     logger.info(f"Processing {config_path} ...")
 
     if config_path is None:
@@ -42,7 +43,6 @@ def parse_config_settings(config_path):
         .replace(tzinfo=timezone.utc)
 
     assert _config.end_time_mod >= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
-
 
     _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
 
@@ -104,9 +104,9 @@ def parse_config_settings(config_path):
     # --------------------------------------------
     # Miscellaneous configurations
     # --------------------------------------------
-    _config.label = misc_config["label"]
+    _config.label = misc_config.get("label", fallback="")
 
-    _config.out_dir = Path(misc_config["prepared_for_scoring_dir"]).expanduser()
+    _config.out_dir = Path(misc_config.get("prepared_for_scoring_dir", fallback=".")).expanduser()
     _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
     _config.output_txt = misc_config.getboolean("output_txt", fallback=True)
 
@@ -121,6 +121,10 @@ def parse_config_settings(config_path):
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
 
     # --------------------------------------------
+
+    # apply overrides if provided
+    cfg_overrides = dict() if cfg_overrides is None else cfg_overrides
+    _config.__dict__.update(cfg_overrides)
 
     return _config
 
