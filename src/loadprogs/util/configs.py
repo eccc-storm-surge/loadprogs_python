@@ -14,7 +14,7 @@ logger.setLevel(logging.DEBUG)
 MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
 
 
-def parse_config_settings(config_path, cfg_overrides: dict):
+def parse_config_settings(config_path, cfg_overrides: dict = None):
     logger.info(f"Processing {config_path} ...")
 
     if config_path is None:
