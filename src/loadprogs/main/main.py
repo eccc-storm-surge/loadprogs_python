@@ -223,10 +223,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         )
 
         # obs data to be saved
-        # obs_sql_data = obs_data.copy().to_frame(name="obs")
-        # obs_sql_data["time"] = obs_data.index
-        # obs_sql_data.reset_index(inplace=True)
-        # obs_sql_data.loc[:, "station_id"] = s.station_id
+        obs_sql_data = obs_data.copy().to_frame(name="obs")
+        obs_sql_data["time"] = obs_data.index
+        obs_sql_data.reset_index(inplace=True)
+        obs_sql_data.loc[:, "station_id"] = s.station_id
 
         # align model and observation timeseries in time
 
@@ -284,8 +284,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
             conn = sqlite3.connect(config.out_file_sqlite)
             mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists="append")
-            conn.commit()
-            # obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
+            obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
 
     if config.output_sqlite:
         conn.close()
