@@ -24,7 +24,7 @@ def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
-    s = Station()
+    s = Station(do_filtering=do_filtering)
 
     s.data = data_
     s.get_detided_series(do_filtering=do_filtering, constituents=constituents)

@@ -184,7 +184,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
             for c in mod_member_keys:
                 mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
-                                                                                          constituents=config.detide_mod_constituents)
+                                                                                          constituents=config.detide_mod_constituents,
+                                                                                          do_filtering=config.mod_do_filtering)
                 # remove longterm mean
                 mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
