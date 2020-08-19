@@ -20,7 +20,7 @@ SSM_FULLNAME=${SSM_NAME}_${VERSION}_${PLAT}
 SSM_BASE=data
 SSM_TEST=${HOME}/ssm/${SSM_NAME}
 SSM_OFFICIEL=/fs/ssm/eccc/cmd/cmde/wave/${SSM_NAME}
-SSM_create_tag=0
+SSM_create_tag=1
 
 mkdir -p ${SSM_BASE}
 
