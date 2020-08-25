@@ -16,7 +16,6 @@ col_index_to_name_map = {
 }
 
 
-
 def read_dat(fp: Path, date_format="%Y%m%d%H%M"):
     """
 
@@ -55,5 +54,4 @@ def read_dat(fp: Path, date_format="%Y%m%d%H%M"):
     }
 
     df = pd.read_csv(fp, sep=r"\s+", header=None, converters=converters)
-    df.rename(col_index_to_name_map, copy=False)
-    return df
+    return df.rename(col_index_to_name_map, axis=1, copy=False)

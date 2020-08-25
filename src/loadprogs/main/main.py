@@ -134,6 +134,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     if config.mod_external_tides.exists():
         logger.info(f"Using externally provided tides from: {config.mod_external_tides}")
         external_tides = match_io.read_dat(config.mod_external_tides)
+
+        logger.debug("external tides: \n %s \n", external_tides.head())
+
         external_tides_groups_by_station = external_tides.groupby(constants.COLNAME_STID)
 
     # load external data for debiasing (usually mod-obs matches from a corresponding PA simulation)
@@ -290,7 +293,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                                 mod_member_keys=mod_member_keys, config=config)
 
         # select only runs run_freq_hours apart (usually it is 36h)
-        mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
+        mod_data = mod_data.loc[mod_data[constants.COLNAME_TORIGIN].isin(origin_dates_of_interest), :]
 
         # debias
         if external_debias_groups_by_station is not None:
