@@ -37,10 +37,12 @@ from datetime import timedelta
 from pathlib import Path
 
 # Custom modules
+from ..util import match_io
 from ..data import obs
 from ..data import mod
 from ..util.plot_ts_and_spectre import plot_ts_and_spectre
 from ..util.configs import parse_config_settings
+from ..util import constants
 
 
 
@@ -120,18 +122,28 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         msg = f"Could not find {config.mod_nomvar} in {config.mod_dir}, please check your data or load_progs config file.."
         raise IOError(msg)
 
-    mod_groups_by_station = model_points.groupby("station_id")
+    mod_groups_by_station = model_points.groupby(constants.COLNAME_STID)
 
     for k, g in mod_groups_by_station:
         logger.debug(f"{k} ({type(k)}) => {g}")
 
     conn = None
 
+    # load external tides (from other sources if supplied)
+    external_tides_groups_by_station = None
+    if config.mod_external_tides.exists():
+        logger.info(f"Using externally provided tides from: {config.mod_external_tides}")
+        external_tides = match_io.read_dat(config.external_tides)
+        external_tides_groups_by_station = external_tides.groupby(constants.COLNAME_STID)
+
+
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
 
         logger.info("\n--------------------\n processing station  '%s' (%s)"
                     "\n--------------------\n", s.name, s.station_id)
+
+        member_id_to_mod_tides = {}
 
         # get model data for corresponding station
         mod_data = mod_groups_by_station.get_group(s.station_id).copy()
@@ -182,19 +194,39 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
             mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
+            # initializations
+            t_unique = mod_data["time"].drop_duplicates()
+            mod_tides = pd.Series(index=t_unique)
+            mod_to_filter = pd.Series(index=t_unique)
+            mod_tides.loc[:] = 0.
+            mod_to_filter.loc[:] = 0.
+            mod_ttide_con = None
+
             for c in mod_member_keys:
-                mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
-                                                                                          constituents=config.detide_mod_constituents,
-                                                                                          do_filtering=config.mod_do_filtering)
+
+                if config.mod_external_tides.exists():  # tides are provided externally
+
+                    if config.mod_do_filtering:
+                        logger.info("No filtering is applied to the model outputs when tides are externally provided!")
+                        logger.info(f"Ignoring: config.mod_do_filtering={config.mod_do_filtering}")
+
+                    mod_tides = external_tides_groups_by_station.get_group(s.station_id).set_index(constants.COLNAME_TIME).iloc[:, -1]
+
+                else:
+                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
+                                                                                              constituents=config.detide_mod_constituents,
+                                                                                              do_filtering=config.mod_do_filtering)
                 # remove longterm mean
-                mod_data.loc[:, c] -= mod_data_twl[c].mean()
+                # mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
                 # get the union index
-                t_index = mod_tides.index.union(mod_data["time"].unique())
+                t_index = mod_tides.index.union(t_unique)
                 mod_tides = mod_tides.reindex(t_index)
 
                 # detiding
                 mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
+                member_id_to_mod_tides[c] = mod_tides
+
                 # filtering
                 if config.mod_do_filtering:
                     mod_to_filter = mod_to_filter.reindex(t_index)
@@ -215,7 +247,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                                         tides=mod_tides,
                                         sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
 
-                    mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
+                    if mod_ttide_con is not None:
+                        mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
 
         #  debugging
         logger.debug(
@@ -244,7 +277,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         # forecast start dates based on run_freq_hours
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
                                                                 run_freq_dt=timedelta(hours=config.run_freq_hours))
-
 
         if not config.keep_nan:
             logger.debug("mod_data (before dropna): \n %s \n", mod_data.head())
@@ -277,6 +309,23 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                         row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                     )
                     fout.write(line)
+
+            # write tides in a separate file
+            if len(member_id_to_mod_tides) > 0:
+                tides_file = config.out_file.parent / f"tides_{config.out_file.name}"
+                with tides_file.open("a") as fout:
+                    # assuming all the members have the same index
+                    t_arr = member_id_to_mod_tides[mod_member_keys[0]].index
+                    for t in t_arr:
+                        line = out_line_format.format(
+                            0,
+                            s.station_id,
+                            s.latitude, s.longitude,
+                            t.strftime("%Y%m%d%H"),
+                            -1.0,  # TODO: put observed tides in here
+                            *[member_id_to_mod_tides[k][t] for k in mod_member_keys]
+                        )
+                        fout.write(line)
 
         if config.output_sqlite:
             mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)

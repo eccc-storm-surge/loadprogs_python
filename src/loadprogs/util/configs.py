@@ -13,6 +13,8 @@ logger.setLevel(logging.DEBUG)
 
 MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
 
+NOTEXISTING_PATH = "__does_not_exist__"
+
 
 def parse_config_settings(config_path, cfg_overrides: dict = None):
     logger.info(f"Processing {config_path} ...")
@@ -67,6 +69,11 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.min_nhours_for_detiding_mod = mod_config.getint("min_nhours_for_detiding",
                                                             fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
+
+    _config.mod_external_tides = Path(mod_config.get("mod_external_tides", fallback=NOTEXISTING_PATH))
+
+    _config.mod_external_debias = Path(mod_config.get("mod_external_debias", fallback=NOTEXISTING_PATH))
+
 
 
     # --------------------------------------------
