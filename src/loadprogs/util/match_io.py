@@ -50,7 +50,8 @@ def read_dat(fp: Path, date_format="%Y%m%d%H%M"):
     """
 
     converters = {
-        4: lambda field: datetime.strptime(field, date_format)
+        4: lambda field: datetime.strptime(field, date_format),
+        1: str
     }
 
     df = pd.read_csv(fp, sep=r"\s+", header=None, converters=converters)
