@@ -74,6 +74,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.mod_external_debias = Path(mod_config.get("mod_external_debias", fallback=NOTEXISTING_PATH))
 
+    # debias using the following formula:
+    # FC = FC - mean(PA-Obs), (the mean is over avg_nhours, before the forecast start)
+    _config.mod_external_debias_avg_nhours = mod_config.getint("mod_external_debias_avg_nhours", fallback=5 * 24)
+
 
 
     # --------------------------------------------

@@ -14,7 +14,7 @@ from rpnpy.rpndate import RPNDate
 from .obs import Station
 from .obs import read_station_metadata
 
-from ..util import lat_lon
+from ..util import lat_lon, constants
 
 rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
@@ -275,8 +275,8 @@ def get_mod_timeseries(stations, mod_data_path: Path,
         logger.debug(c)
 
     # sorting, useful for debugging
-    df.sort_values(["time", "valid_hour"], inplace=True)
-    df.loc[:, "date_of_origin"] = df.loc[:, "time"] - df.loc[:, "valid_hour"].map(lambda ti: timedelta(hours=ti))
+    df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
+    df.loc[:, constants.COLNAME_TORIGIN] = df.loc[:, constants.COLNAME_TIME] - df.loc[:, "valid_hour"].map(lambda ti: timedelta(hours=ti))
 
     logger.debug("model points")
     logger.debug("\n %s \n", df)
@@ -291,7 +291,7 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     :param run_freq_dt:
     """
 
-    do = mod_data.loc[:, "date_of_origin"]
+    do = mod_data.loc[:, constants.COLNAME_TORIGIN]
 
     t0 = do.min()
     t1 = do.max()
@@ -451,6 +451,35 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
     df = pd.concat(df_list, axis=0)
     df.sort_index(axis=0, inplace=True)
     return df
+
+
+def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
+           avg_period: timedelta, mod_member_keys):
+    """
+    debias model columns in mod_data with debias series
+    Args:
+        avg_period: averaging period
+        mod_member_keys: column names for model data
+        mod_data:
+        debias_data:
+    """
+
+    deb_data = debias_data.drop_duplicates(subset=(constants.COLNAME_TIME,))
+    deb_data.set_index(constants.COLNAME_TIME, inplace=True)
+
+    # obs column is one before the last (-2) and the mod is the last (-1)
+    # TODO: maybe consider ensembles, if necessary
+    deb_data["bias"] = deb_data.iloc[:, -1] - deb_data.iloc[:, -2]
+
+    deb_data = deb_data["bias"].rolling(window=avg_period)
+
+    # make sure all the dates of origin are in the deb_data index for removing the bias
+    t_origin = mod_data[constants.COLNAME_TORIGIN].drop_duplicates()
+    t_origin = deb_data.index.union(t_origin)
+    deb_data = deb_data.reindex(t_origin)
+
+    for c in mod_member_keys:
+        mod_data.loc[:, c] -= deb_data[mod_data[constants.COLNAME_TORIGIN]].values
 
 
 def main():

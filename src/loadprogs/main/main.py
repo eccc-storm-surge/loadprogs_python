@@ -133,9 +133,14 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     external_tides_groups_by_station = None
     if config.mod_external_tides.exists():
         logger.info(f"Using externally provided tides from: {config.mod_external_tides}")
-        external_tides = match_io.read_dat(config.external_tides)
+        external_tides = match_io.read_dat(config.mod_external_tides)
         external_tides_groups_by_station = external_tides.groupby(constants.COLNAME_STID)
 
+    # load external data for debiasing (usually mod-obs matches from a corresponding PA simulation)
+    external_debias_groups_by_station = None
+    if config.mod_external_debias.exists():
+        external_debias = match_io.read_dat(config.mod_external_debias)
+        external_debias_groups_by_station = external_debias.groupby(constants.COLNAME_STID)
 
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
@@ -230,6 +235,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                 # filtering
                 if config.mod_do_filtering:
                     mod_to_filter = mod_to_filter.reindex(t_index)
+                    member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 
                 # diags for detiding
@@ -278,19 +284,25 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
                                                                 run_freq_dt=timedelta(hours=config.run_freq_hours))
 
-        if not config.keep_nan:
-            logger.debug("mod_data (before dropna): \n %s \n", mod_data.head())
-            mod_data.dropna(inplace=True)
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data.head())
-
         # remove analysis period mean from the mod and obs
         if config.remove_anal_period_mean:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
                                 mod_member_keys=mod_member_keys, config=config)
 
-
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data["date_of_origin"].isin(origin_dates_of_interest), :]
+
+        # debias
+        if external_debias_groups_by_station is not None:
+            deb_data = external_debias_groups_by_station.get_group(s.station_id)
+            mod.debias(mod_data, deb_data,
+                       avg_period=timedelta(hours=config.external_debias_avg_nhours),
+                       mod_member_keys=mod_member_keys)
+
+        if not config.keep_nan:
+            logger.debug("mod_data (before dropna): \n %s \n", mod_data.head())
+            mod_data.dropna(inplace=True)
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data.head())
 
         rmse = np.linalg.norm(
             mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
