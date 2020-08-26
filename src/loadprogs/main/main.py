@@ -299,7 +299,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         if external_debias_groups_by_station is not None:
             deb_data = external_debias_groups_by_station.get_group(s.station_id)
             mod.debias(mod_data, deb_data,
-                       avg_period=timedelta(hours=config.external_debias_avg_nhours),
+                       avg_period=timedelta(hours=config.mod_external_debias_avg_nhours),
                        mod_member_keys=mod_member_keys)
 
         if not config.keep_nan:
