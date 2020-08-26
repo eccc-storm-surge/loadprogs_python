@@ -16,7 +16,7 @@ col_index_to_name_map = {
 }
 
 
-def read_dat(fp: Path, date_format="%Y%m%d%H%M"):
+def read_dat(fp: Path, date_format="%Y%m%d%H"):
     """
 
     Args:
