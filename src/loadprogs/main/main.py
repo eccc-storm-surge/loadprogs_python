@@ -216,7 +216,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
                     if config.mod_do_filtering:
                         logger.info("No filtering is applied to the model outputs when tides are externally provided!")
-                        logger.info(f"Ignoring: config.mod_do_filtering={config.mod_do_filtering}")
+                        logger.info(f"Ignoring: config.mod_do_filtering={config.mod_do_filtering}, setting it to False")
+                        config.mod_do_filtering = False
 
                     mod_tides = external_tides_groups_by_station.get_group(s.station_id).set_index(constants.COLNAME_TIME).iloc[:, -1]
 

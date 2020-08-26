@@ -478,7 +478,11 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     t_origin = deb_data.index.union(t_origin)
     deb_data = deb_data.reindex(t_origin)
 
+    logger.debug("Debiasing with: \n %s \n", deb_data.head(n=50))
+
+
     for c in mod_member_keys:
+        logger.debug("mod_data with: \n %s \n", deb_data.head(n=50))
         mod_data.loc[:, c] -= deb_data[mod_data[constants.COLNAME_TORIGIN]].values
 
 
