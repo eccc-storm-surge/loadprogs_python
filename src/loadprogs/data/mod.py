@@ -471,7 +471,7 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     # TODO: maybe consider ensembles, if necessary
     deb_data["bias"] = deb_data.iloc[:, -1] - deb_data.iloc[:, -2]
 
-    deb_data = deb_data["bias"].rolling(window=avg_period)
+    deb_data = deb_data["bias"].rolling(window=avg_period).mean()
 
     # make sure all the dates of origin are in the deb_data index for removing the bias
     t_origin = mod_data[constants.COLNAME_TORIGIN].drop_duplicates()
