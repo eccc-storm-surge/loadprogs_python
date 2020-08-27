@@ -85,7 +85,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
     config.out_dir.mkdir(exist_ok=True, parents=True)
 
-
     # do nothing if the output file already exists
     if config.output_txt and config.out_file.exists():
         logger.info(f"Already exists, won't redo:\n{config.out_file}")
@@ -229,7 +228,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                         logger.info(f"Ignoring: config.mod_do_filtering={config.mod_do_filtering}, setting it to False")
                         config.mod_do_filtering = False
 
-                    mod_tides = external_tides_groups_by_station.get_group(s.station_id).set_index(constants.COLNAME_TIME).iloc[:, -1]
+                    mod_tides = external_tides_groups_by_station.get_group(s.station_id)
+                    mod_tides = mod_tides.set_index(constants.COLNAME_TIME)
+                    mod_tides = mod_tides.iloc[:, -1]
                     mod_to_filter = mod_tides * 0
 
                     logger.debug("tides used for detiding %s: \n %s \n", s.station_id, mod_tides.head(n=50))
@@ -241,9 +242,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                 # remove longterm mean
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
+
+
                 # get the union index
                 t_index = mod_tides.index.union(t_unique)
                 mod_tides = mod_tides.reindex(t_index)
+
                 mod_to_filter = mod_to_filter.reindex(t_index)
 
                 # detiding

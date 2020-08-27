@@ -298,6 +298,7 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     logger.debug(f"t0={t0}; t1={t1}; run_freq_dt={run_freq_dt}")
     logger.debug(mod_data.head())
     logger.debug("do: \n %s \n", do)
+    logger.debug("mod_data (descr): \n %s \n", mod_data.describe())
 
     return pd.date_range(t0, t1, freq=run_freq_dt)
 
@@ -455,7 +456,7 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
 
 def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
            avg_period: timedelta, mod_member_keys,
-           min_datalen_fraction=0.5):
+           min_datalen_fraction=0.25):
     """
     debias model columns in mod_data with debias series
     Args:
@@ -476,6 +477,7 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     rolling = deb_data["bias"].rolling(window=avg_period).count()
     min_periods = int(rolling.max() * min_datalen_fraction)
 
+    logger.info(f"using min_periods={min_periods}, for averaging biases used to de-bias")
     deb_data = deb_data["bias"].rolling(window=avg_period, min_periods=min_periods).mean()
 
     # make sure all the dates of origin are in the deb_data index for removing the bias
@@ -484,6 +486,7 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     deb_data = deb_data.reindex(t_origin)
 
     logger.debug("Debiasing with: \n %s \n", deb_data.head(n=50))
+    logger.debug("Debiasing with (descr): \n %s \n", deb_data.describe())
 
     for c in mod_member_keys:
         logger.debug("mod_data : \n %s \n", mod_data.head(n=50))

@@ -2,7 +2,7 @@
 Function for reading files containing matched
 mod-obs files
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
 from .constants import COLNAME_STID, COLNAME_TIME
@@ -16,10 +16,11 @@ col_index_to_name_map = {
 }
 
 
-def read_dat(fp: Path, date_format="%Y%m%d%H"):
+def read_dat(fp: Path, date_format="%Y%m%d%H", tz=timezone.utc):
     """
 
     Args:
+        tz: time zone for the parsed dates
         fp: Path to the text file produced by loadprogs
 
 
@@ -50,7 +51,7 @@ def read_dat(fp: Path, date_format="%Y%m%d%H"):
     """
 
     converters = {
-        4: lambda field: datetime.strptime(field, date_format),
+        4: lambda field: datetime.strptime(field, date_format).replace(tzinfo=tz),
         1: str
     }
 
