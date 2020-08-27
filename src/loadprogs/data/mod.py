@@ -275,8 +275,8 @@ def get_mod_timeseries(stations, mod_data_path: Path,
         logger.debug(c)
 
     # sorting, useful for debugging
-    df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
-    df.loc[:, constants.COLNAME_TORIGIN] = df.loc[:, constants.COLNAME_TIME] - df.loc[:, "valid_hour"].map(lambda ti: timedelta(hours=ti))
+    # df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
+    df[constants.COLNAME_TORIGIN] = df.loc[constants.COLNAME_TIME] - pd.TimedeltaIndex(data=df["valid_hour"], unit="hour")
 
     logger.debug("model points")
     logger.debug("\n %s \n", df)
