@@ -482,7 +482,7 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
 
 
     for c in mod_member_keys:
-        logger.debug("mod_data with: \n %s \n", deb_data.head(n=50))
+        logger.debug("mod_data : \n %s \n", mod_data.head(n=50))
         mod_data.loc[:, c] -= deb_data[mod_data[constants.COLNAME_TORIGIN]].values
 
 
