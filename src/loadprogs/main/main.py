@@ -220,6 +220,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                         config.mod_do_filtering = False
 
                     mod_tides = external_tides_groups_by_station.get_group(s.station_id).set_index(constants.COLNAME_TIME).iloc[:, -1]
+                    mod_to_filter = mod_tides * 0
 
                 else:
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
