@@ -24,9 +24,11 @@ if __name__ == '__main__':
         "--cfgs"
     ]
 
-    parser.add_argument(*cfg_arg_names, nargs="+")
+    parser.add_argument(*cfg_arg_names, nargs="+",
+                        help="list of paths to the configuration files",
+                        required=True)
     parser.add_argument("-d", "--debug", action="store_true",
-                         default=False, required=False)
+                        default=False, required=False)
 
     args = parser.parse_args()
 
