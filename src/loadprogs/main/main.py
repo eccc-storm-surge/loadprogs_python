@@ -234,6 +234,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                 # get the union index
                 t_index = mod_tides.index.union(t_unique)
                 mod_tides = mod_tides.reindex(t_index)
+                mod_to_filter = mod_to_filter.reindex(t_index)
 
                 # detiding
                 mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
@@ -241,7 +242,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
                 # filtering
                 if config.mod_do_filtering:
-                    mod_to_filter = mod_to_filter.reindex(t_index)
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
 

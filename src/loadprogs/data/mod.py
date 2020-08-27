@@ -454,10 +454,12 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
 
 
 def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
-           avg_period: timedelta, mod_member_keys):
+           avg_period: timedelta, mod_member_keys,
+           min_datalen_fraction=0.5):
     """
     debias model columns in mod_data with debias series
     Args:
+        min_datalen_fraction: minimum non Nan data in a window for rolling mean calculation
         avg_period: averaging period
         mod_member_keys: column names for model data
         mod_data:
@@ -471,7 +473,10 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     # TODO: maybe consider ensembles, if necessary
     deb_data["bias"] = deb_data.iloc[:, -1] - deb_data.iloc[:, -2]
 
-    deb_data = deb_data["bias"].rolling(window=avg_period).mean()
+    rolling = deb_data["bias"].rolling(window=avg_period).count()
+    min_periods = int(rolling.max() * min_datalen_fraction)
+
+    deb_data = deb_data["bias"].rolling(window=avg_period, min_periods=min_periods).mean()
 
     # make sure all the dates of origin are in the deb_data index for removing the bias
     t_origin = mod_data[constants.COLNAME_TORIGIN].drop_duplicates()
@@ -479,7 +484,6 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     deb_data = deb_data.reindex(t_origin)
 
     logger.debug("Debiasing with: \n %s \n", deb_data.head(n=50))
-
 
     for c in mod_member_keys:
         logger.debug("mod_data : \n %s \n", mod_data.head(n=50))
