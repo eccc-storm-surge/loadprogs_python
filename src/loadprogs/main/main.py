@@ -75,12 +75,16 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
+    if not config_path.exists():
+        raise IOError(f"cfg file does not exist: {config_path}")
+
     config = parse_config_settings(config_path, cfg_overrides)
 
     for k, v in vars(config).items():
         logger.info(f"{k} => {v}, ({type(v)})")
 
     config.out_dir.mkdir(exist_ok=True, parents=True)
+
 
     # do nothing if the output file already exists
     if config.output_txt and config.out_file.exists():
@@ -96,6 +100,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     if not (config.output_txt or config.output_sqlite):
         logger.info(f"No output requested, exiting!")
         return
+
+    # remove the tides file if exists already
+    tides_file = config.out_file.parent / f"tides_{config.out_file.name}"
+    if tides_file.exists():
+        logger.info(f"The tides file {tides_file} will be overwritten!")
+        tides_file.unlink()
 
     # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
@@ -307,9 +317,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
                        mod_member_keys=mod_member_keys)
 
         if not config.keep_nan:
-            logger.debug("mod_data (before dropna): \n %s \n", mod_data.head())
+            logger.debug("mod_data (before dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
             mod_data.dropna(inplace=True)
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data.head())
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].describe())
 
         rmse = np.linalg.norm(
             mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
@@ -331,7 +342,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
             # write tides in a separate file
             if len(member_id_to_mod_tides) > 0:
-                tides_file = config.out_file.parent / f"tides_{config.out_file.name}"
+
                 with tides_file.open("a") as fout:
                     # assuming all the members have the same index
                     t_arr = member_id_to_mod_tides[mod_member_keys[0]].index
