@@ -10,13 +10,14 @@ from pathlib import Path
 
 import pytz
 
-from ..data import mod, obs
-from ..data.obs import Station
-from ..util import scores, obs_file
+from loadprogs.data import mod, obs
+from loadprogs.data.obs import Station
+from loadprogs.util import scores, obs_file
 import pandas as pd
 
+
 def read_cmd_args():
-    DATETIME_FORMAT = "%Y%m%d%H"
+    DATETIME_FORMAT = r"%Y%m%d%H"
 
     parser = argparse.ArgumentParser(description="run experiment")
 
@@ -46,11 +47,11 @@ def read_cmd_args():
                         help="Variable type in the model outputs")
 
     parser.add_argument("--beg-time", required=False,
-                        help=f"start time of the analysis period, format: {DATETIME_FORMAT}",
+                        help="start time of the analysis period, format: " + DATETIME_FORMAT.replace("%", "%%"),
                         default=None,
                         type=lambda param: datetime.strptime(param, DATETIME_FORMAT))
     parser.add_argument("--end-time", required=False,
-                        help=f"end time of the analysis period, format: {DATETIME_FORMAT}",
+                        help="end time of the analysis period, format: " + DATETIME_FORMAT.replace("%", "%%"),
                         default=None,
                         type=lambda param: datetime.strptime(param, DATETIME_FORMAT))
 
@@ -97,7 +98,6 @@ def read_cmd_args():
     if args.dist_upper_bound_m is not None:
         args.dist_upper_bound_m = float(args.dist_upper_bound_m)
 
-
     args.mod_files = mod_files
     return args
 
@@ -121,7 +121,7 @@ def main():
     mod_raw = mod.get_mod_timeseries_closest_to(
         stations=stations,
         data_files=cmd_args.mod_files,
-        nnearest=9, nomvar=cmd_args.nomvar,
+        nnearest=cmd_args.nnearest, nomvar=cmd_args.nomvar,
         typvar=cmd_args.typvar,
         dist_upper_bound=cmd_args.dist_upper_bound_m
     )
@@ -169,7 +169,7 @@ def main():
                 do_filtering=cmd_args.do_filtering,
                 constituents=cmd_args.constituents)
 
-            mod_ts = mod_ts["twl"] -  mod_tides + mod_filt
+            mod_ts = mod_ts["twl"] - mod_tides + mod_filt
             mod_ts -= mod_ts.mean()
 
             score = scores.gamma2(obs_ts, mod_ts)
