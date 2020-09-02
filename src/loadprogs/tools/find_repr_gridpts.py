@@ -35,7 +35,8 @@ def read_cmd_args():
                         help="Path to the directory with tide gauge data")
 
     parser.add_argument("--nnearest", default=9, type=int,
-                        help="Number of nearest grid points used for the search of the most representative")
+                        help="Number of nearest grid points used for the search of "
+                             "the most representative, if <= 1, then the closest gridcell is mapped to each station")
 
     parser.add_argument("--detide_mod", type=int, default=1)
     parser.add_argument("--detide_obs", type=int, default=1)
