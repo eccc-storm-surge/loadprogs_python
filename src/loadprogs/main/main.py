@@ -375,6 +375,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
     logger.info(f"Finished processing {config_path} .")
     logger.info(f"Output file: {config.out_file} .")
+    return obs.get_stid_to_stname_map(stations)
 
 
 if __name__ == '__main__':

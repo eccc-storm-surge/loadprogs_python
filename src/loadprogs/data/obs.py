@@ -1,10 +1,12 @@
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime, timezone
 import sqlite3
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 
@@ -19,7 +21,6 @@ logger.setLevel(logging.DEBUG)
 
 
 def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
-
     # Make sure the total water level column can be found
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
@@ -45,7 +46,7 @@ class Station(object):
         else:
             self._data = None
 
-        #self._data = df
+        # self._data = df
 
         # target time step
         dt = timedelta(hours=1)
@@ -71,7 +72,6 @@ class Station(object):
             # input data cleanup
             # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
 
-
             minute_index = pd.date_range(self._data.index.min(),
                                          self._data.index.max(),
                                          freq=timedelta(minutes=1))
@@ -95,7 +95,6 @@ class Station(object):
             logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
 
             logger.info("obs processed (before detiding): \n%s\n", self._data.head())
-
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
@@ -252,7 +251,7 @@ class Station(object):
         v = self.get_twl_data_vector()
         v -= np.nanmean(v)
 
-        logger .debug("nanmean(v) = %s", np.nanmean(v))
+        logger.debug("nanmean(v) = %s", np.nanmean(v))
         logger.info(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v,
                      dt=self.data_dt.total_seconds() / 3600.,
@@ -372,23 +371,22 @@ def load_station_data_from_obs_dir(config):
     # initialize list of stations without data added yet
 
     stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
-                                           .assign_data(obs_st_ids_to_data[st_id])
-                                           .remove_data_before(config.beg_time_obs)
-                                           .remove_data_after(config.end_time_obs)
-                                           for st_id in st_info_recs
-                                           if st_id in obs_st_ids_to_data]
+                    .assign_data(obs_st_ids_to_data[st_id])
+                    .remove_data_before(config.beg_time_obs)
+                    .remove_data_after(config.end_time_obs)
+                for st_id in st_info_recs
+                if st_id in obs_st_ids_to_data]
 
     return stations
 
 
 def load_station_data_from_canhys_dir(station_records, config):
-
     t_tolerance = timedelta(hours=24)
 
     msg = "Observation start or end date is not valid"
     assert None not in [config.beg_time_obs, config.end_time_obs], msg
 
-    _converters = {col: lambda x: x.lstrip("0") for col in (1,2)}
+    _converters = {col: lambda x: x.lstrip("0") for col in (1, 2)}
 
     real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2),
                                          names=["canhys", "real"], sep="|",
@@ -397,7 +395,8 @@ def load_station_data_from_canhys_dir(station_records, config):
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
     station_info_canhys_ids = [
-        real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in real_to_canhys_mapping.index.intersection(station_records)
+        real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in
+        real_to_canhys_mapping.index.intersection(station_records)
     ]
 
     canhys_ids_to_dfs = defaultdict(list)
@@ -446,7 +445,8 @@ def load_station_data_from_canhys_dir(station_records, config):
                     WHERE siteid
                     IN ({','.join(station_info_canhys_ids)});"""
 
-        data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid") # TODO: maybe move the grouping to the sqlite query
+        data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby(
+            "siteid")  # TODO: maybe move the grouping to the sqlite query
 
         for canhys_id in station_info_canhys_ids:
             try:
@@ -456,12 +456,11 @@ def load_station_data_from_canhys_dir(station_records, config):
                 logger.info(fr"   \--> CanHys id {canhys_id} not found within table, skipping..")
                 continue
 
-
     # Translate station ids from CanHys to real as well as merge time series for each station
     real_ids_to_dfs = {canhys_to_real_mapping.loc[canhys_id, "real"]: pd.concat(canhys_ids_to_dfs[canhys_id])
-                                                                        .reset_index(drop=True)
-                                                                        .rename(columns={"datetimeutc": "time", "datavalue": "twl"})
-                                                                        for canhys_id in canhys_ids_to_dfs}
+        .reset_index(drop=True)
+        .rename(columns={"datetimeutc": "time", "datavalue": "twl"})
+                       for canhys_id in canhys_ids_to_dfs}
 
     for r_id in real_ids_to_dfs:
         real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
@@ -470,7 +469,6 @@ def load_station_data_from_canhys_dir(station_records, config):
 
 
 def load_station_data_from_txt_dir(station_records, config):
-
     real_ids_to_dfs = {}
 
     for inp_file in config.obs_dir.iterdir():
@@ -506,6 +504,25 @@ def load_station_data_from_txt_dir(station_records, config):
         real_ids_to_dfs[inp_file_st_id] = df
 
     return real_ids_to_dfs
+
+
+def get_stid_to_stname_map(stations: List[Station]) -> dict:
+    """
+
+    Args:
+        stations: list of station objects
+
+    Returns:
+
+    """
+    res = {}
+    for station in stations:
+        title = station.name.replace(",", " ")
+        reg = re.split(r"\s+", title)[-1]
+        name = title[:title.index(reg)].strip()
+        reg = "".join([c for c in reg if c not in ["(", ")"]])
+        res[station.station_id] = f"{name}, {reg}"
+    return res
 
 
 if __name__ == "__main__":
