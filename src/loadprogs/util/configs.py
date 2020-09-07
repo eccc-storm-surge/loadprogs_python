@@ -138,7 +138,13 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
         _config.out_file_sqlite = _config.out_dir / (_config.out_file.name[:-4] + ".sqlite")
 
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
-    _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
+
+    # for backward compatibility
+    if "remove_anal_period_mean" in misc_config:
+        _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
+    else:
+        _config.remove_anal_period_mean = misc_config.getboolean("remove_analysis_period_mean", fallback=True)
+
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
 
     # --------------------------------------------
