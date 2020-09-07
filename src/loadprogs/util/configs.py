@@ -74,7 +74,15 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.mod_external_tides = Path(mod_config.get("mod_external_tides", fallback=NOTEXISTING_PATH))
 
+    if _config.mod_external_tides.name != NOTEXISTING_PATH:
+        assert _config.mod_external_tides.exists(), f"{_config.mod_external_tides} should exist!"
+
     _config.mod_external_debias = Path(mod_config.get("mod_external_debias", fallback=NOTEXISTING_PATH))
+
+    if _config.mod_external_debias.name != NOTEXISTING_PATH:
+        assert _config.mod_external_debias.exists(), f"{_config.mod_external_debias} should exist!"
+
+
 
     # debias using the following formula:
     # FC = FC - mean(PA-Obs), (the mean is over avg_nhours, before the forecast start)
