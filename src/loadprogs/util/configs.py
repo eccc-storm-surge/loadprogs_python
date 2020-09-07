@@ -5,6 +5,8 @@ from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import pytz
+
 from .config_interpolation import ExtendedEnvInterpolation
 
 logger = logging.getLogger(__name__)
@@ -39,10 +41,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # Model configurations
     # --------------------------------------------
     _config.beg_time_mod = datetime.strptime(mod_config.get("datestart_mod", fallback=dummy_date), "%Y%m%d%H") \
-        .replace(tzinfo=timezone.utc)
+        .replace(tzinfo=pytz.utc)
 
     _config.end_time_mod = datetime.strptime(mod_config.get("dateend_mod", fallback=dummy_date), "%Y%m%d%H") \
-        .replace(tzinfo=timezone.utc)
+        .replace(tzinfo=pytz.utc)
 
     assert _config.end_time_mod >= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
 
