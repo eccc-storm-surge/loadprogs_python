@@ -305,6 +305,13 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
                                                                 run_freq_dt=timedelta(hours=config.run_freq_hours))
 
+        if not config.keep_nan:
+            logger.debug("mod_data (before dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
+            mod_data.dropna(inplace=True)
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
+            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].describe())
+
+
         # remove analysis period mean from the mod and obs
         if config.remove_anal_period_mean:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
@@ -321,11 +328,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                        avg_period=timedelta(hours=config.mod_external_debias_avg_nhours),
                        mod_member_keys=mod_member_keys)
 
-        if not config.keep_nan:
-            logger.debug("mod_data (before dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
-            mod_data.dropna(inplace=True)
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].describe())
 
         rmse = np.linalg.norm(
             mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
