@@ -61,7 +61,6 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
                                  mod_nomvar="ETAS",
                                  start_time=None, end_time=None,
                                  member_ids=("",), b2b_nhours=12):
-
     assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
 
     data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
