@@ -62,10 +62,12 @@ def main_levelling_v01():
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
 
 
-def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod_data: bool = False):
+def main(config_path: Path = None, cfg_overrides: dict = None,
+         allow_missing_mod_data: bool = False, debug: bool = False):
     """
     Entry point for processing a given simulation
     Args:
+        debug: if True debug mode is on
         allow_missing_mod_data: if True allows model data to be missing, otherwise fails
         config_path: path to the loadprogs config file
         cfg_overrides: config properties to be overriden, useful for embedded use for monitoring
@@ -79,6 +81,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
         raise IOError(f"cfg file does not exist: {config_path}")
 
     config = parse_config_settings(config_path, cfg_overrides)
+
+    # attach debug property to the config
+    config.debug = debug
 
     for k, v in vars(config).items():
         logger.info(f"{k} => {v}, ({type(v)})")
@@ -117,14 +122,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info)
 
-    model_points = mod.get_mod_timeseries(stations=stations,
-                                          mod_data_path=config.mod_dir,
+    model_points = mod.get_mod_timeseries_cfg(config,
                                           station_id_to_grid_indices=station_to_model_grid_map,
-                                          start_time=config.beg_time_mod,
-                                          end_time=config.end_time_mod,
-                                          member_ids=member_ids, mod_nomvar=config.mod_nomvar,
-                                          run_freq_hours=config.b2b_freq_hours,
-                                          dt_texp_from_tbeg=config.dt_texp_from_tbeg,
+                                          member_ids=member_ids,
                                           allow_missing=allow_missing_mod_data)
 
     if len(model_points) == 0:
@@ -312,6 +312,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None, allow_missing_mod
 
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data[constants.COLNAME_TORIGIN].isin(origin_dates_of_interest), :]
+
 
         # debias
         if external_debias_groups_by_station is not None:
