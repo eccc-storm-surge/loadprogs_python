@@ -69,6 +69,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.mod_do_filtering = mod_config.getboolean("detide_mod_filtering", fallback=False)
     _config.n_members = mod_config.getint("n_members", fallback=0)
 
+    # typos and backward compatibility
+    if "nmembers" in mod_config:
+        _config.n_members = mod_config.getint("n_members", fallback=0)
+
     _config.min_nhours_for_detiding_mod = mod_config.getint("min_nhours_for_detiding",
                                                             fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
 
