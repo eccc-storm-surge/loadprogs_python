@@ -313,7 +313,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
 
         # remove analysis period mean from the mod and obs
-        if config.remove_anal_period_mean:
+        if config.remove_anal_period_mean and len(mod_data) > 0:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
                                 mod_member_keys=mod_member_keys, config=config)
 
