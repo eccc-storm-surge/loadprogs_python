@@ -26,6 +26,40 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+FILE_TYPE_FST = 1
+FILE_TYPE_CDF = 2
+FILE_TYPE_UNKNOWN = 0
+
+__mod_input_file_type = None
+
+
+def get_file_type(p: Path):
+    """
+    Determine the type of model data files, i.e. cdf or fst,
+    assume that it does not change within an experiment (for performance)
+    Args:
+        p: path to the file to be tested
+
+    Returns:
+
+    """
+
+    global __mod_input_file_type
+
+    if __mod_input_file_type is not None:
+        return __mod_input_file_type
+
+    type_id = rmn.wkoffit(str(p))
+    if "STANDARD" in rmn.WKOFFIT_TYPE_LIST_INV[type_id]:
+        __mod_input_file_type = FILE_TYPE_FST
+    elif "NETCDF" in rmn.WKOFFIT_TYPE_LIST_INV[type_id]:
+        __mod_input_file_type = FILE_TYPE_CDF
+    else:
+        __mod_input_file_type = FILE_TYPE_UNKNOWN
+
+    return __mod_input_file_type
+
+
 def get_member_id_from_file_path(fpath: Path):
     return fpath.name.split("_")[-1]
 
@@ -318,6 +352,57 @@ def read_data_files_fst(path_list,
     rmn.fstcloseall(funit)
 
     return pd.DataFrame.from_dict(data_dict)
+
+
+def read_data_files_cdf(path_list,
+                        station_id_to_grid_indices: dict,
+                        mod_nomvar="ETAS") -> pd.DataFrame:
+    """
+    Read model data at points for given indices into a dataframe
+    Args:
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+
+    Returns:
+
+    """
+    import xarray
+    data_dict = {"time": [], "value": [], "station_id": []}
+
+    with xarray.open_mfdataset(path_list) as ds:
+
+        time_nomvar = "time_counter"
+        for nv in ds:
+            if "time" in nv:
+                time_nomvar = nv
+
+        for station_id, (i, j) in station_id_to_grid_indices.items():
+            data_dict["value"] = ds[mod_nomvar][:, i, j]
+            data_dict["station_id"].extend([station_id] * len(data_dict["value"]))
+            data_dict["time"].extend(ds[time_nomvar][:])
+
+    return pd.DataFrame.from_dict(data_dict)
+
+
+def read_data_files(path_list,
+                    station_id_to_grid_indices: dict,
+                    mod_nomvar="ETAS") -> pd.DataFrame:
+    """
+    General interface for accessing fst or cdf files
+    Args:
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+    """
+    ftype = get_file_type(path_list[0])
+    args = (path_list, station_id_to_grid_indices, mod_nomvar)
+    if ftype == FILE_TYPE_FST:
+        return read_data_files_fst(*args)
+    elif ftype == FILE_TYPE_CDF:
+        return read_data_files_cdf(*args)
+    else:
+        raise IOError(f"Unknown format of model files: {ftype}")
 
 
 def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
