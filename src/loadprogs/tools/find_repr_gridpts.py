@@ -3,6 +3,16 @@
 Find representative grid points for stations by minimising
 a performance score (gamma^2) from historical simulation
 
+Usage examples:
+
+if wishing to generate .obs file for the closest model grid cells (i.e. without minimising gamma^2):
+
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in ~/Python/obs_to_grid_mapping/gdsps_NA_v001.obs  \
+                                                    --obs-index-out ~/Python/obs_to_grid_mapping/gdsps_NA_opt_v001.obs \
+                                                    --obs-dir ~/sse_obs/merged/gdsps_2019_2020_on_20200909/ \
+                                                    --nnearest 1 \
+                                                    --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4.nc
+
 """
 import argparse
 from datetime import datetime
@@ -118,69 +128,89 @@ def main():
 
     stations = obs.load_station_data_from_obs_dir(config)
 
-    # load model data for the stations
-    mod_raw = mod.get_mod_timeseries_closest_to(
-        stations=stations,
-        data_files=cmd_args.mod_files,
-        nnearest=cmd_args.nnearest, nomvar=cmd_args.nomvar,
-        typvar=cmd_args.typvar,
-        dist_upper_bound=cmd_args.dist_upper_bound_m
-    )
+    station_id_to_mod_indices = {}
+
+    if cmd_args.nnearest > 1:
+        # load model data for the stations
+        mod_raw = mod.get_mod_timeseries_closest_to(
+            stations=stations,
+            data_files=cmd_args.mod_files,
+            nnearest=cmd_args.nnearest, nomvar=cmd_args.nomvar,
+            typvar=cmd_args.typvar,
+            dist_upper_bound=cmd_args.dist_upper_bound_m
+        )
+
+    else:
+        mod_raw = None
+        station_id_to_mod_indices = mod.get_mod_indices_closest_to(stations,
+                                                                   mod_bathy_file=cmd_args.mod_files[0],
+                                                                   dist_upper_bound=cmd_args.dist_upper_bound_m)
 
     station_id_to_station = {
         s.station_id: s for s in stations
     }
 
-    print(mod_raw.columns)
-
     data = {
         "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": []
     }
 
-    for station_id in mod_raw.columns.unique(level="station_id"):
-        print(f"Processing {station_id}")
-        s = station_id_to_station[station_id]
+    for s in stations:
+
+        # s = station_id_to_station[station_id]
         assert isinstance(s, Station)
+        station_id = s.station_id
         data["NO"].append(station_id)
         data["ID"].append(s.name)
         data["LON"].append(s.longitude)
         data["LAT"].append(s.latitude)
 
-        df = mod_raw[station_id]
+        print(f"Processing {station_id}")
+
         i_sel = None
         j_sel = None
 
-        if cmd_args.detide_obs:
-            obs_ts = s.get_detided_series(do_filtering=cmd_args.do_filtering)
+        if mod_raw is not None:
+
+            # skip stations outside of the model domain
+            if station_id not in mod_raw.columns.unique(level="station_id"):
+                continue
+
+            df = mod_raw[station_id]
+
+            if cmd_args.detide_obs:
+                obs_ts = s.get_detided_series(do_filtering=cmd_args.do_filtering)
+            else:
+                obs_ts = s.data["twl"]
+
+            obs_ts -= obs_ts.mean()
+
+            # select i and j for each station that minimize the scores
+            score_min = None
+            for gd_indices in df.columns:
+                mod_ts = df[gd_indices]
+
+                mod_ts = mod_ts.to_frame()
+                mod_ts.columns = ["twl", ]
+
+                mod_tides, mod_filt, tconst = obs.get_tides_and_filter_hourly(
+                    mod_ts,
+                    do_filtering=cmd_args.do_filtering,
+                    constituents=cmd_args.constituents)
+
+                mod_ts = mod_ts["twl"] - mod_tides + mod_filt
+                mod_ts -= mod_ts.mean()
+
+                score = scores.gamma2(obs_ts, mod_ts)
+                if score_min is None:
+                    score_min = score
+                    i_sel, j_sel = gd_indices
+
+                if score_min > score:
+                    score_min = score
+                    i_sel, j_sel = gd_indices
         else:
-            obs_ts = s.data["twl"]
-
-        obs_ts -= obs_ts.mean()
-
-        # select i and j for each station that minimize the scores
-        score_min = None
-        for gd_indices in df.columns:
-            mod_ts = df[gd_indices]
-
-            mod_ts = mod_ts.to_frame()
-            mod_ts.columns = ["twl", ]
-
-            mod_tides, mod_filt, tconst = obs.get_tides_and_filter_hourly(
-                mod_ts,
-                do_filtering=cmd_args.do_filtering,
-                constituents=cmd_args.constituents)
-
-            mod_ts = mod_ts["twl"] - mod_tides + mod_filt
-            mod_ts -= mod_ts.mean()
-
-            score = scores.gamma2(obs_ts, mod_ts)
-            if score_min is None:
-                score_min = score
-                i_sel, j_sel = gd_indices
-
-            if score_min > score:
-                score_min = score
-                i_sel, j_sel = gd_indices
+            # if using just the closest point
+            i_sel, j_sel = station_id_to_mod_indices[station_id][0]
 
         data["DATA.I"].append(i_sel + 1)
         data["DATA.J"].append(j_sel + 1)
