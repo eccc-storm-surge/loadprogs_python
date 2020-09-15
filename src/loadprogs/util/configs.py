@@ -92,6 +92,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # FC = FC - mean(PA-Obs), (the mean is over avg_nhours, before the forecast start)
     _config.mod_external_debias_avg_nhours = mod_config.getint("mod_external_debias_avg_nhours", fallback=5 * 24)
 
+    # number of processes used for reading model data
+    _config.mod_read_nprocs = mod_config.getint("mod_read_nprocs", fallback=1)
 
 
     # --------------------------------------------

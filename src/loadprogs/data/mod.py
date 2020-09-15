@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
+from joblib import Parallel, delayed
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
 
@@ -52,10 +53,8 @@ def get_file_type(p: Path):
     type_id = rmn.wkoffit(str(p))
     if "STANDARD" in rmn.WKOFFIT_TYPE_LIST_INV[type_id]:
         __mod_input_file_type = FILE_TYPE_FST
-    elif "NETCDF" in rmn.WKOFFIT_TYPE_LIST_INV[type_id]:
-        __mod_input_file_type = FILE_TYPE_CDF
     else:
-        __mod_input_file_type = FILE_TYPE_UNKNOWN
+        __mod_input_file_type = FILE_TYPE_CDF
 
     return __mod_input_file_type
 
@@ -220,7 +219,7 @@ def get_mod_timeseries(mod_data_path: Path,
                        start_time=None, end_time=None,
                        member_ids=("",), run_freq_hours=12,
                        dt_texp_from_tbeg=timedelta(hours=0),
-                       allow_missing=False, debug=False
+                       allow_missing=False, debug=False, nprocs=1
                        ):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
@@ -229,6 +228,7 @@ def get_mod_timeseries(mod_data_path: Path,
     member id is derived from the last part (after the last underscore) of the output file name
 
     Args:
+        nprocs: number of processes to use for reading model data (can be a bottleneck)
         allow_missing:
         run_freq_hours: Frequency of the experiment, if t ie a new experiment is started each t hours
         member_ids:
@@ -259,11 +259,17 @@ def get_mod_timeseries(mod_data_path: Path,
 
     logger.debug(f"mod_data_path={mod_data_path}")
 
-    df_list = []
+    input_list = []
+    # construct list of inputs for reading data
     for member_id in member_ids:
         for exp_t in exp_t_list:
             logger.info(f"treating experiment: {exp_t}")
-            data_files = list(mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}"))
+            if member_id == "":
+                fname_pattern = f"*{exp_t:%Y%m%d%H}*{member_id}"
+            else:
+                fname_pattern = f"*{exp_t:%Y%m%d%H}*{member_id}*"
+
+            data_files = list(mod_data_path.glob(fname_pattern))
 
             if len(data_files) == 0:
                 msg = f"Could not find any file for the experiment on {exp_t}"
@@ -272,16 +278,12 @@ def get_mod_timeseries(mod_data_path: Path,
                 else:
                     raise IOError(msg)
 
-            df = read_data_files_fst(data_files, station_id_to_grid_indices, mod_nomvar=mod_nomvar)
-
-            # identify the forecast and member
-            logger.debug("TZ1=%s, TZ2=%s\n", type(exp_t.tzinfo), type(df["time"].iloc[0].tz))
             t_origin = exp_t - dt_texp_from_tbeg
-            logger.debug("t_origin=%s", t_origin)
+            input_list.append((data_files, station_id_to_grid_indices, mod_nomvar, t_origin, member_id))
 
-            df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds() // 3600).astype(int)
-            df["member_id"] = member_id
-            df_list.append(df)
+    # read actual data in parallel
+    with Parallel(n_jobs=5) as parallel:
+        df_list = parallel(delayed(read_data_files)(*inp) for inp in input_list)
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
@@ -356,10 +358,12 @@ def read_data_files_fst(path_list,
 
 def read_data_files_cdf(path_list,
                         station_id_to_grid_indices: dict,
-                        mod_nomvar="ETAS") -> pd.DataFrame:
+                        mod_nomvar="ETAS",
+                        axis_order="yx") -> pd.DataFrame:
     """
     Read model data at points for given indices into a dataframe
     Args:
+        axis_order: if yx then the vertical index j goes first i.e. to get point i, j we need to [:, j, i]
         path_list:
         station_id_to_grid_indices:
         mod_nomvar:
@@ -369,25 +373,53 @@ def read_data_files_cdf(path_list,
     """
     import xarray
     data_dict = {"time": [], "value": [], "station_id": []}
+    from time import perf_counter
+    t0 = perf_counter()
 
-    with xarray.open_mfdataset(path_list) as ds:
-
+    with xarray.open_mfdataset(path_list, combine="by_coords") as ds:
         time_nomvar = "time_counter"
         for nv in ds:
+
+            # skip time bounds
+            if "bounds" in nv:
+                continue
+
             if "time" in nv:
                 time_nomvar = nv
 
-        for station_id, (i, j) in station_id_to_grid_indices.items():
-            data_dict["value"] = ds[mod_nomvar][:, i, j]
-            data_dict["station_id"].extend([station_id] * len(data_dict["value"]))
-            data_dict["time"].extend(ds[time_nomvar][:])
+        logger.debug(ds[time_nomvar])
 
+        t_data = pd.to_datetime(ds[time_nomvar].values, utc=True)
+
+        stid_indices_triples = [(station_id, i, j) for station_id, (i, j) in station_id_to_grid_indices.items()]
+
+        stid_list = [t[0] for t in stid_indices_triples]
+        i_list = [t[1] for t in stid_indices_triples]
+        j_list = [t[2] for t in stid_indices_triples]
+
+        if axis_order == "yx":
+            i1_list = j_list
+            i2_list = i_list
+        else:
+            i1_list = i_list
+            i2_list = j_list
+
+        data_array = ds[mod_nomvar].values
+        for station_id, i1, i2 in zip(stid_list, i1_list, i2_list):
+            ts = data_array[:, i1, i2]
+            data_dict["value"].extend(ts)
+            data_dict["station_id"].extend([station_id] * len(ts))
+            data_dict["time"].extend(t_data)
+
+    logger.debug(f"Data fetch from nc took: {perf_counter() - t0} seconds")
     return pd.DataFrame.from_dict(data_dict)
 
 
 def read_data_files(path_list,
                     station_id_to_grid_indices: dict,
-                    mod_nomvar="ETAS") -> pd.DataFrame:
+                    mod_nomvar="ETAS",
+                    t_origin=None, member_id=""
+                    ) -> pd.DataFrame:
     """
     General interface for accessing fst or cdf files
     Args:
@@ -395,15 +427,22 @@ def read_data_files(path_list,
         station_id_to_grid_indices:
         mod_nomvar:
     """
+    logger.debug("t_origin=%s", t_origin)
     ftype = get_file_type(path_list[0])
     args = (path_list, station_id_to_grid_indices, mod_nomvar)
     if ftype == FILE_TYPE_FST:
-        return read_data_files_fst(*args)
+        df = read_data_files_fst(*args)
     elif ftype == FILE_TYPE_CDF:
-        return read_data_files_cdf(*args)
+        df = read_data_files_cdf(*args)
     else:
         raise IOError(f"Unknown format of model files: {ftype}")
 
+    logger.debug("TZ1=%s, TZ2=%s\n", type(t_origin.tzinfo), type(df["time"].iloc[0].tz))
+
+    df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds() // 3600).astype(int)
+    df["member_id"] = member_id
+
+    return df
 
 def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     """
@@ -467,6 +506,62 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
         logger.debug("Mod analysis period mean, removed: %.4f, member id = %s", tmean, cn)
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
     return df
+
+
+def get_mod_indices_closest_to(stations: List[Station],
+                               mod_bathy_file: Path,
+                               mod_lon_vname="nav_lon",
+                               mod_lat_vname="nav_lat",
+                               mod_bathy_vname="Bathymetry",
+                               bathy_limit=0,
+                               dist_upper_bound=None) -> dict:
+    """
+    get closest indices to the stations based on the bathymetry file
+
+    Args:
+        dist_upper_bound:
+        mod_bathy_vname:
+        stations:
+        mod_bathy_file:
+        mod_lon_vname:
+        mod_lat_vname:
+        bathy_limit:
+
+    Returns:
+        dict: station id to corresponding grid indices (0-based)
+    """
+
+    import xarray
+    station_id_to_indices = {}
+    with xarray.open_dataset(mod_bathy_file) as ds:
+        lons = ds[mod_lon_vname].values
+        lats = ds[mod_lat_vname].values
+        bathy = ds[mod_bathy_vname].values
+
+        mask = bathy > bathy_limit
+
+        xs, ys, zs = lat_lon.lon_lat_to_cartesian(lons[mask], lats[mask])
+        ktree = KDTree(np.array(list(zip(xs, ys, zs))))
+
+        i_mat, j_mat = np.indices(lons.shape)
+
+        for s in stations:
+            xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
+            dists, inds = ktree.query(np.array([(xt, yt, zt), ], dtype=np.float32), k=1)
+
+            if dist_upper_bound is not None:
+                inds = inds[dists <= dist_upper_bound]
+
+            if len(inds) == 0:
+                continue
+
+            station_id_to_indices[s.station_id] = [
+                (i_mat[mask][i], j_mat[mask][i]) for i in inds
+            ]
+
+        logger.debug("station_id_to_indices: \n %s \n", station_id_to_indices)
+
+    return station_id_to_indices
 
 
 def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
