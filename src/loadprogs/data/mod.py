@@ -397,16 +397,12 @@ def read_data_files_cdf(path_list,
         i_list = [t[1] for t in stid_indices_triples]
         j_list = [t[2] for t in stid_indices_triples]
 
-        if axis_order == "yx":
-            i1_list = j_list
-            i2_list = i_list
-        else:
-            i1_list = i_list
-            i2_list = j_list
-
         data_array = ds[mod_nomvar].values
-        for station_id, i1, i2 in zip(stid_list, i1_list, i2_list):
+        for station_id, i1, i2 in zip(stid_list, i_list, j_list):
+            # the order of the indices should be the same as
+            # in the .obs, .dat file (i.e. either hor, vert or vert, hor)
             ts = data_array[:, i1, i2]
+
             data_dict["value"].extend(ts)
             data_dict["station_id"].extend([station_id] * len(ts))
             data_dict["time"].extend(t_data)
