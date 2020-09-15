@@ -14,6 +14,8 @@ if __name__ == '__main__':
     import time
     t0 = time.perf_counter()
 
+    logging.basicConfig()
+
     logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser(description="run experiment")
@@ -47,7 +49,5 @@ if __name__ == '__main__':
     else:
         for p in cfg_paths:
             main(config_path=Path(p))
-
-
 
     logger.info(f"Execution time: {time.perf_counter() - t0}")
