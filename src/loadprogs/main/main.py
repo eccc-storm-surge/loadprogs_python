@@ -328,7 +328,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                        avg_period=timedelta(hours=config.mod_external_debias_avg_nhours),
                        mod_member_keys=mod_member_keys)
 
-
         rmse = np.linalg.norm(
             mod_data[f"{s.station_id}_obs"] - mod_data.loc[:, mod_member_keys].mean(axis=1)) / (len(mod_data)) ** 0.5
         logger.debug(f"rmse({s.station_id})={rmse}")
