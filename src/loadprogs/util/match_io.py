@@ -2,9 +2,11 @@
 Function for reading files containing matched
 mod-obs files
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 import pandas as pd
+import pytz
+
 from .constants import COLNAME_STID, COLNAME_TIME
 
 col_index_to_name_map = {
@@ -16,7 +18,7 @@ col_index_to_name_map = {
 }
 
 
-def read_dat(fp: Path, date_format="%Y%m%d%H", tz=timezone.utc):
+def read_dat(fp: Path, date_format="%Y%m%d%H", tz=pytz.utc):
     """
 
     Args:

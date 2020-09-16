@@ -5,6 +5,8 @@ from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import pytz
+
 from .config_interpolation import ExtendedEnvInterpolation
 
 logger = logging.getLogger(__name__)
@@ -39,10 +41,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # Model configurations
     # --------------------------------------------
     _config.beg_time_mod = datetime.strptime(mod_config.get("datestart_mod", fallback=dummy_date), "%Y%m%d%H") \
-        .replace(tzinfo=timezone.utc)
+        .replace(tzinfo=pytz.utc)
 
     _config.end_time_mod = datetime.strptime(mod_config.get("dateend_mod", fallback=dummy_date), "%Y%m%d%H") \
-        .replace(tzinfo=timezone.utc)
+        .replace(tzinfo=pytz.utc)
 
     assert _config.end_time_mod >= _config.beg_time_mod, "datestart_mod should be less or equal than dateend_mod"
 
@@ -67,17 +69,31 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.mod_do_filtering = mod_config.getboolean("detide_mod_filtering", fallback=False)
     _config.n_members = mod_config.getint("n_members", fallback=0)
 
+    # typos and backward compatibility
+    if "nmembers" in mod_config:
+        _config.n_members = mod_config.getint("n_members", fallback=0)
+
     _config.min_nhours_for_detiding_mod = mod_config.getint("min_nhours_for_detiding",
                                                             fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
 
     _config.mod_external_tides = Path(mod_config.get("mod_external_tides", fallback=NOTEXISTING_PATH))
 
+    if _config.mod_external_tides.name != NOTEXISTING_PATH:
+        assert _config.mod_external_tides.exists(), f"{_config.mod_external_tides} should exist!"
+
     _config.mod_external_debias = Path(mod_config.get("mod_external_debias", fallback=NOTEXISTING_PATH))
+
+    if _config.mod_external_debias.name != NOTEXISTING_PATH:
+        assert _config.mod_external_debias.exists(), f"{_config.mod_external_debias} should exist!"
+
+
 
     # debias using the following formula:
     # FC = FC - mean(PA-Obs), (the mean is over avg_nhours, before the forecast start)
     _config.mod_external_debias_avg_nhours = mod_config.getint("mod_external_debias_avg_nhours", fallback=5 * 24)
 
+    # number of processes used for reading model data
+    _config.mod_read_nprocs = mod_config.getint("mod_read_nprocs", fallback=1)
 
 
     # --------------------------------------------
@@ -128,7 +144,13 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
         _config.out_file_sqlite = _config.out_dir / (_config.out_file.name[:-4] + ".sqlite")
 
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
-    _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
+
+    # for backward compatibility
+    if "remove_anal_period_mean" in misc_config:
+        _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
+    else:
+        _config.remove_anal_period_mean = misc_config.getboolean("remove_analysis_period_mean", fallback=True)
+
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
 
     # --------------------------------------------

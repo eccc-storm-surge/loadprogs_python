@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
+from joblib import Parallel, delayed
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
 
@@ -24,6 +25,38 @@ import numpy as np
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+
+FILE_TYPE_FST = 1
+FILE_TYPE_CDF = 2
+FILE_TYPE_UNKNOWN = 0
+
+__mod_input_file_type = None
+
+
+def get_file_type(p: Path):
+    """
+    Determine the type of model data files, i.e. cdf or fst,
+    assume that it does not change within an experiment (for performance)
+    Args:
+        p: path to the file to be tested
+
+    Returns:
+
+    """
+
+    global __mod_input_file_type
+
+    if __mod_input_file_type is not None:
+        return __mod_input_file_type
+
+    type_id = rmn.wkoffit(str(p))
+    if "STANDARD" in rmn.WKOFFIT_TYPE_LIST_INV[type_id]:
+        __mod_input_file_type = FILE_TYPE_FST
+    else:
+        __mod_input_file_type = FILE_TYPE_CDF
+
+    return __mod_input_file_type
 
 
 def get_member_id_from_file_path(fpath: Path):
@@ -61,7 +94,6 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
                                  mod_nomvar="ETAS",
                                  start_time=None, end_time=None,
                                  member_ids=("",), b2b_nhours=12):
-
     assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
 
     data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
@@ -148,23 +180,46 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
 
 
 def prepare_mod_sql_data(mod_data, mod_members, stn):
-
     df = mod_data.copy()
     df = df.assign(lat=stn.latitude, lon=stn.longitude)
     df = df.rename(columns={f"{stn.station_id}_obs": "obs"}) \
-           .reindex(columns=["valid_hour", "station_id", "lat", "lon", "time", "obs", *mod_members]) \
-           .sort_values(by="time")
+        .reindex(columns=["valid_hour", "station_id", "lat", "lon", "time", "obs", *mod_members]) \
+        .sort_values(by="time")
 
     return df
 
 
-def get_mod_timeseries(stations, mod_data_path: Path,
+def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
+                           member_ids=("",)):
+    """
+    wrapper for get_mod_timeseries, easier to call
+    Args:
+        allow_missing:
+        member_ids:
+        cfg:
+        station_id_to_grid_indices:
+
+    Returns:
+
+    """
+    return get_mod_timeseries(
+        cfg.mod_dir, station_id_to_grid_indices=station_id_to_grid_indices,
+        allow_missing=allow_missing,
+        member_ids=member_ids,
+        mod_nomvar=cfg.mod_nomvar,
+        start_time=cfg.beg_time_mod,
+        end_time=cfg.end_time_mod,
+        run_freq_hours=cfg.b2b_freq_hours,
+        dt_texp_from_tbeg=cfg.dt_texp_from_tbeg, debug=cfg.debug)
+
+
+def get_mod_timeseries(mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS",
                        start_time=None, end_time=None,
                        member_ids=("",), run_freq_hours=12,
                        dt_texp_from_tbeg=timedelta(hours=0),
-                       allow_missing=False
+                       allow_missing=False, debug=False, nprocs=1
                        ):
     """
     Read all the files in mod_data_path and store data in a pd.DataFrame
@@ -173,6 +228,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     member id is derived from the last part (after the last underscore) of the output file name
 
     Args:
+        nprocs: number of processes to use for reading model data (can be a bottleneck)
         allow_missing:
         run_freq_hours: Frequency of the experiment, if t ie a new experiment is started each t hours
         member_ids:
@@ -181,7 +237,6 @@ def get_mod_timeseries(stations, mod_data_path: Path,
         mod_nomvar:
         stations:
         mod_data_path: (folder with simulation files)
-        station_id_to_grid_indices:
 
     Returns:
         data frame with model data
@@ -190,7 +245,7 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
     assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
 
-    data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
+    # data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
 
     dt_run_freq = timedelta(hours=run_freq_hours)
     n_exp = (end_time - start_time).total_seconds() // dt_run_freq.total_seconds() + 1
@@ -202,11 +257,19 @@ def get_mod_timeseries(stations, mod_data_path: Path,
     exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
     # logger.debug(exp_t_list)
 
+    logger.debug(f"mod_data_path={mod_data_path}")
+
+    input_list = []
+    # construct list of inputs for reading data
     for member_id in member_ids:
         for exp_t in exp_t_list:
             logger.info(f"treating experiment: {exp_t}")
-            data_files = list(mod_data_path.glob(f"{exp_t:%Y%m%d%H}*{member_id}"))
-            # logger.debug(data_files)
+            if member_id == "":
+                fname_pattern = f"*{exp_t:%Y%m%d%H}*{member_id}"
+            else:
+                fname_pattern = f"*{exp_t:%Y%m%d%H}*{member_id}*"
+
+            data_files = list(mod_data_path.glob(fname_pattern))
 
             if len(data_files) == 0:
                 msg = f"Could not find any file for the experiment on {exp_t}"
@@ -215,53 +278,23 @@ def get_mod_timeseries(stations, mod_data_path: Path,
                 else:
                     raise IOError(msg)
 
-            # sort by name
-            data_files = [p for p in sorted(data_files, key=lambda ip: ip.name)]
+            t_origin = exp_t - dt_texp_from_tbeg
+            input_list.append((data_files, station_id_to_grid_indices, mod_nomvar, t_origin, member_id))
 
-            logger.debug(f"mod_data_path={mod_data_path}")
-            # logger.debug(data_files)
+    # read actual data in parallel
+    with Parallel(n_jobs=5) as parallel:
+        df_list = parallel(delayed(read_data_files)(*inp) for inp in input_list)
 
-            # get all data from a file in memory
-            funit = rmn.fstopenall([str(data_file) for data_file in data_files])
-
-            keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
-
-            # filter the keys by date first first, if required
-            dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
-
-            records = [rmn.fstluk(k) for k in keys]
-
-            for s in stations:
-                i, j = station_id_to_grid_indices[s.station_id]
-                data_dict["value"].extend([rec["d"][i, j] for rec in records])
-                data_dict["station_id"].extend([s.station_id] * len(records))
-
-                data_dict["time"].extend(dates)
-                data_dict["valid_hour"].extend([int((t - (exp_t - dt_texp_from_tbeg)).total_seconds() // 3600) for t in dates])
-                data_dict["member_id"].extend([member_id] * len(dates))
-
-            rmn.fstcloseall(funit)
-
-    for i, d in enumerate(data_dict["time"]):
-        assert d != 0, f"time[{i}]={d}"
-
-    logger.debug(list(data_dict.keys()))
-
-    # check that the lists have the same length
-    data_leng = {cn: len(cd) for cn, cd in data_dict.items()}
-    logger.debug(f"data_leng: {data_leng}")
-
-    df = pd.DataFrame.from_dict(data_dict)
+    # combine the model data for all experiments and members into a single dataframe
+    df = pd.concat(df_list, axis=0)
 
     df_list = []
     for member_id, group in df.groupby("member_id"):
         group = group.set_index(["time", "valid_hour", "station_id"])
-
         group.rename({"value": f"mod_{member_id}"}, axis=1, inplace=True)
         group.drop("member_id", axis=1, inplace=True)
 
         logger.debug(len(group))
-
         df_list.append(group)
 
     df = pd.concat(df_list, axis=1)
@@ -275,7 +308,9 @@ def get_mod_timeseries(stations, mod_data_path: Path,
         logger.debug(c)
 
     # sorting, useful for debugging
-    # df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
+    if debug:
+        df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
+
     df[constants.COLNAME_TORIGIN] = df[constants.COLNAME_TIME] - pd.TimedeltaIndex(data=df["valid_hour"], unit="hour")
 
     logger.debug("model points")
@@ -283,6 +318,127 @@ def get_mod_timeseries(stations, mod_data_path: Path,
 
     return df
 
+
+def read_data_files_fst(path_list,
+                        station_id_to_grid_indices: dict,
+                        mod_nomvar="ETAS") -> pd.DataFrame:
+    """
+    Read model data at points for given indices into a dataframe
+    Args:
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+
+    Returns:
+
+    """
+    data_dict = {"time": [], "value": [], "station_id": []}
+    # sort by name
+    data_files = [p for p in sorted(path_list, key=lambda ip: ip.name)]
+
+    # get all data from a file in memory
+    funit = rmn.fstopenall([str(data_file) for data_file in data_files])
+
+    keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
+
+    # filter the keys by date first first, if required
+    dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
+
+    records = [rmn.fstluk(k) for k in keys]
+
+    for station_id, (i, j) in station_id_to_grid_indices.items():
+        data_dict["value"].extend([rec["d"][i, j] for rec in records])
+        data_dict["station_id"].extend([station_id] * len(records))
+        data_dict["time"].extend(dates)
+
+    rmn.fstcloseall(funit)
+
+    return pd.DataFrame.from_dict(data_dict)
+
+
+def read_data_files_cdf(path_list,
+                        station_id_to_grid_indices: dict,
+                        mod_nomvar="ETAS",
+                        axis_order="yx") -> pd.DataFrame:
+    """
+    Read model data at points for given indices into a dataframe
+    Args:
+        axis_order: if yx then the vertical index j goes first i.e. to get point i, j we need to [:, j, i]
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+
+    Returns:
+
+    """
+    import xarray
+    data_dict = {"time": [], "value": [], "station_id": []}
+    from time import perf_counter
+    t0 = perf_counter()
+
+    with xarray.open_mfdataset(path_list, combine="by_coords") as ds:
+        time_nomvar = "time_counter"
+        for nv in ds:
+
+            # skip time bounds
+            if "bounds" in nv:
+                continue
+
+            if "time" in nv:
+                time_nomvar = nv
+
+        logger.debug(ds[time_nomvar])
+
+        t_data = pd.to_datetime(ds[time_nomvar].values, utc=True)
+
+        stid_indices_triples = [(station_id, i, j) for station_id, (i, j) in station_id_to_grid_indices.items()]
+
+        stid_list = [t[0] for t in stid_indices_triples]
+        i_list = [t[1] for t in stid_indices_triples]
+        j_list = [t[2] for t in stid_indices_triples]
+
+        data_array = ds[mod_nomvar].values
+        for station_id, i1, i2 in zip(stid_list, i_list, j_list):
+            # the order of the indices should be the same as
+            # in the .obs, .dat file (i.e. either hor, vert or vert, hor)
+            ts = data_array[:, i1, i2]
+
+            data_dict["value"].extend(ts)
+            data_dict["station_id"].extend([station_id] * len(ts))
+            data_dict["time"].extend(t_data)
+
+    logger.debug(f"Data fetch from nc took: {perf_counter() - t0} seconds")
+    return pd.DataFrame.from_dict(data_dict)
+
+
+def read_data_files(path_list,
+                    station_id_to_grid_indices: dict,
+                    mod_nomvar="ETAS",
+                    t_origin=None, member_id=""
+                    ) -> pd.DataFrame:
+    """
+    General interface for accessing fst or cdf files
+    Args:
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+    """
+    logger.debug("t_origin=%s", t_origin)
+    ftype = get_file_type(path_list[0])
+    args = (path_list, station_id_to_grid_indices, mod_nomvar)
+    if ftype == FILE_TYPE_FST:
+        df = read_data_files_fst(*args)
+    elif ftype == FILE_TYPE_CDF:
+        df = read_data_files_cdf(*args)
+    else:
+        raise IOError(f"Unknown format of model files: {ftype}")
+
+    logger.debug("TZ1=%s, TZ2=%s\n", type(t_origin.tzinfo), type(df["time"].iloc[0].tz))
+
+    df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds() // 3600).astype(int)
+    df["member_id"] = member_id
+
+    return df
 
 def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     """
@@ -310,7 +466,7 @@ def get_mod_twl_for_b2b(mod_data, config):
 
     # for b2b operations
     select_crit = df["valid_hour"] <= config.b2b_freq_hours
-    select_crit = select_crit & (df["valid_hour"] >= 0) # remove t=0
+    select_crit = select_crit & (df["valid_hour"] >= 0)  # remove t=0
     mod_data_twl = df.loc[select_crit, :]
     mod_data_twl.sort_values("time", inplace=True)
     logger.debug(mod_data_twl.head())
@@ -343,8 +499,65 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     tmean = df.loc[where_cond, mod_member_keys[0]].mean()
 
     for cn in mod_member_keys:
+        logger.debug("Mod analysis period mean, removed: %.4f, member id = %s", tmean, cn)
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
     return df
+
+
+def get_mod_indices_closest_to(stations: List[Station],
+                               mod_bathy_file: Path,
+                               mod_lon_vname="nav_lon",
+                               mod_lat_vname="nav_lat",
+                               mod_bathy_vname="Bathymetry",
+                               bathy_limit=0,
+                               dist_upper_bound=None) -> dict:
+    """
+    get closest indices to the stations based on the bathymetry file
+
+    Args:
+        dist_upper_bound:
+        mod_bathy_vname:
+        stations:
+        mod_bathy_file:
+        mod_lon_vname:
+        mod_lat_vname:
+        bathy_limit:
+
+    Returns:
+        dict: station id to corresponding grid indices (0-based)
+    """
+
+    import xarray
+    station_id_to_indices = {}
+    with xarray.open_dataset(mod_bathy_file) as ds:
+        lons = ds[mod_lon_vname].values
+        lats = ds[mod_lat_vname].values
+        bathy = ds[mod_bathy_vname].values
+
+        mask = bathy > bathy_limit
+
+        xs, ys, zs = lat_lon.lon_lat_to_cartesian(lons[mask], lats[mask])
+        ktree = KDTree(np.array(list(zip(xs, ys, zs))))
+
+        i_mat, j_mat = np.indices(lons.shape)
+
+        for s in stations:
+            xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
+            dists, inds = ktree.query(np.array([(xt, yt, zt), ], dtype=np.float32), k=1)
+
+            if dist_upper_bound is not None:
+                inds = inds[dists <= dist_upper_bound]
+
+            if len(inds) == 0:
+                continue
+
+            station_id_to_indices[s.station_id] = [
+                (i_mat[mask][i], j_mat[mask][i]) for i in inds
+            ]
+
+        logger.debug("station_id_to_indices: \n %s \n", station_id_to_indices)
+
+    return station_id_to_indices
 
 
 def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
@@ -401,7 +614,7 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
     for s in stations:
 
         xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
-        dists, inds = ktree.query(np.array([(xt, yt, zt),], dtype=np.float32), k=nnearest)
+        dists, inds = ktree.query(np.array([(xt, yt, zt), ], dtype=np.float32), k=nnearest)
 
         if dist_upper_bound is not None:
             inds = inds[dists <= dist_upper_bound]
@@ -410,7 +623,7 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
             continue
 
         station_id_to_indices[s.station_id] = [
-            (i_mat[mask> 0.5][i], j_mat[mask > 0.5][i]) for i in inds.squeeze()
+            (i_mat[mask > 0.5][i], j_mat[mask > 0.5][i]) for i in inds.squeeze()
         ]
 
     # station_id, gd_point_ind
@@ -418,8 +631,6 @@ def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
         (i, j) for i in station_id_to_indices for j in station_id_to_indices[i]],
         names=["station_id", "gd_indices"]
     )
-
-
 
     df_list = [pd.DataFrame(), ] * len(data_files)
     for ifile, fpath in enumerate(data_files):
