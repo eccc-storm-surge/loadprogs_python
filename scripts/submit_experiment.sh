@@ -1,7 +1,7 @@
 #ord_soumet= -t 21600 -cpus 40 -cm 160G
 
 # usage:
-#   ord_soumet scripts/submit_experiment.sh -args "=-config configs/gdsps/fc_201904_202006.cfg =-project_root $(true_path .)"
+#   ord_soumet scripts/submit_experiment.sh -args "=-config configs/gdsps/fc_201904_202006_twl.cfg =-project_root $(true_path .)"
 
 config="i_do_not_exist"
 project_root="i_do_not_exist"
