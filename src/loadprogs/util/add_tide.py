@@ -89,7 +89,11 @@ def main():
 
     #  root_dir = Path("/home/olh001/.suites/resps_tides_perturb_nwatl_O1M2_invert_scaling/forecast/hub/eccc-ppp2/gridpt")
 
-    root_dir = Path("/home/olh001/.suites/resps_tides_perturb_nwatl_O1M2K1N2S2_invert_scaling/forecast/hub/eccc-ppp2/gridpt")
+    # older root dir for previous simulations
+    # root_dir = Path("/home/olh001/.suites/resps_tides_perturb_nwatl_O1M2K1N2S2_invert_scaling/forecast/hub/eccc-ppp2/gridpt")
+
+    root_dir = Path("/home/olh001/.suites/resps/research/resps_tides_perturb_nwatl_O1M2K1N2S2_FC_2019040500_20200601/forecast/hub/eccc-ppp3/gridpt/")
+
     to_add_tides = [
         root_dir / "prog_surge",
     ]
