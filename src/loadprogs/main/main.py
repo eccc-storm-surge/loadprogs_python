@@ -157,6 +157,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
 
+        
         logger.info("\n--------------------\n processing station  '%s' (%s)"
                     "\n--------------------\n", s.name, s.station_id)
 
@@ -165,9 +166,26 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         # get model data for corresponding station
         mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
+        # check if there are obs data available for the station first, 
+        # fill with nans if it is the case,
+        # this is to still output model data even when obs are missing
+        if s.get_data_len_since() == 0:
+            logger.info("No data found for %s (%s) station! \n",
+                s.name, s.station_id
+            )
+            
+            dummy = mod_data.drop_duplicates(subset=("time"))
+            dummy = dummy.set_index("time")
+            dummy = np.nan * dummy.loc[:, mod_member_keys[0]].to_frame()
+            dummy.columns = ["twl"]
+
+            s.assign_data(dummy)
+
+
         # detide observation data if specified in config file
         if config.detide_obs:
             try:
+                
                 obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
 
                 n_valid_obs = len(obs_data.dropna())
@@ -283,12 +301,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
             obs_data.index.difference(mod_data["time"])
         )
 
-        # obs data to be saved
-        obs_sql_data = obs_data.copy().to_frame(name="obs")
-        obs_sql_data["time"] = obs_data.index
-        obs_sql_data.reset_index(inplace=True)
-        obs_sql_data.loc[:, "station_id"] = s.station_id
-
+        
         # align model and observation timeseries in time
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
@@ -300,6 +313,17 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values.squeeze()
 
         logger.info(f"mod_data types: \n %s \n", mod_data.dtypes)
+
+
+        # obs data to be saved
+        obs_sql_data = obs_data.copy().to_frame(name="obs")
+        obs_sql_data["time"] = obs_data.index
+        obs_sql_data.reset_index(inplace=True)
+        if len(obs_sql_data) > 0:
+            obs_sql_data.loc[:, "station_id"] = s.station_id
+
+
+
 
         # forecast start dates based on run_freq_hours
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,

@@ -23,6 +23,10 @@ def remove_spikes(series: pd.Series, whis=1.5, inplace=False):
     else:
         series_ = series
 
+    # no treatment if all the values are missing
+    if series_.isna().all():
+        return series_
+
     eliminate = series_.values > (whis * iqr + q3)
     eliminate = (series_.values < (-whis * iqr + q1)) | eliminate
 

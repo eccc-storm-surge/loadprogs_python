@@ -53,7 +53,7 @@ class Station(object):
         dt_half = timedelta(seconds=dt.total_seconds() // 2)
         self.data_dt = dt
 
-        if self._data is not None and len(self._data) > 0:
+        if self._data is not None and len(self._data.dropna()) > 0:
 
             if "time" in self._data:
                 logger.info("setting time as index for the purpose of resampling")
