@@ -318,12 +318,17 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         # obs data to be saved
         obs_sql_data = obs_data.copy().to_frame(name="obs")
-        obs_sql_data["time"] = obs_data.index
+        
+        
+        logger.info("\n obs_sql_data \n %s \n", obs_sql_data.head())
+        
+        # if "time" in obs_sql_data.columns:
+        #     obs_sql_data.drop("time", axis="columns", inplace=True)
+        # obs_sql_data["time"] = obs_data.index
+
         obs_sql_data.reset_index(inplace=True)
         if len(obs_sql_data) > 0:
             obs_sql_data.loc[:, "station_id"] = s.station_id
-
-
 
 
         # forecast start dates based on run_freq_hours
