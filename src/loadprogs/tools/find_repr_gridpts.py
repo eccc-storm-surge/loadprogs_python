@@ -48,6 +48,8 @@ def read_cmd_args():
     parser.add_argument("--mod-files", required=True, nargs="+",
                         help="Path pattern (*,?) to the model output files")
 
+    parser.add_argument("--mod-bathy-vname", help="Name of the bathymetry field in the file (only for nnearest=1)")
+
     parser.add_argument("--obs-dir", required=True, type=Path,
                         help="Path to the directory with tide gauge data")
 
@@ -151,6 +153,7 @@ def main():
         mod_raw = None
         station_id_to_mod_indices = mod.get_mod_indices_closest_to(stations,
                                                                    mod_bathy_file=cmd_args.mod_files[0],
+                                                                   mod_bathy_vname=cmd_args.mod_bathy_vname,
                                                                    dist_upper_bound=cmd_args.dist_upper_bound_m)
 
     station_id_to_station = {
