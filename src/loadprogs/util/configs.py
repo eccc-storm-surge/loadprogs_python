@@ -115,6 +115,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.station_info = Path(obs_config["station_info"]).expanduser()
     _config.obs_dir = Path(obs_config["obs_dir"]).expanduser()
+    _config.transpose_mod_indices = obs_config.getboolean("obs_transpose_mod_indices", fallback=False)
 
     if _config.obs_datatype in ["sqlite", "canhys"]:
         _config.translator_path = Path(obs_config.get("canhys_station_id_translation_dict"))

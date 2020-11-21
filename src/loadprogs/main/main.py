@@ -120,7 +120,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
-    station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info)
+    station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info,
+                                                                 transpose_indices=config.transpose_mod_indices)
 
     model_points = mod.get_mod_timeseries_cfg(config,
                                           station_id_to_grid_indices=station_to_model_grid_map,

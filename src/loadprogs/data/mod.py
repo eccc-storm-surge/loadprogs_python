@@ -67,7 +67,7 @@ def get_mod_col_name(member_id=""):
     return f"mod_{member_id}"
 
 
-def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file: Path):
+def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file: Path, transpose_indices=False):
     """
     :param stations:
     :param stations_info_file: Path to the file that contains correspondence between station ids and the (I, J) coordinates
@@ -85,6 +85,8 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
         j = df.loc[s.station_id, "DATA.J"]
 
         obs_mod_map[s.station_id] = (i - 1, j - 1)
+        if transpose_indices:
+            obs_mod_map[s.station_id] = (j - 1, i - 1)
 
     return obs_mod_map
 
