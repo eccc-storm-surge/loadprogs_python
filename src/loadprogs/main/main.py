@@ -309,6 +309,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].drop_duplicates()))
 
+        # interpolation in case model data is not in obs data time at all
+        obs_data = obs_data.interpolate(method="time")
+
         logger.debug("(obs) after reindex: \n %s \n", obs_data.head())
 
         mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values.squeeze()
