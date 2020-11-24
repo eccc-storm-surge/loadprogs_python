@@ -33,7 +33,7 @@ def main():
     cols = (args.no_col, args.id_col, args.la_col, args.lo_col)
     df = pd.read_csv(args.csv, sep="|", header=None, usecols=cols,
                      skiprows=args.skip_rows,
-                     converters={args.no_col: str})
+                     converters={args.no_col: lambda tok: tok.lstrip("0")})
     name_map = {
         args.id_col: "ID",
         args.no_col: "NO",
