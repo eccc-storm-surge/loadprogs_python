@@ -45,7 +45,6 @@ from ..util.configs import parse_config_settings
 from ..util import constants
 
 
-
 def main_pn_vs_p0():
     # with p0 - old
     main(config_path=Path("configs/PN_vs_P0/rdsps_forecast_P0.cfg"))
@@ -124,9 +123,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                                                                  transpose_indices=config.transpose_mod_indices)
 
     model_points = mod.get_mod_timeseries_cfg(config,
-                                          station_id_to_grid_indices=station_to_model_grid_map,
-                                          member_ids=member_ids,
-                                          allow_missing=allow_missing_mod_data)
+                                              station_id_to_grid_indices=station_to_model_grid_map,
+                                              member_ids=member_ids,
+                                              allow_missing=allow_missing_mod_data)
 
     if len(model_points) == 0:
         msg = f"Could not find {config.mod_nomvar} in {config.mod_dir}, please check your data or load_progs config file.."
@@ -158,7 +157,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
 
-        
         logger.info("\n--------------------\n processing station  '%s' (%s)"
                     "\n--------------------\n", s.name, s.station_id)
 
@@ -172,9 +170,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         # this is to still output model data even when obs are missing
         if s.get_data_len_since() == 0:
             logger.info("No data found for %s (%s) station! \n",
-                s.name, s.station_id
-            )
-            
+                        s.name, s.station_id
+                        )
+
             dummy = mod_data.drop_duplicates(subset=("time"))
             dummy = dummy.set_index("time")
             dummy = np.nan * dummy.loc[:, mod_member_keys[0]].to_frame()
@@ -182,11 +180,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
             s.assign_data(dummy)
 
-
         # detide observation data if specified in config file
         if config.detide_obs:
             try:
-                
+
                 obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
 
                 n_valid_obs = len(obs_data.dropna())
@@ -255,13 +252,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     logger.debug("tides used for detiding %s: \n %s \n", s.station_id, mod_tides.head(n=50))
 
                 else:
-                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(data=mod_data_twl.loc[:, c].to_frame(),
-                                                                                              constituents=config.detide_mod_constituents,
-                                                                                              do_filtering=config.mod_do_filtering)
+                    mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
+                        data=mod_data_twl.loc[:, c].to_frame(),
+                        constituents=config.detide_mod_constituents,
+                        do_filtering=config.mod_do_filtering)
                 # remove longterm mean
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()
-
-
 
                 # get the union index
                 t_index = mod_tides.index.union(t_unique)
@@ -302,7 +298,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
             obs_data.index.difference(mod_data["time"])
         )
 
-        
         # align model and observation timeseries in time
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
@@ -318,13 +313,11 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         logger.info(f"mod_data types: \n %s \n", mod_data.dtypes)
 
-
         # obs data to be saved
         obs_sql_data = obs_data.copy().to_frame(name="obs")
-        
-        
+
         logger.info("\n obs_sql_data \n %s \n", obs_sql_data.head())
-        
+
         # if "time" in obs_sql_data.columns:
         #     obs_sql_data.drop("time", axis="columns", inplace=True)
         # obs_sql_data["time"] = obs_data.index
@@ -332,7 +325,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         obs_sql_data.reset_index(inplace=True)
         if len(obs_sql_data) > 0:
             obs_sql_data.loc[:, "station_id"] = s.station_id
-
 
         # forecast start dates based on run_freq_hours
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
@@ -344,15 +336,13 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
             logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
             logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].describe())
 
-
         # remove analysis period mean from the mod and obs
         if config.remove_anal_period_mean and len(mod_data) > 0:
-            mod_data = mod.remove_analysis_period_mean(mod_data, station=s, 
-                                mod_member_keys=mod_member_keys, config=config)
+            mod_data = mod.remove_analysis_period_mean(mod_data, station=s,
+                                                       mod_member_keys=mod_member_keys, config=config)
 
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data[constants.COLNAME_TORIGIN].isin(origin_dates_of_interest), :]
-
 
         # debias
         if external_debias_groups_by_station is not None:
@@ -414,13 +404,13 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
 
 if __name__ == '__main__':
-
     logging.basicConfig()
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
     # main_levelling_v01()
     import time
+
     t0 = time.perf_counter()
     main_pn_vs_p0()
     logger.info(f"Execution time: {time.perf_counter() - t0}")

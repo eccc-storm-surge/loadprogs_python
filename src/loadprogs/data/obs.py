@@ -50,7 +50,7 @@ class Station(object):
 
         # target time step
         dt = timedelta(hours=1)
-        dt_half = timedelta(seconds=dt.total_seconds() // 2)
+
         self.data_dt = dt
 
         if self._data is not None and len(self._data.dropna()) > 0:
@@ -68,33 +68,6 @@ class Station(object):
 
             # remove duplicate dates in index before converting to frequency
             self._data = self._data[~self._data.index.duplicated()]  # just in case
-
-            # input data cleanup
-            # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
-
-            minute_index = pd.date_range(self._data.index.min(),
-                                         self._data.index.max(),
-                                         freq=timedelta(minutes=1))
-
-            # remove spikes (like we had in canhys 176 instead of 4)
-            self._data["twl"] = utils.remove_spikes(self._data["twl"], whis=1.5)
-
-            self._data = self._data.reindex(self._data.index.union(minute_index), axis=0)
-            self._data = self._data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))
-            self._data = self._data[self._data.index.minute == 0]
-
-            # assumes the data are hourly at this point
-            utils.remove_small_chunks(self._data["twl"], lowest_duration_hours=24, inplace=True)
-
-            # remove leading/trailing nans if present
-            self._data = utils.remove_leading_trailing_nans(self._data, focus_col="twl")
-
-            # extend no-data region to eliminate spikes/trends at the edges
-            self._data["twl"] = utils.remove_edges(self._data["twl"])
-
-            logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
-
-            logger.info("obs processed (before detiding): \n%s\n", self._data.head())
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None):
         self.nlines_for_header = 6
@@ -235,6 +208,39 @@ class Station(object):
 
         return self.data[key]
 
+
+
+    def _cleanup_data_for_detiding(self):
+        # input data cleanup
+        # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
+        dt_half = timedelta(seconds=self.data_dt.total_seconds() // 2)
+
+        minute_index = pd.date_range(self._data.index.min(),
+                                     self._data.index.max(),
+                                     freq=timedelta(minutes=1))
+
+        # remove spikes (like we had in canhys 176 instead of 4)
+        data = self._data.copy()
+        data = utils.remove_spikes(data, whis=1.5)
+
+        data = data.reindex(data.index.union(minute_index), axis=0)
+        data = data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))
+        data = data[data.index.minute == 0]
+
+        # assumes the data are hourly at this point
+        utils.remove_small_chunks(data["twl"], lowest_duration_hours=24, inplace=True)
+
+        # remove leading/trailing nans if present
+        data = utils.remove_leading_trailing_nans(self._data, focus_col="twl")
+
+        # extend no-data region to eliminate spikes/trends at the edges
+        data["twl"] = utils.remove_edges(self._data["twl"])
+
+        logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
+
+        logger.info("obs processed (before detiding): \n%s\n", data.head())
+        return data
+
     def _detide(self, do_filtering=True, constituents=None):
         """
 
@@ -248,7 +254,8 @@ class Station(object):
             constituents = []
 
         # detide
-        v = self.get_twl_data_vector()
+        # v = self.get_twl_data_vector()
+        v = self._cleanup_data_for_detiding()["twl"]
         v -= np.nanmean(v)
 
         logger.debug("nanmean(v) = %s", np.nanmean(v))
