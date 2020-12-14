@@ -11,7 +11,7 @@ Usage
 To load the scripts and modules into your environment:
 
 ```
-. r.load.dot ~sssm001/ssm/loadprogs/2.0.0
+. r.load.dot ~sssm001/ssm/loadprogs/2.1.8
 ```
 
 If you do not have your own python environment, the following could be used:
@@ -23,7 +23,7 @@ If you do not have your own python environment, the following could be used:
 To read model outputs from standard RPN files, `rpnpy` is used:
 
 ```
-. r.load.dot eccc/mrd/rpn/libs/19.5 eccc/mrd/rpn/MIG/ENV/x/rpnpy/2.1-u1.rc11
+. r.load.dot eccc/mrd/rpn/libs/19.6.0 eccc/mrd/rpn/MIG/ENV/x/rpnpy/2.1-u1.rc11
 ```
 
 
