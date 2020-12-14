@@ -197,7 +197,7 @@ class Station(object):
 
     def get_detided_series(self, do_filtering=True, constituents=None):
         key = "detided"
-        if key in self.data and do_filtering == self.do_filtering:
+        if key in self.data.columns and do_filtering == self.do_filtering:
             return self.data[key]
 
         self._detide(do_filtering=do_filtering, constituents=constituents)
@@ -207,8 +207,6 @@ class Station(object):
         logger.debug("key=%s", key)
 
         return self.data[key]
-
-
 
     def _cleanup_data_for_detiding(self):
         # input data cleanup
@@ -221,9 +219,10 @@ class Station(object):
 
         # remove spikes (like we had in canhys 176 instead of 4)
         data = self._data.copy()
-        data = utils.remove_spikes(data, whis=1.5)
+        data["twl"] = utils.remove_spikes(data["twl"], whis=5)
 
         data = data.reindex(data.index.union(minute_index), axis=0)
+
         data = data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))
         data = data[data.index.minute == 0]
 
@@ -231,14 +230,15 @@ class Station(object):
         utils.remove_small_chunks(data["twl"], lowest_duration_hours=24, inplace=True)
 
         # remove leading/trailing nans if present
-        data = utils.remove_leading_trailing_nans(self._data, focus_col="twl")
+        data = utils.remove_leading_trailing_nans(data, focus_col="twl")
 
         # extend no-data region to eliminate spikes/trends at the edges
-        data["twl"] = utils.remove_edges(self._data["twl"])
+        data["twl"] = utils.remove_edges(data["twl"])
 
-        logger.debug(f"t[1]-t[0] = {self._data.index[1]} - {self._data.index[0]}")
-
+        logger.debug(f"t[1]-t[0] = {data.index[1]} - {data.index[0]}")
         logger.info("obs processed (before detiding): \n%s\n", data.head())
+        
+        self.assign_data(data)
         return data
 
     def _detide(self, do_filtering=True, constituents=None):
@@ -255,7 +255,15 @@ class Station(object):
 
         # detide
         # v = self.get_twl_data_vector()
-        v = self._cleanup_data_for_detiding()["twl"]
+
+        clean_data = self._cleanup_data_for_detiding()["twl"]
+
+        # the clean data is assumed to be uniformly spaced
+        computed_dt = (clean_data.index[-1] - clean_data.index[0]).total_seconds() / 3600. / (len(clean_data) - 1)
+        msg = f"computed_dt={computed_dt}, but expect {self.data_dt.total_seconds() / 3600.}"
+        assert computed_dt == self.data_dt.total_seconds() / 3600., msg
+
+        v = clean_data.values.copy()
         v -= np.nanmean(v)
 
         logger.debug("nanmean(v) = %s", np.nanmean(v))
@@ -266,7 +274,8 @@ class Station(object):
                      lat=self.latitude,
                      ray=0.5,
                      constitnames=constituents,
-                     stime=self._data.index[0], out_style=None)
+                     stime=clean_data.index[0],
+                     out_style=None)
 
         v_notide = v - con["xout"].squeeze()
 
