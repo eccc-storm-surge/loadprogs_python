@@ -46,8 +46,16 @@ def add_files(a: Path, b: Path, c: Path,
 
     keys_a = rmn.fstinl(fu_a, nomvar=nomvar_a)
 
+    copied_coordinates = False
+
     for key_a in keys_a:
         rec_a = rmn.fstluk(key_a)
+
+        if not copied_coordinates:
+            copied_coordinates = True
+            keys_coords = rmn.fstinl(fu_a, ip1=rec_a["ig1"], ip2=rec_a["ig2"], ip3=rec_a["ig3"])
+            for key in keys_coords:
+                rmn.fstecr(fu_c, rmn.fstluk(key))
 
         # modify only etas (P@)
         if rec_a["typvar"] == typvar:
