@@ -12,11 +12,16 @@ rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
 
 def add_files_par(args):
-    a, b, c, nomvar, typvar = args
-    add_files(a, b, c, nomvar=nomvar, typvar=typvar)
+    a, b, c, nomvar_a, nomvar_b, nomvar_c, typvar = args
+    add_files(a, b, c,
+              nomvar_a=nomvar_a,
+              nomvar_b=nomvar_b,
+              nomvar_c=nomvar_c,
+              typvar=typvar)
 
 
-def add_files(a: Path, b: Path, c: Path, nomvar="ETAS", typvar="P@"):
+def add_files(a: Path, b: Path, c: Path,
+              nomvar_a="ETAS", nomvar_b="ETAS", nomvar_c="ETAS", typvar="P@"):
     """
     :param a:
     :param b:
@@ -25,25 +30,38 @@ def add_files(a: Path, b: Path, c: Path, nomvar="ETAS", typvar="P@"):
     save (a + b) to c
     treat mask correctly
     use dates and meta from a
+
+    Args:
+        a:
+        b:
+        c: path to the output
+        nomvar_a: v. name in file a
+        nomvar_b: v. name in file b
+        nomvar_c: variable name in the output
     """
 
     fu_a = rmn.fstopenall(str(a))
     fu_b = rmn.fstopenall(str(b))
     fu_c = rmn.fstopenall(str(c), rmn.FILE_MODE_RW)
 
-    keys_a = rmn.fstinl(fu_a)
+    keys_a = rmn.fstinl(fu_a, nomvar=nomvar_a)
 
     for key_a in keys_a:
         rec_a = rmn.fstluk(key_a)
 
         # modify only etas (P@)
-        if rec_a["nomvar"] == nomvar and rec_a["typvar"] == typvar:
-            keys_b = rmn.fstinl(fu_b, datev=rec_a["datev"], nomvar=nomvar, typvar=typvar)
-            assert len(keys_b) == 1
+        if rec_a["typvar"] == typvar:
+            keys_b = rmn.fstinl(fu_b, datev=rec_a["datev"], nomvar=nomvar_b, typvar=typvar)
+            msg = f"Found more than one field for datev={rec_a['datev']}"
+
+            if len(keys_b) != 1:
+                raise ValueError(msg)
+
             rec_b = rmn.fstluk(keys_b[0])
 
             rec_a["d"] += rec_b["d"]
 
+        rec_a["nomvar"] = nomvar_c
         rmn.fstecr(fu_c, rec_a)
 
     rmn.fstcloseall(fu_a)
@@ -52,13 +70,22 @@ def add_files(a: Path, b: Path, c: Path, nomvar="ETAS", typvar="P@"):
     print(f"{a} => {c} .. ok!")
 
 
-def add_tides(fst_src: Path, fst_tides: Path, tides_member="000", fst_dst: Path = None):
+def add_tides(fst_src: Path, fst_tides: Path, tides_member="000", fst_dst: Path = None,
+              nomvar_src="ETAS",
+              nomvar_dst="SSH",
+              nomvar_tides="SSHT"):
+
     """
 
     :param fst_src: source directory containing fst files
     :param fst_dst: dest directory containing fst files (tides are removed)
     :param fst_tides: fst directory containing tides only data in fst format
     :param tides_member: member from fst_tide to be used to remove tides
+
+    Args:
+        nomvar_tides:
+        nomvar_dst:
+        nomvar_src:
     """
 
     if fst_dst is None:
@@ -77,12 +104,13 @@ def add_tides(fst_src: Path, fst_tides: Path, tides_member="000", fst_dst: Path 
             print(f"Exists, won't redo: {dst}")
             continue
 
-        inputs.append([src, tides_file, dst, "ETAS", "P@"])
+        inputs.append([src, tides_file, dst, nomvar_src, nomvar_tides, nomvar_dst, "P@"])
 
         # add_files(src, tides_file, dst, nomvar="ETAS", typvar="P@")
 
     pool = Pool(processes=10)
     pool.map(add_files_par, inputs)
+    pool.close()
 
 
 def main():
