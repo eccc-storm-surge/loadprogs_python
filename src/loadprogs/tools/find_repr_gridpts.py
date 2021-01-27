@@ -20,6 +20,15 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --nnearest 1 \
                                                     --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF44.nc
 
+
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in ~/Python/obs_to_grid_mapping/gdsps_NA_opt_v006.obs  \
+                                                    --obs-index-out ~/Python/obs_to_grid_mapping/gdsps_NA_opt_v007.obs \
+                                                    --obs-dir ~/sse_obs/merged/gdsps_2019_2020_on_20200909/ \
+                                                    --nnearest 1 \
+                                                    --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF56.nc \
+                                                    --mod-bathy-vname Bathymetry
+
+
 """
 import argparse
 from datetime import datetime
