@@ -212,7 +212,9 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
         start_time=cfg.beg_time_mod,
         end_time=cfg.end_time_mod,
         run_freq_hours=cfg.b2b_freq_hours,
-        dt_texp_from_tbeg=cfg.dt_texp_from_tbeg, debug=cfg.debug)
+        dt_texp_from_tbeg=cfg.dt_texp_from_tbeg, debug=cfg.debug,
+        nprocs=cfg.mod_read_nprocs
+    )
 
 
 def get_mod_timeseries(mod_data_path: Path,
@@ -284,7 +286,7 @@ def get_mod_timeseries(mod_data_path: Path,
             input_list.append((data_files, station_id_to_grid_indices, mod_nomvar, t_origin, member_id))
 
     # read actual data in parallel
-    with Parallel(n_jobs=5) as parallel:
+    with Parallel(n_jobs=nprocs) as parallel:
         df_list = parallel(delayed(read_data_files)(*inp) for inp in input_list)
 
     # combine the model data for all experiments and members into a single dataframe
