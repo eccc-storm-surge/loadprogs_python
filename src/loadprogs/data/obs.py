@@ -541,5 +541,23 @@ def get_stid_to_stname_map(stations: List[Station]) -> dict:
     return res
 
 
+def load_station_data_from_obs_file(obs_file: Path) -> List[Station]:
+    """
+    Args:
+        obs_file: path to the .obs text file in the format used for SPI
+    Returns:
+        List of stations with metadata from the .obs file
+    """
+
+    station_info = read_station_metadata(obs_file)
+
+    st_info_recs = {}
+    for row_index, row in station_info.iterrows():
+        st_info_recs[row["NO"]] = {"name": row["ID"], "id": row["NO"], "lon": row["LON"], "lat": row["LAT"]}
+    
+    # initialize list of stations without data added
+    return [Station(station_info=st_info_recs[st_id]) for st_id in st_info_recs]
+
+
 if __name__ == "__main__":
     pass

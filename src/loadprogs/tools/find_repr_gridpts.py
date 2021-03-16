@@ -28,6 +28,22 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF56.nc \
                                                     --mod-bathy-vname Bathymetry
 
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in ~/Python/obs_to_grid_mapping/gdsps/gdsps_NA_opt_v006.obs  \
+                                                        --obs-index-out ~/Python/obs_to_grid_mapping/gdsps/gdsps_NA_opt_v009.obs \
+                                                        --obs-dir ~/sse_obs/merged/gdsps_2019_2020_on_20200909/ \
+                                                        --nnearest 1 \
+                                                        --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF56.nc \
+                                                        --mod-bathy-vname Bathymetry \
+                                                        --bathy-min-m 10
+
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in ~/Python/obs_to_grid_mapping/gdsps/gdsps_NA_opt_v006.obs  \
+                                                        --obs-index-out ~/Python/obs_to_grid_mapping/gdsps/gdsps_NA_opt_v010.obs \
+                                                        --obs-dir ~/sse_obs/merged/gdsps_2019_2020_on_20200909/ \
+                                                        --nnearest 1 \
+                                                        --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF56.nc \
+                                                        --mod-bathy-vname Bathymetry \
+                                                        --bathy-min-m 0
+
 
 """
 import argparse
@@ -59,7 +75,7 @@ def read_cmd_args():
 
     parser.add_argument("--mod-bathy-vname", help="Name of the bathymetry field in the file (only for nnearest=1)")
 
-    parser.add_argument("--obs-dir", required=True, type=Path,
+    parser.add_argument("--obs-dir", required=False, default=None, type=Path,
                         help="Path to the directory with tide gauge data")
 
     parser.add_argument("--nnearest", default=9, type=int,
@@ -89,6 +105,11 @@ def read_cmd_args():
                              "closest to a station, to eliminate stations outside the domain",
                         default=None)
 
+    parser.add_argument("--bathy-min-m", required=False, type=float,
+                        help="Minimum depth considered to be ocean "
+                             "(i.e. do not consider points with bathymetry < bathy-min-m)",
+                        default=0)
+
     args = parser.parse_args()
 
     args.do_filtering = False
@@ -116,7 +137,7 @@ def read_cmd_args():
     if not args.obs_index_in.exists():
         raise IOError(f"Not found: {args.obs_index_in}")
 
-    if not args.obs_dir.exists():
+    if args.obs_dir is not None and not args.obs_dir.exists():
         raise IOError(f"Not found: {args.obs_dir}")
 
     mod_files = args.mod_files
@@ -144,7 +165,11 @@ def main():
     config.beg_time_obs = cmd_args.beg_time
     config.end_time_obs = cmd_args.end_time
 
-    stations = obs.load_station_data_from_obs_dir(config)
+    # if we are interested in the nearest neighbor, no need to load obs data
+    if config.obs_dir is not None:
+        stations = obs.load_station_data_from_obs_dir(config)
+    else:
+        stations = obs.load_station_data_from_obs_file(config.station_info)
 
     station_id_to_mod_indices = {}
 
@@ -163,7 +188,8 @@ def main():
         station_id_to_mod_indices = mod.get_mod_indices_closest_to(stations,
                                                                    mod_bathy_file=cmd_args.mod_files[0],
                                                                    mod_bathy_vname=cmd_args.mod_bathy_vname,
-                                                                   dist_upper_bound=cmd_args.dist_upper_bound_m)
+                                                                   dist_upper_bound=cmd_args.dist_upper_bound_m,
+                                                                   bathy_limit=cmd_args.bathy_min_m)
 
     station_id_to_station = {
         s.station_id: s for s in stations
