@@ -26,6 +26,19 @@ To read model outputs from standard RPN files, `rpnpy` is used:
 . r.load.dot eccc/mrd/rpn/libs/19.6.0 eccc/mrd/rpn/MIG/ENV/x/rpnpy/2.1-u1.rc11
 ```
 
+Finding representative points 
+======
+
+* for Meteo-France points from GDSPS, without specifying `--obs-dir`:
+
+```bash
+python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in ~olh001/Python/obs_to_grid_mapping/rdsps/rdsps_1_30_meteofrance.obs  \
+                                                        --obs-index-out ~olh001/Python/obs_to_grid_mapping/gdsps/gdsps_MF_opt_v001.obs \
+                                                        --nnearest 1 \
+                                                        --mod-files /home/olh001/data/ppp4/gdsps_data/pengcheng/eORCA12_pre/bathy_v4_GoSBoF56.nc \
+                                                        --mod-bathy-vname Bathymetry \
+                                                        --bathy-min-m 0
+``` 
 
 Notes
 =====
