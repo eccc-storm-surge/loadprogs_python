@@ -129,6 +129,7 @@ def convert(inp_file, out_file, stations_info, varnames: dict = None,
             station_name[:] = stringtochar(stations_info["NO"].astype(s_type).values)
 
             t_var_out = ds_out.createVariable(varnames["time"], t_var_in.datatype, t_var_in.dimensions)
+            t_var_out.setncatts({key: t_var_in.getncattr(key) for key in t_var_in.ncattrs()})
             t_ref = num2date(0, t_var_in.units, t_var_in.calendar)
             t_var_out.units = t_var_in.units.split("since")[0] + " since " + t_ref.strftime(reftime_format)
             t_var_out[:] = t_var_in[:]
