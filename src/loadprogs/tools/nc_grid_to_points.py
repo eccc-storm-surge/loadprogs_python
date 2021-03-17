@@ -1,7 +1,7 @@
-import argparse
-from datetime import datetime
-from pathlib import Path
+#!/usr/bin/env python
 
+import argparse
+from pathlib import Path
 import netCDF4
 
 from loadprogs.data import obs

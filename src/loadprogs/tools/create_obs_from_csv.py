@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Create basic .obs file from csv
 """

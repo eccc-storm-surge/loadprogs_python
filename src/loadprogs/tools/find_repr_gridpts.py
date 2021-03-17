@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 """
 Find representative grid points for stations by minimising

@@ -71,6 +71,8 @@ mkdir -p $SSM_WORK/bin $SSM_WORK/lib $SSM_WORK/.ssm.d
 
 echo "Copie des scripts python ..."
 cp $srcdir/src/loadprogs/experiments/run_experiments_base.py $SSM_WORK/bin/
+cp $srcdir/src/loadprogs/tools/*.py $SSM_WORK/bin/
+chmod +x $SSM_WORK/bin/*
 cp -r $srcdir/src/*  $SSM_WORK/lib/
 
 chmod 755  $SSM_WORK/bin/*
