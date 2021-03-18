@@ -72,6 +72,9 @@ def read_cmd_args():
                              "transposed before getting the corresponding gridcell"
                              "lon,lat or lat,lon")
 
+    parser.add_argument("--change-time-units-to", required=False, default="minutes",
+                        help="time units to be used in the output file: seconds, minutes (default), hours")
+
     args = parser.parse_args()
 
     assert args.inp.exists(), f"should exist: {args.inp}"
@@ -80,11 +83,24 @@ def read_cmd_args():
     return args
 
 
+def get_sec_multiplier(units="minutes"):
+    if units == "minutes":
+        return 60
+    elif units == "hours":
+        return 3600
+    elif units == "seconds":
+        return 1
+    else:
+        raise ValueError(f"Unrecognised time units: {units}")
+
+
 def convert(inp_file, out_file, stations_info, varnames: dict = None,
-            transpose_index=False, reftime_format="%Y:%m:%dT%H:%M:%S"):
+            transpose_index=False, reftime_format="%Y:%m:%dT%H:%M:%S",
+            out_time_units="minutes"):
     """
 
     Args:
+        out_time_units: time units in the time variable s,m (default),h
         reftime_format: format of the reference time written to the netcdf file
                         in the units attribute
         inp_file:
@@ -131,8 +147,13 @@ def convert(inp_file, out_file, stations_info, varnames: dict = None,
             t_var_out = ds_out.createVariable(varnames["time"], t_var_in.datatype, t_var_in.dimensions)
             t_var_out.setncatts({key: t_var_in.getncattr(key) for key in t_var_in.ncattrs()})
             t_ref = num2date(0, t_var_in.units, t_var_in.calendar)
-            t_var_out.units = t_var_in.units.split("since")[0] + " since " + t_ref.strftime(reftime_format)
-            t_var_out[:] = t_var_in[:]
+
+            units_inp = t_var_in.units.split("since")[0].strip().lower()
+            mult_inp = get_sec_multiplier(units=units_inp)
+            mult_out = get_sec_multiplier(units=out_time_units)
+
+            t_var_out.units = f"{out_time_units} since {t_ref.strftime(reftime_format)}"
+            t_var_out[:] = t_var_in[:] * mult_inp // mult_out
 
             for vn in ds_inp.variables:
                 v = ds_inp[vn]
