@@ -176,7 +176,9 @@ def convert(inp_file, out_file, stations_info, varnames: dict = None,
 def main():
     args = read_cmd_args()
     convert(args.inp, args.out,
-            obs.read_station_metadata(args.obs), transpose_index=args.transpose_index)
+            obs.read_station_metadata(args.obs),
+            transpose_index=args.transpose_index,
+            out_time_units=args.change_time_units_to)
 
 
 def test():
