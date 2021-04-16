@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def get_tides_and_filter_hourly(data, do_filtering=False, constituents=None):
+def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None):
     # Make sure the total water level column can be found
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
-    s = Station(do_filtering=do_filtering)
+    s = Station(do_filtering=do_filtering, station_info={"lat": latitude})
 
     s.data = data_
     s.get_detided_series(do_filtering=do_filtering, constituents=constituents)
@@ -91,10 +91,10 @@ class Station(object):
                 self._parse_header(data_file)
         else:
             # station attributes
-            self.station_id = station_info["id"]
-            self.name = station_info["name"]
-            self.latitude = station_info["lat"]
-            self.longitude = station_info["lon"]
+            self.station_id = station_info.get("id", self.station_id)
+            self.name = station_info.get("name", self.name)
+            self.latitude = station_info.get("lat", self.latitude)
+            self.longitude = station_info.get("lon", self.longitude)
 
         self.ttidecon = None
 
@@ -285,9 +285,16 @@ class Station(object):
         # filter
         if do_filtering:
             from scipy import signal
-            b1, a1 = signal.butter(3, [2.0 / 26.0, 2.0 / 22.0], btype="band")
-            b2, a2 = signal.butter(3, [2.0 / 15.0, 2.0 / 11.0], btype="band")
-            b3, a3 = signal.butter(3, 2.0 / 8.0, btype="high")
+            # default old way defining the filter, might cause instabilities
+            # b1, a1 = signal.butter(3, [2.0 / 26.0, 2.0 / 22.0], btype="band")
+            # b2, a2 = signal.butter(3, [2.0 / 15.0, 2.0 / 11.0], btype="band")
+            # b3, a3 = signal.butter(3, 2.0 / 8.0, btype="high")
+
+            filter_order = 3
+            band_type = "bandpass"
+            sos1 = signal.butter(filter_order, [2.0 / 26.0, 2.0 / 22.0], btype=band_type, output="sos")
+            sos2 = signal.butter(filter_order, [2.0 / 15.0, 2.0 / 11.0], btype=band_type, output="sos")
+            sos3 = signal.butter(filter_order, 2.0 / 8.0, btype="high", output="sos")
 
             # params from JPP
             # b1, a1 = signal.butter(3, [2.0 / 28.0, 2.0 / 22.0], btype="bandstop")
@@ -301,9 +308,11 @@ class Station(object):
 
             v_to_filter = v_notide.copy()
             v_to_filter[np.isnan(v_notide)] = 0.0
-            filters1 = signal.filtfilt(b1, a1, v_to_filter, padtype="odd", padlen=3 * (max(len(b1), len(a1)) - 1))
-            filters2 = signal.filtfilt(b2, a2, v_to_filter, padtype="odd", padlen=3 * (max(len(b2), len(a2)) - 1))
-            filters3 = signal.filtfilt(b3, a3, v_to_filter, padtype="odd", padlen=3 * (max(len(b3), len(a3)) - 1))
+
+            pad_type = "odd"
+            filters1 = signal.sosfiltfilt(sos1, v_to_filter, padtype=pad_type)
+            filters2 = signal.sosfiltfilt(sos2, v_to_filter, padtype=pad_type)
+            filters3 = signal.sosfiltfilt(sos3, v_to_filter, padtype=pad_type)
 
             filtered_part = filters1 + filters2 + filters3
             v_notide_filtered = v_notide - filters1 - filters2 - filters3
