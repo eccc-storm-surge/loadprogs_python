@@ -38,10 +38,12 @@ def save_dataframe_to_obs(df: pd.DataFrame, out_file="stations_Obs.obs"):
 
         # header = ["ID", "NO", "LAT", "LON", "DATA.I", "DATA.J", ]
 
+        string_formatter = lambda tok: f'"{tok}"'
         f.write(df.to_string(index_names=False,
                              index=False,
                              formatters={
-                                 "ID": lambda tok: f'"{tok}"'
+                                 "ID": string_formatter,
+                                 "DATA.COUNTRY": string_formatter
                              }))
 
 
