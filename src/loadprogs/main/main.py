@@ -252,6 +252,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     logger.debug("tides used for detiding %s: \n %s \n", s.station_id, mod_tides.head(n=50))
 
                 else:
+                    assert s.latitude is not None, "Latitude is required for detiding"
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
                         data=mod_data_twl.loc[:, c].to_frame(),
                         latitude=s.latitude,
