@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None):
+def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=0.5):
     # Make sure the total water level column can be found
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
@@ -28,7 +28,7 @@ def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents
     s = Station(do_filtering=do_filtering, station_info={"lat": latitude})
 
     s.data = data_
-    s.get_detided_series(do_filtering=do_filtering, constituents=constituents)
+    s.get_detided_series(do_filtering=do_filtering, constituents=constituents, ray=ray)
 
     return s.data["tides"], s.data["filtered"], s.ttidecon
 
@@ -195,12 +195,12 @@ class Station(object):
     def get_twl_data_vector(self):
         return self.data["twl"].values.copy()
 
-    def get_detided_series(self, do_filtering=True, constituents=None):
+    def get_detided_series(self, do_filtering=True, constituents=None, ray=0.5):
         key = "detided"
         if key in self.data.columns and do_filtering == self.do_filtering:
             return self.data[key]
 
-        self._detide(do_filtering=do_filtering, constituents=constituents)
+        self._detide(do_filtering=do_filtering, constituents=constituents, ray=ray)
         self.do_filtering = do_filtering
 
         logger.debug("self.data[key]:\n%s\n", self.data[key])
@@ -241,7 +241,7 @@ class Station(object):
         self.assign_data(data)
         return data
 
-    def _detide(self, do_filtering=True, constituents=None):
+    def _detide(self, do_filtering=True, constituents=None, ray=0.5):
         """
 
         :param do_filtering:
@@ -272,7 +272,7 @@ class Station(object):
                      dt=self.data_dt.total_seconds() / 3600.,
                      synth=0,
                      lat=self.latitude,
-                     ray=0.5,
+                     ray=ray,
                      constitnames=constituents,
                      stime=clean_data.index[0],
                      out_style=None)
