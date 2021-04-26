@@ -71,7 +71,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     # typos and backward compatibility
     if "nmembers" in mod_config:
-        _config.n_members = mod_config.getint("n_members", fallback=0)
+        _config.n_members = mod_config.getint("nmembers", fallback=0)
 
     _config.min_nhours_for_detiding_mod = mod_config.getint("min_nhours_for_detiding",
                                                             fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
