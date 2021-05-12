@@ -52,9 +52,8 @@ def work(args):
 
 def test():
     pth = Path("/fs/site4/eccc/mrd/rpnenv/pwa001/eORCA12_TS20/S3_TS20.mat")
-    args = namedtuple("mat", "obs")
-    args.mat = pth
-    args.obs = Path("data/test_gdpsps_global_obs.obs")
+    Args = namedtuple("Args", "mat obs")
+    args = Args(mat=pth, obs=Path("data/test_gdpsps_global_obs.obs"))
     work(args)
 
 
