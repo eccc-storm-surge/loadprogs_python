@@ -95,6 +95,9 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # number of processes used for reading model data
     _config.mod_read_nprocs = mod_config.getint("mod_read_nprocs", fallback=1)
 
+    # minimum lead hour to consider (lead hours less than this will be discarded)
+    _config.b2b_min_lead_hour = mod_config.getint("b2b_min_lead_hour", fallback=0)
+
 
     # --------------------------------------------
 

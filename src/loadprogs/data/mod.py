@@ -211,7 +211,7 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
         mod_nomvar=cfg.mod_nomvar,
         start_time=cfg.beg_time_mod,
         end_time=cfg.end_time_mod,
-        run_freq_hours=cfg.b2b_freq_hours,
+        run_freq_hours=cfg.run_freq_hours,
         dt_texp_from_tbeg=cfg.dt_texp_from_tbeg, debug=cfg.debug,
         nprocs=cfg.mod_read_nprocs
     )
@@ -382,14 +382,15 @@ def read_data_files_cdf(path_list,
 
     with xarray.open_mfdataset(path_list, combine="by_coords") as ds:
         time_nomvar = "time_counter"
-        for nv in ds:
+        if time_nomvar not in ds:
+            for nv in ds:
 
-            # skip time bounds
-            if "bounds" in nv:
-                continue
+                # skip time bounds
+                if "bounds" in nv:
+                    continue
 
-            if "time" in nv:
-                time_nomvar = nv
+                if nv.startswith("time"):
+                    time_nomvar = nv
 
         logger.debug(ds[time_nomvar])
 
@@ -469,8 +470,8 @@ def get_mod_twl_for_b2b(mod_data, config):
     assert not any(df["time"].isna())
 
     # for b2b operations
-    select_crit = df["valid_hour"] <= config.b2b_freq_hours
-    select_crit = select_crit & (df["valid_hour"] >= 0)  # remove t=0
+    select_crit = df["valid_hour"] < config.b2b_freq_hours
+    select_crit = select_crit & (df["valid_hour"] >= config.b2b_min_lead_hour)  # remove t=0 if requested
     mod_data_twl = df.loc[select_crit, :]
     mod_data_twl.sort_values("time", inplace=True)
     logger.debug(mod_data_twl.head())

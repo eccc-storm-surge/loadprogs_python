@@ -222,9 +222,16 @@ class Station(object):
         data["twl"] = utils.remove_spikes(data["twl"], whis=5)
 
         data = data.reindex(data.index.union(minute_index), axis=0)
+        logger.debug("before interpolation\n: %s", data.head())
 
-        data = data.interpolate(method="time", limit=int(dt_half.total_seconds() // 60))
+        interp_limit_npoints = int(dt_half.total_seconds() // 60)
+        data = data.interpolate(method="time", limit=interp_limit_npoints)
         data = data[data.index.minute == 0]
+
+        logger.debug("\n interpolation limit: %s \n", interp_limit_npoints)
+        logger.debug("after reindex\n: %s", data.head())
+
+        
 
         # assumes the data are hourly at this point
         utils.remove_small_chunks(data["twl"], lowest_duration_hours=24, inplace=True)
@@ -323,7 +330,7 @@ class Station(object):
         self.data["detided"] = v_notide_filtered
 
         logger.debug("detided: \n %s \n", self.data["detided"])
-        logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
+        # logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
 
         assert len(self.data) == len(v)
         self.data["tides"] = con["xout"]

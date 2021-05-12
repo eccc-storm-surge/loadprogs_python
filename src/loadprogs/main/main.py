@@ -229,11 +229,16 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
             # initializations
             t_unique = mod_data["time"].drop_duplicates()
+
+            logger.debug("\n ====t_unique==== \n %s \n", t_unique)
+
             mod_tides = pd.Series(index=t_unique)
             mod_to_filter = pd.Series(index=t_unique)
             mod_tides.loc[:] = 0.
             mod_to_filter.loc[:] = 0.
             mod_ttide_con = None
+
+            logger.debug("\n ==== mod_data_twl ==== \n %s \n", mod_data_twl.head())
 
             for c in mod_member_keys:
 
@@ -262,10 +267,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
                 # get the union index
-                t_index = mod_tides.index.union(t_unique)
-                mod_tides = mod_tides.reindex(t_index)
-
-                mod_to_filter = mod_to_filter.reindex(t_index)
+                t_index = pd.to_datetime(mod_tides.index.union(t_unique))
+                mod_tides = mod_tides.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
+                mod_to_filter = mod_to_filter.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
 
                 # detiding
                 mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
@@ -291,6 +295,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                                         tides=mod_tides,
                                         sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
 
+                    logger.debug("\n mod_tides: \n %s \n", mod_tides.head())
+                    logger.debug("\n mod_data: \n %s \n", mod_data.head())
+                    logger.debug("\n mod_to_filter: \n %s \n", mod_to_filter.head())
+
                     if mod_ttide_con is not None:
                         mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
 
@@ -304,7 +312,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
 
-        obs_data = obs_data.reindex(obs_data.index.union(mod_data["time"].drop_duplicates()))
+        obs_data = obs_data.reindex(pd.to_datetime(obs_data.index.union(mod_data["time"].drop_duplicates())))
+        logger.debug("\n === obs_data.index === \n, %s", obs_data.index)
+        logger.debug("\n === mod_data[time] === \n, %s", mod_data["time"].drop_duplicates())
 
         # interpolation in case model data is not in obs data time at all
         obs_data = obs_data.interpolate(method="time", limit=2, limit_direction="both")
