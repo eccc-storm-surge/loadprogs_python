@@ -46,13 +46,7 @@ class Station(object):
         else:
             self._data = None
 
-        # self._data = df
-
-        # target time step
-        dt = timedelta(hours=1)
-
-        self.data_dt = dt
-
+        
         if self._data is not None and len(self._data.dropna()) > 0:
 
             if "time" in self._data:
@@ -211,8 +205,7 @@ class Station(object):
     def _cleanup_data_for_detiding(self):
         # input data cleanup
         # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
-        dt_half = timedelta(seconds=self.data_dt.total_seconds() // 2)
-
+        
         minute_index = pd.date_range(self._data.index.min(),
                                      self._data.index.max(),
                                      freq=timedelta(minutes=1))
@@ -224,17 +217,17 @@ class Station(object):
         data = data.reindex(data.index.union(minute_index), axis=0)
         logger.debug("before interpolation\n: %s", data.head())
 
-        interp_limit_npoints = int(dt_half.total_seconds() // 60)
-        data = data.interpolate(method="time", limit=interp_limit_npoints)
-        data = data[data.index.minute == 0]
+        interp_limit_npoints = 60  # not further than 60 mins
+        data = data.interpolate(method="time", limit=interp_limit_npoints, limit_direction="forward")
+        # data = data[data.index.minute == 0]
+       
 
         logger.debug("\n interpolation limit: %s \n", interp_limit_npoints)
         logger.debug("after reindex\n: %s", data.head())
 
         
-
-        # assumes the data are hourly at this point
-        utils.remove_small_chunks(data["twl"], lowest_duration_hours=24, inplace=True)
+        # assumes the data are hourly at this point, TODO: generalize to uncomment
+        # utils.remove_small_chunks(data["twl"], lowest_duration_hours=24, inplace=True)
 
         # remove leading/trailing nans if present
         data = utils.remove_leading_trailing_nans(data, focus_col="twl")
@@ -263,20 +256,22 @@ class Station(object):
         # detide
         # v = self.get_twl_data_vector()
 
+
+
         clean_data = self._cleanup_data_for_detiding()["twl"]
-
+        
         # the clean data is assumed to be uniformly spaced
-        computed_dt = (clean_data.index[-1] - clean_data.index[0]).total_seconds() / 3600. / (len(clean_data) - 1)
-        msg = f"computed_dt={computed_dt}, but expect {self.data_dt.total_seconds() / 3600.}"
-        assert computed_dt == self.data_dt.total_seconds() / 3600., msg
+        computed_dt = clean_data.index[1] - clean_data.index[0]
+        logger.debug("computed dt for detiding: %s", computed_dt)
 
+        n_time_steps_per_hour = 3600 // computed_dt.total_seconds()
         v = clean_data.values.copy()
         v -= np.nanmean(v)
 
         logger.debug("nanmean(v) = %s", np.nanmean(v))
         logger.info(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v,
-                     dt=self.data_dt.total_seconds() / 3600.,
+                     dt=computed_dt.total_seconds() / 3600.,
                      synth=0,
                      lat=self.latitude,
                      ray=ray,
@@ -299,9 +294,9 @@ class Station(object):
 
             filter_order = 3
             band_type = "bandpass"
-            sos1 = signal.butter(filter_order, [2.0 / 26.0, 2.0 / 22.0], btype=band_type, output="sos")
-            sos2 = signal.butter(filter_order, [2.0 / 15.0, 2.0 / 11.0], btype=band_type, output="sos")
-            sos3 = signal.butter(filter_order, 2.0 / 8.0, btype="high", output="sos")
+            sos1 = signal.butter(filter_order, [2.0 / (26.0 * n_time_steps_per_hour), 2.0 / (22.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
+            sos2 = signal.butter(filter_order, [2.0 / (15.0 * n_time_steps_per_hour), 2.0 / (11.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
+            sos3 = signal.butter(filter_order, 2.0 / (8.0 * n_time_steps_per_hour), btype="high", output="sos")
 
             # params from JPP
             # b1, a1 = signal.butter(3, [2.0 / 28.0, 2.0 / 22.0], btype="bandstop")
@@ -338,6 +333,7 @@ class Station(object):
 
         self.data["filtered"] = filtered_part
 
+        
 
 @lru_cache
 def read_station_metadata(station_info: Path) -> pd.DataFrame:

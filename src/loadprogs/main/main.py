@@ -112,7 +112,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
-    out_line_format = "{:5d} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
+    out_line_format = "{:.7f} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     # Load obs (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_obs_dir(config)
@@ -173,10 +173,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                         s.name, s.station_id
                         )
 
-            dummy = mod_data.drop_duplicates(subset=("time"))
-            dummy = dummy.set_index("time")
+            dummy = mod_data.drop_duplicates(subset=(constants.COLNAME_TIME))
+            dummy = dummy.set_index(constants.COLNAME_TIME)
             dummy = np.nan * dummy.loc[:, mod_member_keys[0]].to_frame()
-            dummy.columns = ["twl"]
+            dummy.columns = [constants.COLNAME_TWL]
 
             s.assign_data(dummy)
 
@@ -207,12 +207,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
                 # Create time series and power spectrum plots for observational data
-                plot_ts_and_spectre(hourly_series=obs_data,
+                plot_ts_and_spectre(hourly_series=obs_data.asfreq("1H"),
                                     data_label="{}_{}".format(config.label, s.station_id),
                                     img_dir=config.out_dir,
                                     subplot_titles=None,
-                                    raw_data=s.data["twl-mean"],
-                                    tides=s.data["tides"],
+                                    raw_data=s.data["twl-mean"].asfreq("1H"),
+                                    tides=s.data["tides"].asfreq("1H"),
                                     sup_title=f"OBS : {s.name} ({s.station_id})")
 
                 # Create tidal constituents csv file for observational data
@@ -220,17 +220,18 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         else:
             # still remove the long-term mean
-            obs_data = s.data["twl"] - np.nanmean(s.data["twl"].values)
+            obs_data = s.data[constants.COLNAME_TWL] - np.nanmean(s.data[constants.COLNAME_TWL].values)
 
         # detide model time series if requested
         if config.detide_mod:
 
             mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
 
-            # initializations
-            t_unique = mod_data["time"].drop_duplicates()
 
-            logger.debug("\n ====t_unique==== \n %s \n", t_unique)
+            # initializations
+            t_unique = mod_data[constants.COLNAME_TIME].drop_duplicates()
+
+            logger.debug("\n ==== t_unique ==== \n %s \n", t_unique)
 
             mod_tides = pd.Series(index=t_unique)
             mod_to_filter = pd.Series(index=t_unique)
@@ -241,6 +242,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
             logger.debug("\n ==== mod_data_twl ==== \n %s \n", mod_data_twl.head())
 
             for c in mod_member_keys:
+
 
                 if config.mod_external_tides.exists():  # tides are provided externally
 
@@ -258,6 +260,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
                 else:
                     assert s.latitude is not None, "Latitude is required for detiding"
+
                     mod_tides, mod_to_filter, mod_ttide_con = obs.get_tides_and_filter_hourly(
                         data=mod_data_twl.loc[:, c].to_frame(),
                         latitude=s.latitude,
@@ -268,17 +271,48 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
                 # get the union index
                 t_index = pd.to_datetime(mod_tides.index.union(t_unique))
-                mod_tides = mod_tides.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
-                mod_to_filter = mod_to_filter.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
+                logger.debug("\nt_index\n %s", t_index)
+
+                # mod_tides = mod_tides.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
+                # mod_to_filter = mod_to_filter.reindex(t_index).interpolate(method="time", limit=2, limit_direction="both")
+
+                # import pickle
+                # pickle.dump(mod_data, open("mod_data_before.bin", "wb"))
+                # pickle.dump(mod_tides, open("mod_tides.bin", "wb"))
+                # pickle.dump(mod_to_filter, open("mod_to_filter.bin", "wb"))
 
                 # detiding
-                mod_data.loc[:, c] -= mod_tides.loc[mod_data["time"]].values
+                logger.debug(mod_data[constants.COLNAME_TIME])
+                logger.debug(mod_tides.index)
+                mod_data.loc[:, c] -= mod_tides.loc[mod_data[constants.COLNAME_TIME]].values
                 member_id_to_mod_tides[c] = mod_tides
 
                 # filtering
                 if config.mod_do_filtering:
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
-                    mod_data.loc[:, c] -= mod_to_filter.loc[mod_data["time"]].values
+                    mod_data.loc[:, c] -= mod_to_filter.loc[mod_data[constants.COLNAME_TIME]].values
+
+
+                # pickle.dump(mod_data, open("mod_data_after.bin", "wb"))
+                # raise Exception
+
+                # import matplotlib.pyplot as plt
+                
+                # ax = mod_tides.plot()
+                # mod_data_twl.plot(y=c, style="-o")
+                # logger.debug(mod_data_twl.index)
+                # logger.debug(mod_data[constants.COLNAME_TIME])
+                # logger.debug(mod_tides.loc[mod_data[constants.COLNAME_TIME]].values)
+                
+                # logger.debug(mod_data[c].values)
+
+                # logger.debug(type(mod_data_twl.index))
+                # logger.debug(type(mod_tides.index))
+
+                # assert len(mod_tides.loc[mod_data[constants.COLNAME_TIME]]) == len(mod_data[c].values)
+                # plt.show()
+
+                # raise Exception
 
                 # diags for detiding
                 if config.plot_detiding_diag:
@@ -292,7 +326,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                                         img_dir=config.out_dir,
                                         subplot_titles=None,
                                         raw_data=mod_data_twl[c] - mod_data_twl[c].mean(),
-                                        tides=mod_tides,
+                                        tides=mod_tides.asfreq("1H"),
                                         sup_title=config.label.upper() + f": {s.name} ({s.station_id})")
 
                     logger.debug("\n mod_tides: \n %s \n", mod_tides.head())
@@ -305,23 +339,23 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         #  debugging
         logger.debug(
             "obs time which is not in mod_data[time]: %s",
-            obs_data.index.difference(mod_data["time"])
+            obs_data.index.difference(mod_data[constants.COLNAME_TIME])
         )
 
         # align model and observation timeseries in time
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
 
-        obs_data = obs_data.reindex(pd.to_datetime(obs_data.index.union(mod_data["time"].drop_duplicates())))
+        obs_data = obs_data.reindex(pd.to_datetime(obs_data.index.union(mod_data[constants.COLNAME_TIME].drop_duplicates())))
         logger.debug("\n === obs_data.index === \n, %s", obs_data.index)
-        logger.debug("\n === mod_data[time] === \n, %s", mod_data["time"].drop_duplicates())
+        logger.debug("\n === mod_data[time] === \n, %s", mod_data[constants.COLNAME_TIME].drop_duplicates())
 
         # interpolation in case model data is not in obs data time at all
-        obs_data = obs_data.interpolate(method="time", limit=2, limit_direction="both")
+        obs_data = obs_data.interpolate(method="time", limit=2, limit_direction="forward")
 
         logger.debug("(obs) after reindex: \n %s \n", obs_data.head())
 
-        mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data["time"]].values.squeeze()
+        mod_data.loc[:, f"{s.station_id}_obs"] = obs_data[mod_data[constants.COLNAME_TIME]].values.squeeze()
 
         logger.info(f"mod_data types: \n %s \n", mod_data.dtypes)
 
@@ -330,13 +364,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         logger.info("\n obs_sql_data \n %s \n", obs_sql_data.head())
 
-        # if "time" in obs_sql_data.columns:
-        #     obs_sql_data.drop("time", axis="columns", inplace=True)
-        # obs_sql_data["time"] = obs_data.index
-
         obs_sql_data.reset_index(inplace=True)
         if len(obs_sql_data) > 0:
-            obs_sql_data.loc[:, "station_id"] = s.station_id
+            obs_sql_data.loc[:, constants.COLNAME_TIME] = s.station_id
 
         # forecast start dates based on run_freq_hours
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
@@ -373,10 +403,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
             with config.out_file.open("a") as fout:
                 for row_index, row in mod_data.iterrows():
                     line = out_line_format.format(
-                        int(row["valid_hour"]),
+                        row[constants.COLNAME_VALID_HOUR],
                         s.station_id,
                         s.latitude, s.longitude,
-                        row["time"].strftime("%Y%m%d%H"),
+                        row[constants.COLNAME_TIME].strftime(constants.OUT_TIME_FORMAT),
                         row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
                     )
                     fout.write(line)
@@ -392,7 +422,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                             0,
                             s.station_id,
                             s.latitude, s.longitude,
-                            t.strftime("%Y%m%d%H"),
+                            t.strftime(constants.OUT_TIME_FORMAT),
                             -1.0,  # TODO: put observed tides in here
                             *[member_id_to_mod_tides[k][t] for k in mod_member_keys]
                         )

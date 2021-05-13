@@ -17,7 +17,8 @@ def plot_ts_and_spectre(hourly_series: pd.Series, data_label="",
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
-
+    
+    hourly_series = hourly_series.asfreq("1H")
 
     min_period_h = 6.
     max_period_h = 24 * 30.

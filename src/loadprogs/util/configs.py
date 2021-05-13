@@ -52,7 +52,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.b2b_freq_hours = int(mod_config["b2b_freq_hours"])
     _config.run_freq_hours = int(mod_config["run_freq_hours"])
-    _config.dt_texp_from_tbeg = timedelta(hours=mod_config.getint("dt_texp_from_tbeg_hours", fallback=0))
+    _config.dt_texp_from_tbeg = timedelta(seconds=int(mod_config.getfloat("dt_texp_from_tbeg_hours", fallback=0) * 3600))
 
     msg = f"""back to back frequency should be less or equal to run_freq_hours,
               but got {_config.b2b_freq_hours} and {_config.run_freq_hours}, respectively"""
