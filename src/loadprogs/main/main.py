@@ -284,11 +284,16 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                 # detiding
                 logger.debug(mod_data[constants.COLNAME_TIME])
                 logger.debug(mod_tides.index)
+
+                # reindex to handle absence of tides for the remainder of the last forecast
+                mod_tides = mod_tides.reindex(t_index)
+                
                 mod_data.loc[:, c] -= mod_tides.loc[mod_data[constants.COLNAME_TIME]].values
                 member_id_to_mod_tides[c] = mod_tides
 
                 # filtering
                 if config.mod_do_filtering:
+                    mod_to_filter = mod_to_filter.reindex(t_index)
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data[constants.COLNAME_TIME]].values
 
