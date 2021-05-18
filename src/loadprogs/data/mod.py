@@ -276,7 +276,7 @@ def get_mod_timeseries(mod_data_path: Path,
             data_files = list(mod_data_path.glob(fname_pattern))
 
             if len(data_files) == 0:
-                msg = f"Could not find any file for the experiment on {exp_t}"
+                msg = f"Could not find any file for the experiment on {exp_t} in {mod_data_path}"
                 if allow_missing:
                     logger.info(msg)
                 else:
