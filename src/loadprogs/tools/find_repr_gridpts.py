@@ -169,6 +169,9 @@ def main():
     # if we are interested in the nearest neighbor, no need to load obs data
     if config.obs_dir is not None:
         stations = obs.load_station_data_from_obs_dir(config)
+
+        if len(stations) == 0:
+            raise IOError(f"No obs data found in {config.obs_dir} \n If you are not optimizing gamma squared you can ommit this option: --obs-dir")
     else:
         stations = obs.load_station_data_from_obs_file(config.station_info)
 
