@@ -8,6 +8,7 @@ from pathlib import Path
 import pytz
 
 from .config_interpolation import ExtendedEnvInterpolation
+from .constants import OptionNames
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -107,14 +108,25 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.obs_datatype = obs_config.get("obs_datatype", fallback="txt")
 
     _config.beg_time_obs = None
-    if "datestart_obs" in obs_config:
-        _config.beg_time_obs = datetime.strptime(obs_config["datestart_obs"], "%Y%m%d%H") \
+    if OptionNames.OBS_BEG_DATE in obs_config:
+        _config.beg_time_obs = datetime.strptime(obs_config[OptionNames.OBS_BEG_DATE], "%Y%m%d%H") \
             .replace(tzinfo=timezone.utc)
     
     _config.end_time_obs = None
-    if "dateend_obs" in obs_config:
-        _config.end_time_obs = datetime.strptime(obs_config["dateend_obs"], "%Y%m%d%H") \
+    if OptionNames.OBS_END_DATE in obs_config:
+        _config.end_time_obs = datetime.strptime(obs_config[OptionNames.OBS_END_DATE], "%Y%m%d%H") \
             .replace(tzinfo=timezone.utc)
+
+    if None not in [_config.beg_time_obs, _config.end_time_obs]:
+        if _config.beg_time_obs >= _config.end_time_obs:
+            msg = f"""
+                    ERROR, Configuration problem:
+                    Expect start date to be before the end date, but got:
+                        {OptionNames.OBS_BEG_DATE} = {_config.beg_time_obs}
+                        {OptionNames.OBS_END_DATE} = {_config.end_time_obs}
+                   """
+            raise ValueError(msg)
+
 
     _config.station_info = Path(obs_config["station_info"]).expanduser()
     _config.obs_dir = Path(obs_config["obs_dir"]).expanduser()
