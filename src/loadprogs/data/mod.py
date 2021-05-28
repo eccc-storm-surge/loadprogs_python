@@ -531,36 +531,98 @@ def get_mod_indices_closest_to(stations: List[Station],
     Returns:
         dict: station id to corresponding grid indices (0-based)
     """
+    read_status_ok = False
+    
+    fin = None
+    try:
+        bathy = None
+        mask = None
+        lons = None
+        lats = None
 
-    import xarray
+        fin = rmn.fstopenall(mod_bathy_file)
+
+        keys = rmn.fstinl(fin, nomvar=mod_bathy_vname)
+
+        meta_field = None
+        
+        # read field data
+        for key in keys:
+            meta = rmn.fstprm(key)
+            if meta["typvar"] != "@@":
+                bathy = rmn.fstluk(key)["d"]
+                meta_field = meta
+                break
+        
+        
+        mask_meta = {
+            k: meta_field[k] for k in ["ip1", "ip2", "ip3", "etiket", "nomvar"]
+        }
+        # read mask
+        mask_keys = rmn.fstinl(fin, typvar="@@", **mask_meta)
+        for key in mask_keys:
+            mask = rmn.fstluk(key)["d"] > 0.5
+            break
+        
+        grtyp = meta_field["grtyp"]
+
+        # read coordinates
+        if grtyp in ["X", "O"]:
+            coord_keys = rmn.fstinl(fin, ip1=meta_field["ig1"], ip2=meta_field["ig2"], ip3=meta_field["ig3"])
+            coords = [rmn.fstluk(ck, dtype=np.float32) for ck in coord_keys]
+            for c in coords:
+                nv = c["nomvar"].strip()
+                if nv == ">>":
+                    lons = c["d"]
+                elif nv == "^^":
+                    lats = c["d"]
+                                      
+        else:
+            raise NotImplementedError(f"Grid type is not supported yet: {grtyp}")
+
+        if any([None is obj for obj in [lons, lats, mask, bathy]]):
+            raise IOError(f"Not all required info was retrieved from the standard file: {mod_bathy_file}")
+
+        read_status_ok = True
+        logger.info("Successfully retrieved info with fst reader")
+    except rmn.FSTDError:
+        logger.info(f"failed to read as fst: \n {mod_bathy_file}")
+    finally:
+        if fin is not None:
+            rmn.fstcloseall(fin)
+        
+
+    # Try to read with netcdf reader
+    if not read_status_ok:
+        import xarray
+        with xarray.open_dataset(mod_bathy_file) as ds:
+            lons = ds[mod_lon_vname].values
+            lats = ds[mod_lat_vname].values
+            bathy = ds[mod_bathy_vname].values
+            mask = bathy > bathy_limit
+    
+    # Search for representative gridcells
     station_id_to_indices = {}
-    with xarray.open_dataset(mod_bathy_file) as ds:
-        lons = ds[mod_lon_vname].values
-        lats = ds[mod_lat_vname].values
-        bathy = ds[mod_bathy_vname].values
+    xs, ys, zs = lat_lon.lon_lat_to_cartesian(lons[mask], lats[mask])
+    ktree = KDTree(np.array(list(zip(xs, ys, zs))))
 
-        mask = bathy > bathy_limit
+    i_mat, j_mat = np.indices(lons.shape)
 
-        xs, ys, zs = lat_lon.lon_lat_to_cartesian(lons[mask], lats[mask])
-        ktree = KDTree(np.array(list(zip(xs, ys, zs))))
+    for s in stations:
+        xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
+        dists, inds = ktree.query(np.array([(xt, yt, zt), ], dtype=np.float32), k=1)
 
-        i_mat, j_mat = np.indices(lons.shape)
+        if dist_upper_bound is not None:
+            inds = inds[dists <= dist_upper_bound]
 
-        for s in stations:
-            xt, yt, zt = lat_lon.lon_lat_to_cartesian(s.longitude, s.latitude)
-            dists, inds = ktree.query(np.array([(xt, yt, zt), ], dtype=np.float32), k=1)
+        if len(inds) == 0:
+            continue
 
-            if dist_upper_bound is not None:
-                inds = inds[dists <= dist_upper_bound]
+        station_id_to_indices[s.station_id] = [
+            (i_mat[mask][i], j_mat[mask][i]) for i in inds
+        ]
 
-            if len(inds) == 0:
-                continue
-
-            station_id_to_indices[s.station_id] = [
-                (i_mat[mask][i], j_mat[mask][i]) for i in inds
-            ]
-
-        logger.debug("station_id_to_indices: \n %s \n", station_id_to_indices)
+    logger.debug("\n station_id_to_indices: \n %s \n", station_id_to_indices)
 
     return station_id_to_indices
 

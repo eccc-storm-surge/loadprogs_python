@@ -203,18 +203,20 @@ def main():
         "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": []
     }
 
+    if mod_raw is None:
+        if len(station_id_to_mod_indices) == 0:
+            raise ValueError("No representative gridcells found")
+        
+
     for s in stations:
 
         # s = station_id_to_station[station_id]
         assert isinstance(s, Station)
 
-        if len(station_id_to_mod_indices) > 0:
-            if s.station_id not in station_id_to_mod_indices:
-                print(f"Did not find representative grid cell for {s}, skipping ...")
-                continue
-
-
-
+        if s.station_id not in station_id_to_mod_indices:
+            print(f"Did not find representative grid cell for {s}, skipping ...")
+            continue
+        
         station_id = s.station_id
         data["NO"].append(station_id)
         data["ID"].append(s.name)
