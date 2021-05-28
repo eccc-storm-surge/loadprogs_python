@@ -207,6 +207,14 @@ def main():
 
         # s = station_id_to_station[station_id]
         assert isinstance(s, Station)
+
+        if len(station_id_to_mod_indices) > 0:
+            if s.station_id not in station_id_to_mod_indices:
+                print("Did not find representative grid cell for {s}, skipping ...")
+                continue
+
+
+
         station_id = s.station_id
         data["NO"].append(station_id)
         data["ID"].append(s.name)
