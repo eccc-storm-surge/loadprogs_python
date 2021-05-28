@@ -210,7 +210,7 @@ def main():
 
         if len(station_id_to_mod_indices) > 0:
             if s.station_id not in station_id_to_mod_indices:
-                print("Did not find representative grid cell for {s}, skipping ...")
+                print(f"Did not find representative grid cell for {s}, skipping ...")
                 continue
 
 
