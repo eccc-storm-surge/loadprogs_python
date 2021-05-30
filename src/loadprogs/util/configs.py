@@ -52,6 +52,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.mod_dir = Path(mod_config["mod_dir"]).expanduser()
 
     _config.b2b_freq_hours = int(mod_config["b2b_freq_hours"])
+    _config.b2b_blend_hours = mod_config.getint(OptionNames.B2B_BLEND_HOURS, fallback=0) # blending period when stitching forecasts
+
     _config.run_freq_hours = int(mod_config["run_freq_hours"])
     _config.dt_texp_from_tbeg = timedelta(seconds=int(mod_config.getfloat("dt_texp_from_tbeg_hours", fallback=0) * 3600))
 

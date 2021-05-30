@@ -11,3 +11,4 @@ OUT_TIME_FORMAT = "%Y%m%d%H%M"
 class OptionNames(object):
     OBS_BEG_DATE = "datestart_obs"
     OBS_END_DATE = "dateend_obs"
+    B2B_BLEND_HOURS = "b2b_blend_hours"

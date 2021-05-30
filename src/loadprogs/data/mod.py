@@ -438,7 +438,7 @@ def read_data_files(path_list,
     else:
         raise IOError(f"Unknown format of model files: {ftype}")
 
-    logger.debug("TZ1=%s, TZ2=%s\n", type(t_origin.tzinfo), type(df["time"].iloc[0].tz))
+    # logger.debug("TZ1=%s, TZ2=%s\n", type(t_origin.tzinfo), type(df["time"].iloc[0].tz))
 
     df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds() // 3600).astype(int)
     df["member_id"] = member_id
@@ -464,19 +464,51 @@ def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     return pd.date_range(t0, t1, freq=run_freq_dt)
 
 
-def get_mod_twl_for_b2b(mod_data, config):
+def get_mod_twl_for_b2b(mod_data, config, mod_member_keys=("mod_",)):
     df = mod_data.copy()
     logger.info("Detiding model outputs.")
-    assert not any(df["time"].isna())
+    assert not any(df[constants.COLNAME_TIME].isna())
 
     # for b2b operations
-    select_crit = df["valid_hour"] < config.b2b_freq_hours
-    select_crit = select_crit & (df["valid_hour"] >= config.b2b_min_lead_hour)  # remove t=0 if requested
+    select_crit = df[constants.COLNAME_VALID_HOUR] < config.b2b_freq_hours + config.b2b_blend_hours
+    select_crit = select_crit & (df[constants.COLNAME_VALID_HOUR] >= config.b2b_min_lead_hour)  # remove t=0 if requested
     mod_data_twl = df.loc[select_crit, :]
-    mod_data_twl.sort_values("time", inplace=True)
+
+
+    # blending aggregation
+    if config.b2b_blend_hours > 0:
+        logger.debug(f"Performing blending over {config.b2b_blend_hours} hours at stitches")
+
+        # blending
+        def __blend(gdf):
+            rel_vh = gdf[constants.COLNAME_VALID_HOUR] - config.b2b_min_lead_hour
+            min_vh = rel_vh.min()
+            res =  gdf[rel_vh == min_vh]
+            if min_vh > config.b2b_blend_hours or len(gdf) == 1:
+                return res
+            else:
+                for c in mod_member_keys:
+                    cur = gdf[rel_vh == min_vh][c].iloc[0]
+                    pre = gdf[rel_vh > min_vh][c].iloc[0]
+
+                    wcur = min_vh / config.b2b_blend_hours
+                    wpre = 1. - wcur
+                    logger.debug("\n cur=%s; pre=%s; ===blend===> %s, %s, %s", cur, pre, cur * wcur + pre * wpre, wcur, wpre)
+
+                    res[c] = cur * wcur + pre * wpre
+
+            return res
+
+        
+        mod_data_twl = mod_data_twl.reset_index(drop=True).groupby(constants.COLNAME_TIME, as_index=False).apply(__blend)
+
+        logger.debug("\n mod_data_twl: \n %s", mod_data_twl.head())
+        logger.debug("\n mod_data_twl.time: \n %s", mod_data_twl[constants.COLNAME_TIME].head())
+        # raise Exception
+
     logger.debug(mod_data_twl.head())
 
-    mod_data_twl.set_index("time", inplace=True)
+    mod_data_twl.set_index(constants.COLNAME_TIME, inplace=True)
 
     return mod_data_twl
 

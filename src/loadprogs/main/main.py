@@ -225,7 +225,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         # detide model time series if requested
         if config.detide_mod:
 
-            mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config)
+            mod_data_twl = mod.get_mod_twl_for_b2b(mod_data, config=config, mod_member_keys=mod_member_keys)
 
 
             # initializations
@@ -297,28 +297,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data[constants.COLNAME_TIME]].values
 
-
-                # pickle.dump(mod_data, open("mod_data_after.bin", "wb"))
-                # raise Exception
-
-                # import matplotlib.pyplot as plt
                 
-                # ax = mod_tides.plot()
-                # mod_data_twl.plot(y=c, style="-o")
-                # logger.debug(mod_data_twl.index)
-                # logger.debug(mod_data[constants.COLNAME_TIME])
-                # logger.debug(mod_tides.loc[mod_data[constants.COLNAME_TIME]].values)
-                
-                # logger.debug(mod_data[c].values)
-
-                # logger.debug(type(mod_data_twl.index))
-                # logger.debug(type(mod_tides.index))
-
-                # assert len(mod_tides.loc[mod_data[constants.COLNAME_TIME]]) == len(mod_data[c].values)
-                # plt.show()
-
-                # raise Exception
-
                 # diags for detiding
                 if config.plot_detiding_diag:
                     msg = f"plotting timeseries for mod at {s.station_id}"
