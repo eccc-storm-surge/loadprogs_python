@@ -184,7 +184,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         if config.detide_obs:
             try:
 
-                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering)
+                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering, constituents=config.detide_obs_constituents)
 
                 n_valid_obs = len(obs_data.dropna())
                 if n_valid_obs < config.min_nhours_for_detiding_obs:
