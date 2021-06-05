@@ -140,7 +140,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
-    _config.detide_obs_constituents = mod_config.get("detide_obs_constituents", fallback=None)
+    _config.detide_obs_constituents = obs_config.get("detide_obs_constituents", fallback=None)
     if _config.detide_obs_constituents is not None:
         _config.detide_obs_constituents = [tok.strip() for tok in _config.detide_obs_constituents.split(",")]
 
