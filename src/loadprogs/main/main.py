@@ -43,6 +43,7 @@ from ..data import mod
 from ..util.plot_ts_and_spectre import plot_ts_and_spectre
 from ..util.configs import parse_config_settings
 from ..util import constants
+from ..util import log_utils
 
 
 def main_pn_vs_p0():
@@ -430,10 +431,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
 
 if __name__ == '__main__':
-    logging.basicConfig()
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-
+    logger = log_utils.get_logger(__name__)
     # main_levelling_v01()
     import time
 
