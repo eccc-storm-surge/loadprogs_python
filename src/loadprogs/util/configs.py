@@ -117,7 +117,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
             obs_config[OptionNames.obs.OBS_BEG_DATE], "%Y%m%d%H").replace(tzinfo=timezone.utc)
     
     _config.end_time_obs = None
-    if OptionNames.OBS_END_DATE in obs_config:
+    if OptionNames.obs.OBS_END_DATE in obs_config:
         _config.end_time_obs = datetime.strptime(
             obs_config[OptionNames.obs.OBS_END_DATE], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
