@@ -28,6 +28,7 @@ class OptionNames(object):
         RUN_FREQ_HOURS = "run_freq_hours"
         DT_TEXP_TBEG = "dt_texp_from_tbeg_hours"
         NOMVAR = "mod_nomvar"
+        TYPVAR = "mod_typvar"
         DETIDE = "detide_mod"
         DETIDE_CONSTITUENTS = "detide_mod_constituents"
         DETIDE_FILTERING = "detide_mod_filtering"
@@ -63,7 +64,8 @@ def get_help():
             (OptionNames.mod.DETIDE, """Flag to disable/enable detiding of model outputs (0/1 or False/True respectively)
                                      default is 0"""),
             (OptionNames.mod.DETIDE_CONSTITUENTS, """Comma-separated list of constituents,
-                                                  default None - constituents determined automatically""")
+                                                  default None - constituents determined automatically"""),
+            (OptionNames.mod.TYPVAR, "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *")
         ])), 
         ("obs", OrderedDict([
             (OptionNames.obs.OBS_DATATYPE, "Type of observation files, possible values: txt (default), sqlite"),

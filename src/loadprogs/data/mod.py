@@ -209,6 +209,7 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
         allow_missing=allow_missing,
         member_ids=member_ids,
         mod_nomvar=cfg.mod_nomvar,
+        mod_typvar=cfg.mod_typvar,
         start_time=cfg.beg_time_mod,
         end_time=cfg.end_time_mod,
         run_freq_hours=cfg.run_freq_hours,
@@ -219,7 +220,7 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
 
 def get_mod_timeseries(mod_data_path: Path,
                        station_id_to_grid_indices,
-                       mod_nomvar="ETAS",
+                       mod_nomvar="ETAS", mod_typvar="P@",
                        start_time=None, end_time=None,
                        member_ids=("",), run_freq_hours=12,
                        dt_texp_from_tbeg=timedelta(hours=0),
@@ -283,14 +284,22 @@ def get_mod_timeseries(mod_data_path: Path,
                     raise IOError(msg)
 
             t_origin = exp_t - dt_texp_from_tbeg
-            input_list.append((data_files, station_id_to_grid_indices, mod_nomvar, t_origin, member_id))
+
+            kwargs = dict(
+                path_list=data_files, 
+                station_id_to_grid_indices=station_id_to_grid_indices,
+                t_origin=t_origin,
+                member_id=member_id
+            )
+            input_list.append(kwargs)
 
     # read actual data in parallel
     with Parallel(n_jobs=nprocs) as parallel:
-        df_list = parallel(delayed(read_data_files)(*inp) for inp in input_list)
+        df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar, mod_typvar=mod_typvar, **inp) for inp in input_list)
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
+    logger.info("\n Mod dataframe: \n %s", df.head())
 
     df_list = []
     for member_id, group in df.groupby("member_id"):
@@ -325,7 +334,7 @@ def get_mod_timeseries(mod_data_path: Path,
 
 def read_data_files_fst(path_list,
                         station_id_to_grid_indices: dict,
-                        mod_nomvar="ETAS") -> pd.DataFrame:
+                        mod_nomvar="ETAS", mod_typvar="P@") -> pd.DataFrame:
     """
     Read model data at points for given indices into a dataframe
     Args:
@@ -343,14 +352,22 @@ def read_data_files_fst(path_list,
     # get all data from a file in memory
     funit = rmn.fstopenall([str(data_file) for data_file in data_files])
 
-    keys = rmn.fstinl(funit, typvar="P@", nomvar=mod_nomvar)
+    keys = rmn.fstinl(funit, typvar=mod_typvar, nomvar=mod_nomvar)
+
+    assert len(keys) > 0, f"mod_typvar={mod_typvar}; mod_nomvar={mod_nomvar}; path_list={path_list}"
 
     # filter the keys by date first first, if required
     dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
 
     records = [rmn.fstluk(k) for k in keys]
 
+    # take into account 1d fields, needed for M-grid
+    for r in records:
+        if len(r["d"].shape) == 1:
+            r["d"].shape += (1, ) 
+
     for station_id, (i, j) in station_id_to_grid_indices.items():
+        
         data_dict["value"].extend([rec["d"][i, j] for rec in records])
         data_dict["station_id"].extend([station_id] * len(records))
         data_dict["time"].extend(dates)
@@ -362,12 +379,10 @@ def read_data_files_fst(path_list,
 
 def read_data_files_cdf(path_list,
                         station_id_to_grid_indices: dict,
-                        mod_nomvar="ETAS",
-                        axis_order="yx") -> pd.DataFrame:
+                        mod_nomvar="ETAS") -> pd.DataFrame:
     """
     Read model data at points for given indices into a dataframe
     Args:
-        axis_order: if yx then the vertical index j goes first i.e. to get point i, j we need to [:, j, i]
         path_list:
         station_id_to_grid_indices:
         mod_nomvar:
@@ -418,7 +433,7 @@ def read_data_files_cdf(path_list,
 
 def read_data_files(path_list,
                     station_id_to_grid_indices: dict,
-                    mod_nomvar="ETAS",
+                    mod_nomvar="ETAS", mod_typvar="P@",
                     t_origin=None, member_id=""
                     ) -> pd.DataFrame:
     """
@@ -432,7 +447,7 @@ def read_data_files(path_list,
     ftype = get_file_type(path_list[0])
     args = (path_list, station_id_to_grid_indices, mod_nomvar)
     if ftype == FILE_TYPE_FST:
-        df = read_data_files_fst(*args)
+        df = read_data_files_fst(*args, mod_typvar=mod_typvar)
     elif ftype == FILE_TYPE_CDF:
         df = read_data_files_cdf(*args)
     else:

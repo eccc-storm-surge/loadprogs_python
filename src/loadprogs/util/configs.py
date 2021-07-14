@@ -64,6 +64,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # assert _config.b2b_freq_hours <= _config.run_freq_hours, msg
 
     _config.mod_nomvar = mod_config.get(OptionNames.mod.NOMVAR, fallback="ETAS")
+    _config.mod_typvar = mod_config.get(OptionNames.mod.TYPVAR, fallback="P@")
+    # select any typvar
+    if _config.mod_typvar.strip() == "*":
+        _config.mod_typvar = " "
 
     _config.detide_mod = mod_config.getboolean(OptionNames.mod.DETIDE, fallback=False)
     _config.detide_mod_constituents = mod_config.get(OptionNames.mod.DETIDE_CONSTITUENTS, fallback=None)
