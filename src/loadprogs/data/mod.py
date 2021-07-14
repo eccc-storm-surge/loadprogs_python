@@ -595,11 +595,19 @@ def get_mod_indices_closest_to(stations: List[Station],
         for key in mask_keys:
             mask = rmn.fstluk(key)["d"] > 0.5
             break
+
+        if mask is None:
+            logger.info("Mask was not found in the model files, assuming not masked field")
+            mask = np.ones((meta["ni"], meta["nj"]), dtype=bool)
+            logger.info("Model field meta: ")
+            logger.info(mask.shape)
+            logger.info(meta)
+            
         
         grtyp = meta_field["grtyp"]
 
         # read coordinates
-        if grtyp in ["X", "O"]:
+        if grtyp in ["X", "O", "M"]:
             coord_keys = rmn.fstinl(fin, ip1=meta_field["ig1"], ip2=meta_field["ig2"], ip3=meta_field["ig3"])
             coords = [rmn.fstluk(ck, dtype=np.float32) for ck in coord_keys]
             for c in coords:
@@ -608,6 +616,10 @@ def get_mod_indices_closest_to(stations: List[Station],
                     lons = c["d"]
                 elif nv == "^^":
                     lats = c["d"]
+                    
+            if grtyp in ["M", ]: # transpose longitudes for the M-grids
+                lons = lons.T
+                lats.shape = lons.shape
                                       
         else:
             raise NotImplementedError(f"Grid type is not supported yet: {grtyp}")
