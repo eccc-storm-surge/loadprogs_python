@@ -3,11 +3,11 @@
 from pathlib import Path
 
 # absolute import as it is supposed to be used as main (standalone launch script) only!
-from loadprogs.main.main import main
+from loadprogs.main.main import main as loadprogs_main
 
 from multiprocessing import Process
 import argparse
-from loadprogs.util import configs, constants
+from loadprogs.util import constants
 from loadprogs.util.log_utils import get_logger
 import logging
 
@@ -53,14 +53,14 @@ def main(logger):
 
     if not args.debug:
         processes = []
-        pl = [Process(target=main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
+        pl = [Process(target=loadprogs_main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
         processes.extend(pl)
 
         for p in processes:
             p.start()
     else:
         for p in cfg_paths:
-            main(config_path=Path(p))
+            loadprogs_main(config_path=Path(p))
 
 
 
