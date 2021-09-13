@@ -45,6 +45,13 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                         --mod-bathy-vname Bathymetry \
                                                         --bathy-min-m 0
 
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/olh001/Python/surge_notebooks/gdsps_points_incomplete.obs \
+                                                    --obs-index-out /home/olh001/Python/surge_notebooks/gdsps_points_incomplete-idx-added.obs \
+                                                    --nnearest 1 \
+                                                    --mod-files /home/sssm001/constants/cmde/surge/gdsps/v1.0.0/bathy_v4_GoSBoF57.nc \
+                                                    --mod-bathy-vname Bathymetry \
+                                                    --bathy-min-m 10
+
 
 """
 import argparse
