@@ -1,4 +1,3 @@
-import logging
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -11,26 +10,25 @@ from typing import List
 import pandas as pd
 
 import numpy as np
-from ttide import t_tide
-
+from ttide.t_tidec import t_tide
 from . import utils
+from ..util import log_utils
 
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = log_utils.get_logger(__name__)
 
-
-def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=0.5):
+def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=0.5,
+                                do_cleanup=False):
     # Make sure the total water level column can be found
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
-    s = Station(do_filtering=do_filtering, station_info={"lat": latitude})
+    s = Station(do_filtering=do_filtering, station_info={"lat": latitude}, do_cleanup=do_cleanup)
 
     s.data = data_
     s.get_detided_series(do_filtering=do_filtering, constituents=constituents, ray=ray)
 
     return s.data["tides"], s.data["filtered"], s.ttidecon
+
 
 
 class Station(object):
@@ -53,7 +51,7 @@ class Station(object):
                 logger.info("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
 
-            logger.info("\n%s\n", self._data.head())
+            # logger.info("\n%s\n", self._data.head())
 
             # all times are in UTC
             if hasattr(self._data.index, "tz"):
@@ -63,7 +61,15 @@ class Station(object):
             # remove duplicate dates in index before converting to frequency
             self._data = self._data[~self._data.index.duplicated()]  # just in case
 
-    def __init__(self, data_file=None, do_filtering=False, station_info=None):
+    def __init__(self, data_file=None, do_filtering=False, station_info=None, do_cleanup=True):
+        """[summary]
+
+        Args:
+            data_file ([type], optional): [description]. Defaults to None.
+            do_filtering (bool, optional): [description]. Defaults to False.
+            station_info ([type], optional): [description]. Defaults to None.
+            do_cleanup (bool, optional): If True perform data cleanup before detiding. Defaults to True.
+        """
         self.nlines_for_header = 6
         self.data_file = data_file
 
@@ -91,6 +97,9 @@ class Station(object):
             self.longitude = station_info.get("lon", self.longitude)
 
         self.ttidecon = None
+
+        # whether to perform or not data cleanup before detiding
+        self.do_cleanup = do_cleanup
 
     def assign_data(self, df):
         self.data = df
@@ -197,8 +206,8 @@ class Station(object):
         self._detide(do_filtering=do_filtering, constituents=constituents, ray=ray)
         self.do_filtering = do_filtering
 
-        logger.debug("self.data[key]:\n%s\n", self.data[key])
-        logger.debug("key=%s", key)
+        # logger.debug("self.data[key]:\n%s\n", self.data[key])
+        # logger.debug("key=%s", key)
 
         return self.data[key]
 
@@ -236,7 +245,7 @@ class Station(object):
         data["twl"] = utils.remove_edges(data["twl"])
 
         logger.debug(f"t[1]-t[0] = {data.index[1]} - {data.index[0]}")
-        logger.info("obs processed (before detiding): \n%s\n", data.head())
+        logger.debug("obs processed (before detiding): \n%s\n", data.head())
         
         self.assign_data(data)
         return data
@@ -257,19 +266,21 @@ class Station(object):
         # v = self.get_twl_data_vector()
 
 
-
-        clean_data = self._cleanup_data_for_detiding()["twl"]
+        if self.do_cleanup:
+            clean_data = self._cleanup_data_for_detiding()["twl"]
+        else:
+            clean_data = self.data["twl"]
         
         # the clean data is assumed to be uniformly spaced
         computed_dt = clean_data.index[1] - clean_data.index[0]
-        logger.debug("computed dt for detiding: %s", computed_dt)
+        # logger.info("computed dt for detiding: %s", computed_dt)
 
         n_time_steps_per_hour = 3600 // computed_dt.total_seconds()
         v = clean_data.values.copy()
         v -= np.nanmean(v)
 
-        logger.debug("nanmean(v) = %s", np.nanmean(v))
-        logger.info(f"Before t_tide: v.shape={v.shape}")
+        # logger.debug("nanmean(v) = %s", np.nanmean(v))
+        # logger.debug(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v,
                      dt=computed_dt.total_seconds() / 3600.,
                      synth=0,
@@ -281,7 +292,7 @@ class Station(object):
 
         v_notide = v - con["xout"].squeeze()
 
-        logger.debug("v_notide: \n %s \n", v_notide)
+        # logger.debug("v_notide: \n %s \n", v_notide)
 
         filtered_part = 0
         # filter
@@ -324,7 +335,7 @@ class Station(object):
         self.data["twl-mean"] = v
         self.data["detided"] = v_notide_filtered
 
-        logger.debug("detided: \n %s \n", self.data["detided"])
+        # logger.debug("detided: \n %s \n", self.data["detided"])
         # logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
 
         assert len(self.data) == len(v)
