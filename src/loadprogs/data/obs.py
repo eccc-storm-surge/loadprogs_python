@@ -397,7 +397,8 @@ def read_station_metadata(station_info: Path) -> pd.DataFrame:
 
 def load_station_data_from_obs_dir(config):
     loading_funcs = {"txt": load_station_data_from_txt_dir,
-                     "sqlite": load_station_data_from_canhys_dir}
+                     "sqlite": load_station_data_from_canhys_dir,
+                     "canhys": load_station_data_from_canhys_dir}
 
     st_info = read_station_metadata(config.station_info)
 
