@@ -434,10 +434,24 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
 
-    station_info_canhys_ids = [
-        real_to_canhys_mapping.loc[real_id, "canhys"] for real_id in
-        real_to_canhys_mapping.index.intersection(station_records)
-    ]
+        
+    # for some stations we can have several canhys ids
+    station_info_canhys_ids = []
+    for real_id in real_to_canhys_mapping.index.intersection(station_records):
+        part = real_to_canhys_mapping.loc[real_id, "canhys"]
+        if isinstance(part, str):
+            part = [part]
+        else:
+            part = part.tolist()
+        
+        station_info_canhys_ids += part
+
+
+
+
+    for chsid in station_info_canhys_ids:
+        print(chsid)
+
 
     canhys_ids_to_dfs = defaultdict(list)
 
