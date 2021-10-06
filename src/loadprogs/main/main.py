@@ -266,7 +266,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                         data=mod_data_twl.loc[:, c].to_frame(),
                         latitude=s.latitude,
                         constituents=config.detide_mod_constituents,
-                        do_filtering=config.mod_do_filtering)
+                        do_filtering=config.mod_do_filtering, do_cleanup=True)
                 # remove longterm mean
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()
 
