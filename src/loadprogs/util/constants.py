@@ -17,6 +17,7 @@ class OptionNames(object):
         OBS_DATATYPE = "obs_datatype"
         OBS_BEG_DATE = "datestart_obs"
         OBS_END_DATE = "dateend_obs"
+        OBS_VARIABLE_ID = "variable_id" # for canhys to select needed variables from dataset
 
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"
