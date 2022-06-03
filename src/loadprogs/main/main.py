@@ -336,7 +336,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         logger.debug("\n === mod_data[time] === \n, %s", mod_data[constants.COLNAME_TIME].drop_duplicates())
 
         # interpolation in case model data is not in obs data time at all
-        obs_data = obs_data.interpolate(method="time", limit=2, limit_direction="forward")
+        obs_data = obs_data.interpolate(method="time", limit=2, limit_direction="backward")
 
         logger.debug("(obs) after reindex: \n %s \n", obs_data.head())
 
