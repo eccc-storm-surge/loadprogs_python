@@ -53,6 +53,14 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --bathy-min-m 10
 
 
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/olh001/Python/download_station_info/data/new_stations_202206_gdsps/new_stations.obs \
+                                                    --obs-index-out /home/olh001/Python/download_station_info/data/new_stations_202206_gdsps/new_stations-idx-added.obs \
+                                                    --nnearest 1 \
+                                                    --mod-files ~smco500/.suites/gdsps_20220621/components/forecast/surge_prog/constants/cmde/surge/gdsps/v1.0.0/bathy_v4_GoSBoF57.nc \
+                                                    --mod-bathy-vname Bathymetry \
+                                                    --bathy-min-m 10
+
+
 """
 import argparse
 from datetime import datetime
