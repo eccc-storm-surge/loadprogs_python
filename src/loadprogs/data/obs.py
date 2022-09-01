@@ -446,12 +446,8 @@ def load_station_data_from_canhys_dir(station_records, config):
         
         station_info_canhys_ids += part
 
-
-
-
     for chsid in station_info_canhys_ids:
         print(chsid)
-
 
     canhys_ids_to_dfs = defaultdict(list)
 
@@ -525,6 +521,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 def load_station_data_from_txt_dir(station_records, config):
     real_ids_to_dfs = {}
 
+
     for inp_file in config.obs_dir.iterdir():
         if not inp_file.is_file():
             continue
@@ -542,10 +539,36 @@ def load_station_data_from_txt_dir(station_records, config):
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
             logger.info("raw obs data:\n%s\n", df.head())
 
-            df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
+            twl_column_id = 5
 
-            df.rename({5: "twl"}, inplace=True, axis="columns")
+            # preferred format
+            if len(df.columns) == 2:
+                twl_column_id = 1
+                supported_time_formats = [
+                    "%Y %m %d %H %M %S",
+                    "%Y %m %d %H %M"
+                ]
+
+                def __parse_time(tok):
+                    t = None
+                    for fmt in supported_time_formats:
+                        try:
+                            t = datetime.strptime(tok, fmt)
+                            return t
+                        except ValueError:
+                            pass
+                    if t is None:
+                        raise ValueError(f"Could not parse {tok}, "
+                                         f"supported date-time formats: {supported_time_formats}")
+
+
+                df["time"] = df[0].map(__parse_time)
+            else:
+                df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
+
+            df.rename({twl_column_id: "twl"}, inplace=True, axis="columns")
             df = df.loc[:, ["time", "twl"]]
+            print(df.head())
 
         except ValueError:
             df = pd.read_csv(inp_file,
