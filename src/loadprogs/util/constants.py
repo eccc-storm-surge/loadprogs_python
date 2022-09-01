@@ -23,7 +23,7 @@ class OptionNames(object):
         MOD_BEG_DATE = "datestart_mod"
         MOD_END_DATE = "dateend_mod"
         DATA_DIR = "mod_dir"
-        B2B_FREQ_HOURS = "b2b_freq_hours"
+        B2B_MAX_LEAD_HOUR = "b2b_max_lead_hour"  # strict, i.e not including
         B2B_BLEND_HOURS = "b2b_blend_hours"
         B2B_MIN_LEAD_HOUR = "b2b_min_lead_hour"
         RUN_FREQ_HOURS = "run_freq_hours"
@@ -55,10 +55,9 @@ def get_help():
             (OptionNames.mod.MOD_BEG_DATE, r"Date of the first model experiment to process (inclusive), format %Y%m%d%H"),
             (OptionNames.mod.MOD_END_DATE, r"Date of the last model experiment to process (inclusive), format %Y%m%d%H"), 
             (OptionNames.mod.DATA_DIR, "Path to the folder containing model outputs"),
-            (OptionNames.mod.B2B_FREQ_HOURS, """Maximum lead hour to be used for back to back timeseries construction,
+            (OptionNames.mod.B2B_MAX_LEAD_HOUR, """Maximum lead hour to be used for back to back timeseries construction,
                                                 not inclusive, i.e. when 12, then the max lead used for back to back is 11."""),
-            (OptionNames.mod.RUN_FREQ_HOURS, "Interval in hours between consequent experiments to be scored, the value should be the same\n" 
-                                            f"as {OptionNames.mod.B2B_FREQ_HOURS}"),
+            (OptionNames.mod.RUN_FREQ_HOURS, "Interval in hours between consequent experiments to be scored"),
             (OptionNames.mod.DT_TEXP_TBEG, "difference in hours (possibly float) between the simulation start \n"
                                            "and experiment date (contained in file names) in each file, default is 0"),
             (OptionNames.mod.NOMVAR, "Variable name in the model output files, default is ETAS"),

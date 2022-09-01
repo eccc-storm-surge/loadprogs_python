@@ -485,7 +485,7 @@ def get_mod_twl_for_b2b(mod_data, config, mod_member_keys=("mod_",)):
     assert not any(df[constants.COLNAME_TIME].isna())
 
     # for b2b operations
-    select_crit = df[constants.COLNAME_VALID_HOUR] < config.b2b_freq_hours + config.b2b_blend_hours
+    select_crit = df[constants.COLNAME_VALID_HOUR] < config.b2b_max_lead_hours + config.b2b_blend_hours
     select_crit = select_crit & (df[constants.COLNAME_VALID_HOUR] >= config.b2b_min_lead_hour)  # remove t=0 if requested
     mod_data_twl = df.loc[select_crit, :]
 
@@ -539,7 +539,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     """
     df = mod_data.copy()
 
-    tmean = df.loc[(df["valid_hour"] < config.b2b_freq_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour), f"{station.station_id}_obs"].mean()
+    tmean = df.loc[(df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour), f"{station.station_id}_obs"].mean()
     df.loc[:, f"{station.station_id}_obs"] -= tmean
 
     logger.debug(f"tmean({station.station_id})={tmean}")
@@ -547,7 +547,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     # mean to be removed from each member calculated based on the control member, which is assumed
     # to be the first in the list
 
-    where_cond = (df["valid_hour"] < config.b2b_freq_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour)
+    where_cond = (df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour)
     tmean = df.loc[where_cond, mod_member_keys[0]].mean()
 
     for cn in mod_member_keys:

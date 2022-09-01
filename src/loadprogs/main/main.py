@@ -244,7 +244,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
             for c in mod_member_keys:
 
-
                 if config.mod_external_tides.exists():  # tides are provided externally
 
                     if config.mod_do_filtering:

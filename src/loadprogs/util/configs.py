@@ -52,7 +52,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     _config.mod_dir = Path(mod_config[OptionNames.mod.DATA_DIR]).expanduser()
 
-    _config.b2b_freq_hours = mod_config.getint(OptionNames.mod.B2B_FREQ_HOURS)
+    _config.b2b_max_lead_hours = mod_config.getint(OptionNames.mod.B2B_MAX_LEAD_HOUR)
+
     _config.b2b_blend_hours = mod_config.getint(OptionNames.mod.B2B_BLEND_HOURS, fallback=0) # blending period when stitching forecasts
     _config.run_freq_hours = mod_config.getint(OptionNames.mod.RUN_FREQ_HOURS)
     
@@ -179,6 +180,15 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
         _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     else:
         _config.remove_anal_period_mean = misc_config.getboolean("remove_analysis_period_mean", fallback=True)
+
+    # check if b2b_max_lead_hour is set
+    if _config.remove_anal_period_mean:
+        if _config.b2b_max_lead_hours is None:
+            msg = f"""{OptionNames.mod.B2B_MAX_LEAD_HOUR} not found in {config_path}
+                  (it was renamed from b2b_freq_hours, please update your configs) 
+                  """
+            logger.error(msg)
+            raise ValueError(msg)
 
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
 
