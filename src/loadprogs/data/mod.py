@@ -539,7 +539,8 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     """
     df = mod_data.copy()
 
-    tmean = df.loc[(df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour), f"{station.station_id}_obs"].mean()
+    crit = (df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour)
+    tmean = df.loc[crit, f"{station.station_id}_obs"].nanmean()
     df.loc[:, f"{station.station_id}_obs"] -= tmean
 
     logger.debug(f"tmean({station.station_id})={tmean}")

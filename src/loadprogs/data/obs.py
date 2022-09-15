@@ -537,7 +537,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
-            logger.info("raw obs data:\n%s\n", df.head())
+            logger.info("raw obs data from %s :\n%s\n", inp_file, df.head())
 
             twl_column_id = 5
 
