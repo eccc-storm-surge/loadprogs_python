@@ -455,10 +455,11 @@ def read_data_files(path_list,
 
     # logger.debug("TZ1=%s, TZ2=%s\n", type(t_origin.tzinfo), type(df["time"].iloc[0].tz))
 
-    df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds() // 3600).astype(int)
+    df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds()) / 3600.
     df["member_id"] = member_id
 
     return df
+
 
 def get_list_of_origin_dates(mod_data, run_freq_dt: timedelta):
     """
@@ -540,7 +541,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     df = mod_data.copy()
 
     crit = (df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour)
-    tmean = df.loc[crit, f"{station.station_id}_obs"].nanmean()
+    tmean = df.loc[crit, f"{station.station_id}_obs"].mean()
     df.loc[:, f"{station.station_id}_obs"] -= tmean
 
     logger.debug(f"tmean({station.station_id})={tmean}")

@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
+from joblib import Parallel, delayed
 # absolute import as it is supposed to be used as main (standalone launch script) only!
 from loadprogs.main.main import main as loadprogs_main
 
-from multiprocessing import Process
 import argparse
 from loadprogs.util import constants
 from loadprogs.util.log_utils import get_logger
@@ -28,7 +28,8 @@ def main(logger):
     parser.add_argument("-d", "--debug", action="store_true",
                         default=False, required=False)
 
-    parser.add_argument("--help_cfg", "--help-cfg", help="print list of configuration options (.cfg file) with descriptions and exit",
+    parser.add_argument("--help_cfg", "--help-cfg", 
+                        help="print list of configuration options (.cfg file) with descriptions and exit",
                         default=False, 
                         required=False, 
                         type=bool,
@@ -44,7 +45,6 @@ def main(logger):
                 vv = "\n".join(f"\t\t{line.strip()}" for line in v[vk].split("\n"))
                 print(f"""\t{vk}:\n{vv}\n""")
         return 0
-        
 
     cfg_paths = args.cfg_paths
 
@@ -52,16 +52,13 @@ def main(logger):
         logger.setLevel(logging.DEBUG)
 
     if not args.debug:
-        processes = []
-        pl = [Process(target=loadprogs_main, kwargs=dict(config_path=Path(p))) for p in cfg_paths]
-        processes.extend(pl)
-
-        for p in processes:
-            p.start()
+        delayed_loadprogs_main = delayed(loadprogs_main)
+        Parallel(n_jobs=len(cfg_paths))(
+            delayed_loadprogs_main(config_path=Path(p)) for p in cfg_paths
+        )
     else:
         for p in cfg_paths:
             loadprogs_main(config_path=Path(p))
-
 
 
 if __name__ == '__main__':
