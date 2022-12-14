@@ -616,7 +616,7 @@ def get_mod_indices_closest_to(stations: List[Station],
         if mask is None:
             logger.info("Mask was not found in the model files, assuming not masked field")
             mask = np.ones((meta["ni"], meta["nj"]), dtype=bool)
-            mask[bathy > bathy_limit] = True
+            mask[bathy <= bathy_limit] = False
             logger.info("Model field meta: ")
             logger.info(mask.shape)
             logger.info(meta)
