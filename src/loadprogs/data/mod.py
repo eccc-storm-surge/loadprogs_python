@@ -639,7 +639,10 @@ def get_mod_indices_closest_to(stations: List[Station],
                 lats.shape = lons.shape
                                       
         else:
-            raise NotImplementedError(f"Grid type is not supported yet: {grtyp}")
+            gd = rmn.readGrid(fin, meta_field)
+            gd_latlon = rmn.gdll(gd)
+            lats, lons = [gd_latlon[k] for k in ["lat", "lon"]]
+            
 
         if any([None is obj for obj in [lons, lats, mask, bathy]]):
             raise IOError(f"Not all required info was retrieved from the standard file: {mod_bathy_file}")
