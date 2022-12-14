@@ -60,6 +60,23 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --mod-bathy-vname Bathymetry \
                                                     --bathy-min-m 10
 
+    # giops
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in   /home/olh001/Python/obs_to_grid_mapping/giops/gdsps_global_obs_v1.0.2.obs \
+                                                --obs-index-out  /home/olh001/Python/obs_to_grid_mapping/giops/giops_global_obs_v1.0.2.obs \
+                                                --nnearest 1 \
+                                                --mod-files ~smco500/.suites/gdps/g1/constants/oce/repository/master/CONCEPTS/orca025/grids/bathy_ORCA025_LIM.nc \
+                                                --mod-bathy-vname Bathymetry \
+                                                --bathy-min-m 10
+
+    # riops
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in   /home/olh001/Python/obs_to_grid_mapping/giops/gdsps_global_obs_v1.0.2.obs \
+                                                --obs-index-out  /home/olh001/Python/obs_to_grid_mapping/riops/riops_global_obs_v1.0.2.obs \
+                                                --nnearest 1 \
+                                                --mod-files /home/smco502/datafiles/constants/cmde/riops/v2.0.0/grids/bathy_meter.nc \
+                                                --mod-bathy-vname Bathymetry \
+                                                --bathy-min-m 10 \
+                                                --dist-upper-bound 10000
+
 
 """
 import argparse
@@ -192,6 +209,8 @@ def main():
 
     station_id_to_mod_indices = {}
 
+    lons = None
+    lats = None
     if cmd_args.nnearest > 1:
         # load model data for the stations
         mod_raw = mod.get_mod_timeseries_closest_to(
@@ -204,7 +223,7 @@ def main():
 
     else:
         mod_raw = None
-        station_id_to_mod_indices = mod.get_mod_indices_closest_to(stations,
+        station_id_to_mod_indices, lons, lats = mod.get_mod_indices_closest_to(stations,
                                                                    mod_bathy_file=cmd_args.mod_files[0],
                                                                    mod_bathy_vname=cmd_args.mod_bathy_vname,
                                                                    dist_upper_bound=cmd_args.dist_upper_bound_m,
@@ -215,16 +234,18 @@ def main():
     }
 
     data = {
-        "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": []
+        "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": [],
     }
+
+    if lons is not None:
+        data["DATA.MODEL_LON"] = []
+        data["DATA.MODEL_LAT"] = []
 
     if mod_raw is None:
         if len(station_id_to_mod_indices) == 0:
             raise ValueError("No representative gridcells found")
-        
 
     for s in stations:
-
         # s = station_id_to_station[station_id]
         assert isinstance(s, Station)
 
@@ -288,9 +309,13 @@ def main():
 
         data["DATA.I"].append(i_sel + 1)
         data["DATA.J"].append(j_sel + 1)
+        data["DATA.MODEL_LON"].append(lons[i_sel, j_sel])
+        data["DATA.MODEL_LAT"].append(lats[i_sel, j_sel])
 
     # save data to an obs file
     col_order = ["ID", "NO", "LAT", "LON", "DATA.I", "DATA.J"]
+    if "DATA.MODEL_LON" in data:
+        col_order += ["DATA.MODEL_LON", "DATA.MODEL_LAT"]
     obs_file.save_dataframe_to_obs(pd.DataFrame.from_dict(data)[col_order], out_file=cmd_args.obs_index_out)
 
 

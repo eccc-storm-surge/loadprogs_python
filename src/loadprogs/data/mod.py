@@ -564,7 +564,7 @@ def get_mod_indices_closest_to(stations: List[Station],
                                mod_lat_vname="nav_lat",
                                mod_bathy_vname="Bathymetry",
                                bathy_limit=0,
-                               dist_upper_bound=None) -> dict:
+                               dist_upper_bound=None) -> (dict, np.ndarray, np.ndarray):
     """
     get closest indices to the stations based on the bathymetry file
 
@@ -685,7 +685,7 @@ def get_mod_indices_closest_to(stations: List[Station],
 
     logger.debug("\n station_id_to_indices: \n %s \n", station_id_to_indices)
 
-    return station_id_to_indices
+    return station_id_to_indices, lons, lats
 
 
 def get_mod_timeseries_closest_to(stations: List[Station], data_files: list,
