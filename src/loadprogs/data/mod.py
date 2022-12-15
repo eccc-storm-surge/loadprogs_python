@@ -563,7 +563,8 @@ def get_mod_indices_closest_to(stations: List[Station],
                                mod_lon_vname="nav_lon",
                                mod_lat_vname="nav_lat",
                                mod_bathy_vname="Bathymetry",
-                               bathy_limit=0,
+                               bathy_limit_min=None,
+                               bathy_limit_max=None,
                                dist_upper_bound=None) -> (dict, np.ndarray, np.ndarray):
     """
     get closest indices to the stations based on the bathymetry file
@@ -575,12 +576,25 @@ def get_mod_indices_closest_to(stations: List[Station],
         mod_bathy_file:
         mod_lon_vname:
         mod_lat_vname:
-        bathy_limit:
+        bathy_limit_max: all values of the bathymetry greater than bathy_limit_max will be masked.
+                         Do nothing if None [default]
+        bathy_limit_min: all values of the bathymetry lower than bathy_limit_min will be masked.
+                         do nothing if None [default]
 
     Returns:
         dict: station id to corresponding grid indices (0-based)
     """
     read_status_ok = False
+
+    if bathy_limit_min is None:
+        bathy_limit_min = -np.Inf
+    else:
+        logger.info(f"Bathymetry lower limit of {bathy_limit_min} will be applied to adjust the mask")
+
+    if bathy_limit_max is None:
+        bathy_limit_max = np.Inf
+    else:
+        logger.info(f"Bathymetry lower limit of {bathy_limit_max} will be applied to adjust the mask")
     
     fin = None
     try:
@@ -616,7 +630,7 @@ def get_mod_indices_closest_to(stations: List[Station],
         if mask is None:
             logger.info("Mask was not found in the model files, assuming not masked field")
             mask = np.ones((meta["ni"], meta["nj"]), dtype=bool)
-            mask[bathy <= bathy_limit] = False
+
             logger.info("Model field meta: ")
             logger.info(mask.shape)
             logger.info(meta)
@@ -659,12 +673,20 @@ def get_mod_indices_closest_to(stations: List[Station],
 
     # Try to read with netcdf reader
     if not read_status_ok:
+        logger.info("Trying to use netcdf interface")
         import xarray
         with xarray.open_dataset(mod_bathy_file) as ds:
             lons = ds[mod_lon_vname].values
             lats = ds[mod_lat_vname].values
             bathy = ds[mod_bathy_vname].values
-            mask = bathy > bathy_limit
+           
+            
+    # mask adjustment
+    mask[(bathy < bathy_limit_min) | (bathy > bathy_limit_max)] = False
+    assert mask.any(), (f"All grid cells are masked with the --bathy-min-m, --bathy-max-m: {bathy_limit_min, bathy_limit_max}, "
+                    f"bathymetry range in the file {bathy.min()}..{bathy.max()}")
+
+
     
     # Search for representative gridcells
     station_id_to_indices = {}

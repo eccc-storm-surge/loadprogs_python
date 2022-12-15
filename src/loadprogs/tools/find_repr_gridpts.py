@@ -141,7 +141,12 @@ def read_cmd_args():
     parser.add_argument("--bathy-min-m", required=False, type=float,
                         help="Minimum depth considered to be ocean "
                              "(i.e. do not consider points with bathymetry < bathy-min-m)",
-                        default=0)
+                        default=None)
+
+    parser.add_argument("--bathy-max-m", required=False, type=float,
+                    help="Maximum depth considered to be ocean "
+                         "(i.e. do not consider points with bathymetry > bathy-min-m)",
+                    default=None)
 
     args = parser.parse_args()
 
@@ -227,7 +232,8 @@ def main():
                                                                    mod_bathy_file=cmd_args.mod_files[0],
                                                                    mod_bathy_vname=cmd_args.mod_bathy_vname,
                                                                    dist_upper_bound=cmd_args.dist_upper_bound_m,
-                                                                   bathy_limit=cmd_args.bathy_min_m)
+                                                                   bathy_limit_min=cmd_args.bathy_min_m,
+                                                                   bathy_limit_max=cmd_args.bathy_max_m)
 
     station_id_to_station = {
         s.station_id: s for s in stations
