@@ -17,7 +17,7 @@ To load the scripts and modules into your environment:
 If you do not have your own python environment, the following could be used:
 
 ```
-. r.load.dot ~sssm001/ssm/surgepy/1.0.0
+. r.load.dot /fs/ssm/eccc/cmd/cmds/env/python/py39_2022.09.29_all
 ```
 
 To read model outputs from standard RPN files, `rpnpy` is used:
