@@ -381,6 +381,52 @@ def read_data_files_fst(path_list,
 
     return pd.DataFrame.from_dict(data_dict)
 
+def read_data_files_fst_fstpy(path_list,
+                              station_id_to_grid_indices: dict,
+                              mod_nomvar="ETAS", mod_typvar="P@") -> pd.DataFrame:
+    """
+    Read model data at points for given indices into a dataframe
+    Args:
+        path_list:
+        station_id_to_grid_indices:
+        mod_nomvar:
+
+    Returns:
+    """
+    import fstpy
+
+    df = fstpy.StandardFileReader(path_list, decode_metadata=True).to_pandas()
+
+    sel = (df.nomvar == mod_nomvar) & (df.typvar == mod_typvar)
+    df = df.loc[sel]
+
+    assert len(station_id_to_grid_indices), "Station id to grid indices mapping is empty"
+
+    df_list = []
+    for station_id, (i, j) in station_id_to_grid_indices.items():
+        df_point = df.copy()
+        df_point["d"] = df["d"].map(lambda field: field[i] if len(field.shape) == 1 else field[i, j])
+        df_point["station_id"] = station_id
+        df_list.append(df_point)
+
+    assert len(df_list) > 0, "No data for " \
+                             f"mod_typvar={mod_typvar}; " \
+                             f"mod_nomvar={mod_nomvar}; " \
+                             f"path_list={path_list}"
+
+    df_result = pd.concat(df_list)
+    df_result = fstpy.compute(df_result)
+
+    sel_columns = ["station_id", "time", "value"]
+    df_result = df_result.rename(
+        {"date_of_validity": "time", "d": "value"}, axis="columns")[sel_columns]
+    df_result["time"] = df_result["time"].dt.tz_localize(pytz.UTC)
+
+    return df_result
+
+
+
+
 
 def read_data_files_cdf(path_list,
                         station_id_to_grid_indices: dict,
@@ -452,7 +498,7 @@ def read_data_files(path_list,
     ftype = get_file_type(path_list[0])
     args = (path_list, station_id_to_grid_indices, mod_nomvar)
     if ftype == FILE_TYPE_FST:
-        df = read_data_files_fst(*args, mod_typvar=mod_typvar)
+        df = read_data_files_fst_fstpy(*args, mod_typvar=mod_typvar)
     elif ftype == FILE_TYPE_CDF:
         df = read_data_files_cdf(*args)
     else:
