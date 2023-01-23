@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
+import pytz
 from joblib import Parallel, delayed
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
@@ -119,7 +120,7 @@ def get_analysis_period_b2b_mean(stations, mod_data_path: Path,
             record_metas = [rmn.fstprm(k) for k in keys]
             vh_list = [int(rec["deet"] * rec["npas"] / 3600.) for rec in record_metas]
 
-            # filter the keys by date first first, if required
+            # filter the keys by date first, if required
             keys = [k for k, vh in zip(keys, vh_list) if 0 < vh <= b2b_nhours]
             record_metas = [meta for meta, vh in zip(record_metas, vh_list) if vh <= b2b_nhours]
 
@@ -356,7 +357,7 @@ def read_data_files_fst(path_list,
 
     assert len(keys) > 0, f"mod_typvar={mod_typvar}; mod_nomvar={mod_nomvar}; path_list={path_list}"
 
-    # filter the keys by date first first, if required
+    # filter the keys by date first, if required
     dates = [RPNDate(rmn.fstprm(k)["datev"]).toDateTime() for k in keys]
 
     records = [rmn.fstluk(k) for k in keys]
@@ -364,10 +365,10 @@ def read_data_files_fst(path_list,
     # take into account 1d fields, needed for M-grid
     for r in records:
         if len(r["d"].shape) == 1:
-            r["d"].shape += (1, ) 
+            r["d"].shape += (1, )
 
     for station_id, (i, j) in station_id_to_grid_indices.items():
-        
+
         data_dict["value"].extend([rec["d"][i, j] for rec in records])
         data_dict["station_id"].extend([station_id] * len(records))
         data_dict["time"].extend(dates)
@@ -432,7 +433,7 @@ def read_data_files_cdf(path_list,
 
 
 def read_data_files(path_list,
-                    station_id_to_grid_indices: dict,
+                    station_id_to_grid_indices: dict[str, tuple[int]],
                     mod_nomvar="ETAS", mod_typvar="P@",
                     t_origin=None, member_id=""
                     ) -> pd.DataFrame:
