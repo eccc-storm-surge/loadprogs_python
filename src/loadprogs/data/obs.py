@@ -392,6 +392,7 @@ def read_station_metadata(station_info: Path) -> pd.DataFrame:
         raise ValueError(f"Not supported type of the station info file, please change the extension and"
                          f" reformat if required: {station_info.name}")
 
+    logger.info("Station info \n %s",info)
     return info
 
 
@@ -580,6 +581,7 @@ def load_station_data_from_txt_dir(station_records, config):
 
         real_ids_to_dfs[inp_file_st_id] = df
 
+    assert len(real_ids_to_dfs) > 0, f"did not find any observations in {config.obs_dir}"
     return real_ids_to_dfs
 
 
