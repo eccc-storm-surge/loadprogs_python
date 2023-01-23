@@ -251,9 +251,12 @@ def get_mod_timeseries(mod_data_path: Path,
 
     assert None not in [start_time, end_time], "You should specify the first and the last experiment dates"
 
+    start_time = pd.Timestamp(start_time)
+    end_time = pd.Timestamp(end_time)
+
     # data_dict = {"station_id": [], "value": [], "time": [], "valid_hour": [], "member_id": []}
 
-    dt_run_freq = timedelta(hours=run_freq_hours)
+    dt_run_freq = pd.Timedelta(hours=run_freq_hours)
     n_exp = (end_time - start_time).total_seconds() // dt_run_freq.total_seconds() + 1
     n_exp = int(n_exp)
 
@@ -296,7 +299,8 @@ def get_mod_timeseries(mod_data_path: Path,
 
     # read actual data in parallel
     with Parallel(n_jobs=nprocs) as parallel:
-        df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar, mod_typvar=mod_typvar, **inp) for inp in input_list)
+        df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar,
+                                                    mod_typvar=mod_typvar, **inp) for inp in input_list)
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
