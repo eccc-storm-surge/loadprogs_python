@@ -261,7 +261,7 @@ def get_mod_timeseries(mod_data_path: Path,
     n_exp = int(n_exp)
 
     logger.setLevel(logging.DEBUG)
-    logger.debug(f"n_exp={n_exp}; type(n_exp)={type(n_exp)}")
+    logger.debug(f"n_exp={n_exp};")
 
     exp_t_list = [start_time + i * dt_run_freq for i in range(n_exp)]
     # logger.debug(exp_t_list)
