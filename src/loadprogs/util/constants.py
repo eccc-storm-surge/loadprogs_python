@@ -54,6 +54,10 @@ def get_help():
     """
     
     return OrderedDict([
+        # common for obs and mod
+        ("common", OrderedDict([
+            (OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified")
+        ])),
         ("mod", OrderedDict([
             (OptionNames.mod.MOD_BEG_DATE, r"Date of the first model experiment to process (inclusive), format %Y%m%d%H"),
             (OptionNames.mod.MOD_END_DATE, r"Date of the last model experiment to process (inclusive), format %Y%m%d%H"), 
@@ -68,7 +72,7 @@ def get_help():
                                      default is 0"""),
             (OptionNames.mod.DETIDE_CONSTITUENTS, """Comma-separated list of constituents,
                                                   default None - constituents determined automatically"""),
-            (OptionNames.mod.TYPVAR, "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *")
+            (OptionNames.mod.TYPVAR, "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *"),
         ])), 
         ("obs", OrderedDict([
             (OptionNames.obs.OBS_DATATYPE, "Type of observation files, possible values: txt (default), sqlite"),

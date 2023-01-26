@@ -49,7 +49,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.end_time_mod = datetime.strptime(
         mod_config.get(OptionNames.mod.MOD_END_DATE, fallback=dummy_date), "%Y%m%d%H").replace(tzinfo=pytz.utc)
 
-    assert _config.end_time_mod >= _config.beg_time_mod, f"{OptionNames.mod.MOD_BEG_DATE} should be less or equal than {OptionNames.mod.MOD_END_DATE}"
+    assert _config.end_time_mod >= _config.beg_time_mod, \
+            f"{OptionNames.mod.MOD_BEG_DATE} should be less or equal than {OptionNames.mod.MOD_END_DATE}"
 
     _config.mod_dir = Path(mod_config[OptionNames.mod.DATA_DIR]).expanduser()
 
