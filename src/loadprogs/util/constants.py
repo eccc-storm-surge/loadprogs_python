@@ -18,12 +18,12 @@ class OptionNames(object):
         OBS_BEG_DATE = "datestart_obs"
         OBS_END_DATE = "dateend_obs"
         OBS_VARIABLE_ID = "variable_id" # for canhys to select needed variables from dataset
-
+        
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"
         MOD_END_DATE = "dateend_mod"
         DATA_DIR = "mod_dir"
-        B2B_MAX_LEAD_HOUR = "b2b_max_lead_hour"  # strict, i.e not including
+        B2B_MAX_LEAD_HOUR = "b2b_max_lead_hour"  # strict, i.e not including 
         B2B_BLEND_HOURS = "b2b_blend_hours"
         B2B_MIN_LEAD_HOUR = "b2b_min_lead_hour"
         RUN_FREQ_HOURS = "run_freq_hours"
@@ -39,7 +39,10 @@ class OptionNames(object):
         EXTERNAL_DEBIAS = "mod_external_debias"
         EXTERNAL_DEBIAS_AVG_NHOURS = "mod_external_debias_avg_nhours"
         READ_NPROCS = "mod_read_nprocs"
+        
 
+    class common(object):
+        DETIDE_MIN_TIDE_FREQ_HZ = "detide_min_tide_frequency_hz" # non-inclusive to allow excluding Sa Ssa constituents
 
     class misc(object):
         pass

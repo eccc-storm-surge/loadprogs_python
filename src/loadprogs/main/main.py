@@ -117,6 +117,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     # Load obs (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_obs_dir(config)
+    
 
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
@@ -185,7 +186,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         if config.detide_obs:
             try:
 
-                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering, constituents=config.detide_obs_constituents)
+                obs_data = s.get_detided_series(do_filtering=config.obs_do_filtering, 
+                                                constituents=config.detide_obs_constituents)
 
                 n_valid_obs = len(obs_data.dropna())
                 if n_valid_obs < config.min_nhours_for_detiding_obs:
@@ -265,7 +267,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                         data=mod_data_twl.loc[:, c].to_frame(),
                         latitude=s.latitude,
                         constituents=config.detide_mod_constituents,
-                        do_filtering=config.mod_do_filtering, do_cleanup=True)
+                        do_filtering=config.mod_do_filtering, do_cleanup=False, 
+                        detide_min_frequency_hz=config.mod_detide_min_tide_frequency_hz)
+
                 # remove longterm mean
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()
 

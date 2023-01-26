@@ -4,6 +4,7 @@ import logging
 from argparse import Namespace
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+import numpy as np
 
 import pytz
 
@@ -71,12 +72,19 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
         _config.mod_typvar = " "
 
     _config.detide_mod = mod_config.getboolean(OptionNames.mod.DETIDE, fallback=False)
-    _config.detide_mod_constituents = mod_config.get(OptionNames.mod.DETIDE_CONSTITUENTS, fallback=None)
+    if _config.detide_mod:
+        _config.detide_mod_constituents = mod_config.get(OptionNames.mod.DETIDE_CONSTITUENTS, fallback=None)
 
-    if _config.detide_mod_constituents is not None:
-        _config.detide_mod_constituents = [tok.strip() for tok in _config.detide_mod_constituents.split(",")]
+        if _config.detide_mod_constituents is not None:
+            _config.detide_mod_constituents = [tok.strip() for tok in _config.detide_mod_constituents.split(",")]
 
-    _config.mod_do_filtering = mod_config.getboolean(OptionNames.mod.DETIDE_FILTERING, fallback=False)
+        _config.mod_do_filtering = mod_config.getboolean(OptionNames.mod.DETIDE_FILTERING, fallback=False)
+
+        # minimum tide frequency to consider when detiding
+        _config.mod_detide_min_tide_frequency_hz = mod_config.getfloat(
+            OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+
+
     _config.n_members = mod_config.getint(OptionNames.mod.N_MEMBERS, fallback=0)
 
     # typos and backward compatibility
@@ -146,15 +154,25 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
         _config.translator_path = _config.translator_path.expanduser()
         _config.variable_id = obs_config.getint(OptionNames.obs.OBS_VARIABLE_ID, fallback=100) # 100 - water lev, 200 - streamflow , 300- temperature
 
-    _config.detide_obs = obs_config.getboolean("detide_obs", fallback=True)
-    _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
-    _config.detide_obs_constituents = obs_config.get("detide_obs_constituents", fallback=None)
-    if _config.detide_obs_constituents is not None:
-        _config.detide_obs_constituents = [tok.strip() for tok in _config.detide_obs_constituents.split(",")]
+    _config.detide_obs = obs_config.getboolean("detide_obs", fallback=False)
+
+    if _config.detide_obs:
+        _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
+        _config.detide_obs_constituents = obs_config.get("detide_obs_constituents", fallback=None)
+        if _config.detide_obs_constituents is not None:
+            _config.detide_obs_constituents = [tok.strip() for tok in _config.detide_obs_constituents.split(",")]
+
+        
+        
+        _config.min_nhours_for_detiding_obs = obs_config.getint("min_nhours_for_detiding",
+                                                                fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
 
 
-    _config.min_nhours_for_detiding_obs = obs_config.getint("min_nhours_for_detiding",
-                                                            fallback=MIN_NHOURS_FOR_DETIDING_DEFAULT)
+        # minimum tide frequency to consider when detiding
+        _config.obs_detide_min_tide_frequency_hz = obs_config.getfloat(
+            OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+
+
 
     # --------------------------------------------
 

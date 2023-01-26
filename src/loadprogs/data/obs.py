@@ -11,18 +11,24 @@ import pandas as pd
 
 import numpy as np
 from ttide.t_tidec import t_tide
+from ttide import t_predic
 from . import utils
 from ..util import log_utils
 
 logger = log_utils.get_logger(__name__)
 
 def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=0.5,
-                                do_cleanup=False):
+                                do_cleanup=False, detide_min_frequency_hz=-np.Inf):
+    """
+    detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
+    """
+
     # Make sure the total water level column can be found
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
-    s = Station(do_filtering=do_filtering, station_info={"lat": latitude}, do_cleanup=do_cleanup)
+    s = Station(do_filtering=do_filtering, station_info={"lat": latitude}, do_cleanup=do_cleanup,
+                detide_min_frequency_hz=detide_min_frequency_hz)
 
     s.data = data_
     s.get_detided_series(do_filtering=do_filtering, constituents=constituents, ray=ray)
@@ -61,7 +67,9 @@ class Station(object):
             # remove duplicate dates in index before converting to frequency
             self._data = self._data[~self._data.index.duplicated()]  # just in case
 
-    def __init__(self, data_file=None, do_filtering=False, station_info=None, do_cleanup=True):
+
+    def __init__(self, data_file=None, do_filtering=False, station_info=None, 
+                       do_cleanup=True, detide_min_frequency_hz=-np.Inf):
         """[summary]
 
         Args:
@@ -69,9 +77,11 @@ class Station(object):
             do_filtering (bool, optional): [description]. Defaults to False.
             station_info ([type], optional): [description]. Defaults to None.
             do_cleanup (bool, optional): If True perform data cleanup before detiding. Defaults to True.
+            detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
         """
         self.nlines_for_header = 6
         self.data_file = data_file
+        self.detide_min_freq_hz = detide_min_frequency_hz
 
         # station attributes
         self.station_id = None
@@ -259,6 +269,8 @@ class Station(object):
 
         """
 
+        synth = 0
+
         if constituents is None:
             constituents = []
 
@@ -283,16 +295,45 @@ class Station(object):
         # logger.debug(f"Before t_tide: v.shape={v.shape}")
         con = t_tide(v,
                      dt=computed_dt.total_seconds() / 3600.,
-                     synth=0,
+                     synth=synth,
                      lat=self.latitude,
                      ray=ray,
                      constitnames=constituents,
                      stime=clean_data.index[0],
                      out_style=None)
 
-        v_notide = v - con["xout"].squeeze()
+        fu = con["fu"]
+        nu = con["nameu"]
+        tc = con["tidecon"]
+        
+        print("fu = ", con["fu"])
+        print("nameu = ", con["nameu"])
+        
+        if (fu <= self.detide_min_freq_hz).any():
+            sel = fu > self.detide_min_freq_hz
+            logger.info("fu all: %s", fu)
+            logger.info("fu selected: %s", fu[sel])
 
+            con["fu"] = fu[sel]
+            con["nameu"] = nu[sel]
+            con["tidecon"] = tc[sel, :] 
+
+            con["xout"] = t_predic(
+                con["stime"] + np.array([range(con["nobs"])]) * con["dt"] / 24.0,
+                con["nameu"], con["fu"], con["tidecon"], synth=synth, 
+                lat=self.latitude
+            )
+
+            print("update -- ")
+            print("fu = ", con["fu"])
+            print("nameu = ", con["nameu"])
+        
+
+        v_notide = v - con["xout"].squeeze()
+        
         # logger.debug("v_notide: \n %s \n", v_notide)
+
+        v_notide_filtered = v_notide
 
         filtered_part = 0
         # filter
@@ -329,9 +370,7 @@ class Station(object):
 
             filtered_part = filters1 + filters2 + filters3
             v_notide_filtered = v_notide - filters1 - filters2 - filters3
-        else:
-            v_notide_filtered = v_notide
-
+        
         self.data["twl-mean"] = v
         self.data["detided"] = v_notide_filtered
 
@@ -411,7 +450,9 @@ def load_station_data_from_obs_dir(config):
 
     # initialize list of stations without data added yet
 
-    stations = [Station(do_filtering=config.obs_do_filtering, station_info=st_info_recs[st_id])
+    stations = [Station(do_filtering=config.obs_do_filtering, 
+                        station_info=st_info_recs[st_id], 
+                        detide_min_frequency_hz=config.obs_detide_min_tide_frequency_hz)
                     .assign_data(obs_st_ids_to_data[st_id])
                     .remove_data_before(config.beg_time_obs)
                     .remove_data_after(config.end_time_obs)
