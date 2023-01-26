@@ -418,7 +418,7 @@ def read_data_files_fst_fstpy(path_list,
     i_a, j_a = list(zip(*[station_id_to_grid_indices[s] for s in stid_a]))
     
     d_a = array.stack(field for field in df["d"]) # time, i, j
-    d_a = d_a.vindex[:, i_a, j_a].T.compute() # time, station
+    d_a = d_a.vindex[:, i_a, j_a].compute() # time, station
 
     for station_id, values in zip(stid_a, d_a):
         df_point = df.copy()
