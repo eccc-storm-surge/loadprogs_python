@@ -1,12 +1,11 @@
 from datetime import timedelta
 from pathlib import Path
-
+from typing import Tuple
 import pandas as pd
 import pytz
 from joblib import Parallel, delayed
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
-
 from . import obs
 from typing import List
 
@@ -297,10 +296,19 @@ def get_mod_timeseries(mod_data_path: Path,
             )
             input_list.append(kwargs)
 
+    if debug:
+        logger.debug("Debug mode -> using a single proc for reading.")
+        nprocs = 1
+
+    
     # read actual data in parallel
-    with Parallel(n_jobs=nprocs) as parallel:
-        df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar,
-                                                    mod_typvar=mod_typvar, **inp) for inp in input_list)
+    if not debug:
+        with Parallel(n_jobs=nprocs) as parallel:
+            df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar,
+                                                        mod_typvar=mod_typvar, **inp) for inp in input_list)
+    else:
+        df_list = [read_data_files(mod_nomvar=mod_nomvar,
+                                   mod_typvar=mod_typvar, **inp) for inp in input_list]
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
@@ -616,7 +624,7 @@ def get_mod_indices_closest_to(stations: List[Station],
                                mod_bathy_vname="Bathymetry",
                                bathy_limit_min=None,
                                bathy_limit_max=None,
-                               dist_upper_bound=None) -> (dict, np.ndarray, np.ndarray):
+                               dist_upper_bound=None) -> Tuple[dict, np.ndarray, np.ndarray]:
     """
     get closest indices to the stations based on the bathymetry file
 
@@ -730,6 +738,10 @@ def get_mod_indices_closest_to(stations: List[Station],
             lons = ds[mod_lon_vname].values
             lats = ds[mod_lat_vname].values
             bathy = ds[mod_bathy_vname].values
+            if np.ma.is_masked(bathy):
+                mask = ~bathy.mask
+            else:
+                mask = np.ones(bathy.shape, dtype=bool) 
            
             
     # mask adjustment
