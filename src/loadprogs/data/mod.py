@@ -402,6 +402,7 @@ def read_data_files_fst_fstpy(path_list,
     Returns:
     """
     import fstpy
+    from dask import array
 
     df = fstpy.StandardFileReader(path_list, decode_metadata=True).to_pandas()
 
@@ -410,10 +411,18 @@ def read_data_files_fst_fstpy(path_list,
 
     assert len(station_id_to_grid_indices), "Station id to grid indices mapping is empty"
 
+
     df_list = []
-    for station_id, (i, j) in station_id_to_grid_indices.items():
+
+    stid_a = list(station_id_to_grid_indices)
+    i_a, j_a = list(zip(*[station_id_to_grid_indices[s] for s in stid_a]))
+    
+    d_a = array.stack(field for field in df["d"]) # time, i, j
+    d_a = d_a.vindex[:, i_a, j_a].T.compute() # time, station
+
+    for station_id, values in zip(stid_a, d_a):
         df_point = df.copy()
-        df_point["d"] = df["d"].map(lambda field: field[i] if len(field.shape) == 1 else field[i, j])
+        df_point["d"] = values
         df_point["station_id"] = station_id
         df_list.append(df_point)
 
@@ -423,7 +432,6 @@ def read_data_files_fst_fstpy(path_list,
                              f"path_list={path_list}"
 
     df_result = pd.concat(df_list)
-    df_result = fstpy.compute(df_result)
 
     sel_columns = ["station_id", "time", "value"]
     df_result = df_result.rename(
@@ -431,8 +439,6 @@ def read_data_files_fst_fstpy(path_list,
     df_result["time"] = df_result["time"].dt.tz_localize(pytz.UTC)
 
     return df_result
-
-
 
 
 
