@@ -77,6 +77,14 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                 --bathy-min-m 10 \
                                                 --dist-upper-bound 10000
 
+    # gdsps old bathy for Anna
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/olh001/Python/obs_to_grid_mapping/giops/giops_global_obs_v1.0.2.obs \
+                                                    --obs-index-out /home/olh001/Python/obs_to_grid_mapping/giops/gdsps_global_obs_v1.0.2.obs \
+                                                    --nnearest 1 \
+                                                    --mod-files /home/sssm001/data/ppp5/u1/data/ppp4/maestro_hubs/gdsps/AC2019040512/pseudo-analysis/gridpt/forecast/gdsps/2019040509_001_1h \
+                                                    --mod-bathy-vname SSH
+
+
 
 """
 import argparse
