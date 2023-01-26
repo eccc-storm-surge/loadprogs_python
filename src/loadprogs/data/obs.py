@@ -67,6 +67,7 @@ class Station(object):
             # remove duplicate dates in index before converting to frequency
             self._data = self._data[~self._data.index.duplicated()]  # just in case
 
+            self.quality_control()
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None, 
                        do_cleanup=True, detide_min_frequency_hz=-np.Inf):
@@ -110,6 +111,23 @@ class Station(object):
 
         # whether to perform or not data cleanup before detiding
         self.do_cleanup = do_cleanup
+
+    def quality_control(self):
+        """
+        Try to remove spikes
+        """
+        h = self._data["twl"]
+        # IQR
+        Q1 = np.percentile(h, 25, interpolation = 'midpoint')
+        Q3 = np.percentile(h, 75, interpolation = 'midpoint')
+        IQR = Q3 - Q1
+
+        upper = Q3 + 2 * IQR
+        lower = Q1 - 2 * IQR
+        
+        crit = (lower <= h) & (h <= upper)
+        self._data.loc[~crit, "twl"] = np.nan
+
 
     def assign_data(self, df):
         self.data = df
