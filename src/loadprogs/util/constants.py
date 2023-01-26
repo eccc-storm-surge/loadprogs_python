@@ -81,5 +81,6 @@ def get_help():
         ])),
         ("misc", OrderedDict([
 
-        ]))
+        ])),
+
     ])
