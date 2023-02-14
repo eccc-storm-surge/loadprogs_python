@@ -198,10 +198,7 @@ def read_cmd_args():
     return args
 
 
-def main():
-
-    cmd_args = read_cmd_args()
-
+def work(cmd_args: argparse.Namespace):
     # parameters for the observations
     config = argparse.Namespace()
     config.station_info = cmd_args.obs_index_in
@@ -216,7 +213,8 @@ def main():
         stations = obs.load_station_data_from_obs_dir(config)
 
         if len(stations) == 0:
-            raise IOError(f"No obs data found in {config.obs_dir} \n If you are not optimizing gamma squared you can ommit this option: --obs-dir")
+            raise IOError(f"No obs data found in {config.obs_dir} \n "
+                           "If you are not optimizing gamma squared you can ommit this option: --obs-dir")
     else:
         stations = obs.load_station_data_from_obs_file(config.station_info)
 
@@ -331,6 +329,11 @@ def main():
     if "DATA.MODEL_LON" in data:
         col_order += ["DATA.MODEL_LON", "DATA.MODEL_LAT"]
     obs_file.save_dataframe_to_obs(pd.DataFrame.from_dict(data)[col_order], out_file=cmd_args.obs_index_out)
+
+
+def main():
+    cmd_args = read_cmd_args()
+    work(cmd_args=cmd_args)
 
 
 if __name__ == '__main__':
