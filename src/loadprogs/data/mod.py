@@ -630,7 +630,8 @@ def get_mod_indices_closest_to(stations: List[Station],
                                mod_bathy_vname="Bathymetry",
                                bathy_limit_min=None,
                                bathy_limit_max=None,
-                               dist_upper_bound=None) -> Tuple[dict, np.ndarray, np.ndarray]:
+                               dist_upper_bound=None, 
+                               min_lake_size_grdpts=0) -> Tuple[dict, np.ndarray, np.ndarray]:
     """
     get closest indices to the stations based on the bathymetry file
 
@@ -645,6 +646,8 @@ def get_mod_indices_closest_to(stations: List[Station],
                          Do nothing if None [default]
         bathy_limit_min: all values of the bathymetry lower than bathy_limit_min will be masked.
                          do nothing if None [default]
+        min_lake_size_grdpts: minimum size of isolated lakes to consider
+                              diagonal connections are ignored.
 
     Returns:
         dict: station id to corresponding grid indices (0-based)
@@ -668,7 +671,7 @@ def get_mod_indices_closest_to(stations: List[Station],
         lons = None
         lats = None
 
-        fin = rmn.fstopenall(mod_bathy_file)
+        fin = rmn.fstopenall(str(mod_bathy_file))
 
         keys = rmn.fstinl(fin, nomvar=mod_bathy_vname)
 
@@ -755,6 +758,16 @@ def get_mod_indices_closest_to(stations: List[Station],
     assert mask.any(), (f"All grid cells are masked with the --bathy-min-m, --bathy-max-m: {bathy_limit_min, bathy_limit_max}, "
                     f"bathymetry range in the file {bathy.min()}..{bathy.max()}")
 
+
+    if min_lake_size_grdpts > 0:
+        from skimage.measure import label
+        labels = label(mask, connectivity=1)
+        max_label = labels.max()
+
+        for i in range(max_label + 1):
+            sel = labels == i
+            if sel.sum() < min_lake_size_grdpts:
+                mask[sel] = False
 
     
     # Search for representative gridcells
