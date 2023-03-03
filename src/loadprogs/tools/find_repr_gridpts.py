@@ -156,6 +156,12 @@ def read_cmd_args():
                          "(i.e. do not consider points with bathymetry > bathy-min-m)",
                     default=None)
 
+    parser.add_argument("--min-lake-size-grdpts", required=False, type=int,
+                        help="Minimum isolated lake size to be considered"
+                        " (default=0, i.e. consider all lakes)",
+                        default=0)
+
+
     args = parser.parse_args()
 
     args.do_filtering = False
@@ -239,7 +245,8 @@ def work(cmd_args: argparse.Namespace):
                                                                    mod_bathy_vname=cmd_args.mod_bathy_vname,
                                                                    dist_upper_bound=cmd_args.dist_upper_bound_m,
                                                                    bathy_limit_min=cmd_args.bathy_min_m,
-                                                                   bathy_limit_max=cmd_args.bathy_max_m)
+                                                                   bathy_limit_max=cmd_args.bathy_max_m,
+                                                                   min_lake_size_grdpts=cmd_args.min_lake_size_grdpts)
 
     station_id_to_station = {
         s.station_id: s for s in stations
