@@ -329,9 +329,6 @@ class Station(object):
         
         if (fu <= self.detide_min_freq_hz).any():
             sel = fu > self.detide_min_freq_hz
-            logger.info("fu all: %s", fu)
-            logger.info("fu selected: %s", fu[sel])
-
             con["fu"] = fu[sel]
             con["nameu"] = nu[sel]
             con["tidecon"] = tc[sel, :] 
