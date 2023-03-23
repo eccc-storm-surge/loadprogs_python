@@ -324,8 +324,8 @@ class Station(object):
         nu = con["nameu"]
         tc = con["tidecon"]
         
-        print("fu = ", con["fu"])
-        print("nameu = ", con["nameu"])
+        # print("fu = ", con["fu"])
+        # print("nameu = ", con["nameu"])
         
         if (fu <= self.detide_min_freq_hz).any():
             sel = fu > self.detide_min_freq_hz
@@ -342,9 +342,9 @@ class Station(object):
                 lat=self.latitude
             )
 
-            print("update -- ")
-            print("fu = ", con["fu"])
-            print("nameu = ", con["nameu"])
+            # print("update -- ")
+            # print("fu = ", con["fu"])
+            # print("nameu = ", con["nameu"])
         
 
         v_notide = v - con["xout"].squeeze()
