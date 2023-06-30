@@ -32,7 +32,7 @@ import logging
 import numpy as np
 import sqlite3
 import pandas as pd
-
+import csv
 from datetime import timedelta
 from pathlib import Path
 
@@ -113,12 +113,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     # valid_hour, station_id, lat, lon, date_of_validity, obs_value, mod_value_1, ..., mod_value_n
     member_ids = ["{:03d}".format(i) for i in range(config.n_members)] if config.n_members >= 1 else [""]
-    out_line_format = "{:.7f} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
+    # out_line_format = "{:.7f} {:<7} {:.7f} {:.7f} {:<10} {:.7f}" + " {:.7f}" * len(member_ids) + "\n"
 
     # Load obs (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_obs_dir(config)
-    
 
+    
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
     station_to_model_grid_map = mod.map_stations_to_grid_indices(stations, config.station_info,
@@ -414,33 +414,82 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         logger.debug(f"Resulting dataframe:\n{mod_data.head()}")
 
         if config.output_txt:
-            with config.out_file.open("a") as fout:
-                for row_index, row in mod_data.iterrows():
-                    line = out_line_format.format(
-                        row[constants.COLNAME_VALID_HOUR],
-                        s.station_id,
-                        s.latitude, s.longitude,
-                        row[constants.COLNAME_TIME].strftime(constants.OUT_TIME_FORMAT),
-                        row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
-                    )
-                    fout.write(line)
+            mod_data["station_id"] = s.station_id
+            mod_data["latitude"] = s.latitude
+            mod_data["longitude"] = s.longitude
+
+            sel_columns = [
+                constants.COLNAME_VALID_HOUR,
+                "station_id",
+                "latitude",
+                "longitude",
+                constants.COLNAME_TIME,
+                f"{s.station_id}_obs"
+            ] + mod_member_keys
+
+            # apply reference level shift to the model data
+            if current_mod_ref_shift is not None:
+                for c in mod_member_keys:
+                    mod_data[c] -= current_mod_ref_shift 
+            
+            mod_data.to_csv(config.out_file,
+                            mode="a", 
+                            columns=sel_columns,
+                            float_format="%.7f",
+                            date_format=constants.OUT_TIME_FORMAT,
+                            na_rep=str(np.nan),
+                            index=False, header=False, 
+                            quoting=csv.QUOTE_NONE)
+
+            # with config.out_file.open("a") as fout:
+            #     for row_index, row in mod_data.iterrows():
+            #         line = out_line_format.format(
+            #             row[constants.COLNAME_VALID_HOUR],
+            #             s.station_id,
+            #             s.latitude, s.longitude,
+            #             row[constants.COLNAME_TIME].strftime(constants.OUT_TIME_FORMAT),
+            #             row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
+            #         )
+            #         fout.write(line)
 
             # write tides in a separate file
             if len(member_id_to_mod_tides) > 0:
+                
+                df_tides = pd.DataFrame.from_dict({
+                    constants.COLNAME_TIME: member_id_to_mod_tides[mod_member_keys[0]].index,
+                })
 
-                with tides_file.open("a") as fout:
-                    # assuming all the members have the same index
-                    t_arr = member_id_to_mod_tides[mod_member_keys[0]].index
-                    for t in t_arr:
-                        line = out_line_format.format(
-                            0,
-                            s.station_id,
-                            s.latitude, s.longitude,
-                            t.strftime(constants.OUT_TIME_FORMAT),
-                            -1.0,  # TODO: put observed tides in here
-                            *[member_id_to_mod_tides[k][t] for k in mod_member_keys]
-                        )
-                        fout.write(line)
+                df_tides[constants.COLNAME_VALID_HOUR] = 0.
+                df_tides["station_id"] = s.station_id
+                df_tides["latitude"] = s.latitude
+                df_tides["longitude"] = s.longitude
+                df_tides[f"{s.station_id}_obs"] = -1.0
+                for k in mod_member_keys:
+                    df_tides[k] = member_id_to_mod_tides[k].values
+
+                df_tides.to_csv(tides_file,
+                    mode="a", 
+                    columns=sel_columns,
+                    float_format="%.7f",
+                    date_format=constants.OUT_TIME_FORMAT,
+                    na_rep=str(np.nan),
+                    index=False, header=False, 
+                    quoting=csv.QUOTE_NONE)
+
+
+                # with tides_file.open("a") as fout:
+                #     # assuming all the members have the same index
+                #     t_arr = member_id_to_mod_tides[mod_member_keys[0]].index
+                #     for t in t_arr:
+                #         line = out_line_format.format(
+                #             0,
+                #             s.station_id,
+                #             s.latitude, s.longitude,
+                #             t.strftime(constants.OUT_TIME_FORMAT),
+                #             -1.0,  # TODO: put observed tides in here
+                #             *[member_id_to_mod_tides[k][t] for k in mod_member_keys]
+                #         )
+                #         fout.write(line)
 
         if config.output_sqlite:
             mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)

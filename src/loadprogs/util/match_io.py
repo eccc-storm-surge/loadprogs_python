@@ -57,5 +57,19 @@ def read_dat(fp: Path, date_format="%Y%m%d%H", tz=pytz.utc):
         1: str
     }
 
-    df = pd.read_csv(fp, sep=r"\s+", header=None, converters=converters)
+    sep_list = [r"\s+", ","]
+    # try using different separators
+    ve_save = None
+    for sep in sep_list:
+        try:
+            df = pd.read_csv(fp, sep=sep, header=None, converters=converters)
+            ve_save = None
+            break
+        except ValueError as ve:
+            ve_save = ve
+
+    if ve_save is not None:
+        raise ve_save
+    
+    
     return df.rename(col_index_to_name_map, axis=1, copy=False)
