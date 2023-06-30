@@ -384,13 +384,16 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                                                                 run_freq_dt=timedelta(hours=config.run_freq_hours))
 
         if not config.keep_nan:
-            logger.debug("mod_data (before dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
+            logger.debug("mod_data (before dropna): \n %s \n", 
+                         mod_data[mod_member_keys[0]].head())
             mod_data.dropna(inplace=True)
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].head())
-            logger.debug("mod_data (after dropna): \n %s \n", mod_data[mod_member_keys[0]].describe())
+            logger.debug("mod_data (after dropna): \n %s \n", 
+                         mod_data[mod_member_keys[0]].head())
+            logger.debug("mod_data (after dropna): \n %s \n", 
+                         mod_data[mod_member_keys[0]].describe())
 
         # remove analysis period mean from the mod and obs
-        if config.remove_anal_period_mean and len(mod_data) > 0:
+        if config.remove_analysis_period_mean and len(mod_data) > 0:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s,
                                                        mod_member_keys=mod_member_keys, config=config)
 
