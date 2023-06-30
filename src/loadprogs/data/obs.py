@@ -469,7 +469,11 @@ class Station(object):
             # b3, a3 = signal.butter(3, [2.0 / 7.0, 2.0 / 6.0], btype="band")
 
             v_to_filter = v_notide.copy()
-            v_to_filter[np.isnan(v_notide)] = 0.0
+            where_nans = np.isnan(v_notide)
+            if np.any(~where_nans):
+                v_to_filter[where_nans] = v_to_filter[~where_nans].mean()
+            else:
+                v_to_filter[where_nans] = 0.0
 
             pad_type = "odd"
             filters1 = signal.sosfiltfilt(sos1, v_to_filter, padtype=pad_type)
