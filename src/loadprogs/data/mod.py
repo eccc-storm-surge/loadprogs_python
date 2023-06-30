@@ -7,7 +7,7 @@ from joblib import Parallel, delayed
 from pykdtree.kdtree import KDTree
 from rpnpy.librmn.interp import EzscintError
 from . import obs
-from typing import List
+from typing import List, Dict
 
 from rpnpy.librmn import all as rmn
 from rpnpy.rpndate import RPNDate
@@ -938,6 +938,31 @@ def debias(mod_data: pd.DataFrame, debias_data: pd.DataFrame,
     for c in mod_member_keys:
         logger.debug("mod_data : \n %s \n", mod_data.head(n=50))
         mod_data.loc[:, c] -= deb_data[mod_data[constants.COLNAME_TORIGIN]].values
+
+
+
+def get_ref_shift(pth: Path, 
+                  table_name: str = "stations",
+                  field_name_mapping: Dict[str, str] = None) -> Dict[str, float]:
+    """
+    Args:
+        pth: path to the sqlite file
+        table_name: name of the table in pth to query for the ref shift data
+        field_name_mapping: dict with the name of the column for the key and value of
+                    the returned dict., i.e. {"key": "StnId", "value": "MWL2CD"} [default]
+    Returns:
+        dict station id to float level reference to be subtracted
+    """
+    import sqlite3
+
+    if field_name_mapping is None:
+        field_name_mapping = {"key": "StnId", "value": "MWL2CD"}
+
+    with sqlite3.connect(pth) as con:
+        df = pd.read_sql_query(f"SELECT * FROM {table_name}", con)
+        return dict(zip(
+            df[field_name_mapping["key"]].str.lstrip("0"), df[field_name_mapping["value"]]
+        )) 
 
 
 def main():

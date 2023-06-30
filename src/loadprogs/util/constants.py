@@ -39,7 +39,11 @@ class OptionNames(object):
         EXTERNAL_DEBIAS = "mod_external_debias"
         EXTERNAL_DEBIAS_AVG_NHOURS = "mod_external_debias_avg_nhours"
         READ_NPROCS = "mod_read_nprocs"
-        
+        # path to the sqlite file containing a table with the reference level shift 
+        # (different for each station), to subtract before scoring,
+        # makes no sense if removing analysis period mean
+        REF_SHIFT_PATH = "ref_shift_path"
+         
 
     class common(object):
         DETIDE_MIN_TIDE_FREQ_HZ = "detide_min_tide_frequency_hz" # non-inclusive to allow excluding Sa Ssa constituents

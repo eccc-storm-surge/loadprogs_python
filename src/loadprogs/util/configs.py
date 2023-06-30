@@ -10,6 +10,7 @@ import pytz
 
 from .config_interpolation import ExtendedEnvInterpolation
 from .constants import OptionNames
+from . import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -116,6 +117,12 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # minimum lead hour to consider (lead hours less than this will be discarded)
     _config.b2b_min_lead_hour = mod_config.getint(OptionNames.mod.B2B_MIN_LEAD_HOUR, fallback=0)
 
+
+    # sqlite file containing reference shifts subtracted from model data
+    _config.mod_ref_shift_path = mod_config.get(OptionNames.mod.REF_SHIFT_PATH, fallback=NOTEXISTING_PATH)
+    _config.mod_ref_shift_path = Path(_config.mod_ref_shift_path).expanduser()
+    if _config.mod_ref_shift_path.name != NOTEXISTING_PATH:
+        assert _config.mod_ref_shift_path.exists(), f"Could not find {_config.mod_ref_shift_path}"
 
     # --------------------------------------------
 

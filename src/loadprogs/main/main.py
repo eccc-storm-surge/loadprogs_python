@@ -156,8 +156,26 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         external_debias = match_io.read_dat(config.mod_external_debias)
         external_debias_groups_by_station = external_debias.groupby(constants.COLNAME_STID)
 
+
+    # get mod reference shift from sqlite
+    mod_ref_shift_data = None
+    if config.mod_ref_shift_path.exists():
+        # read the db
+        mod_ref_shift_data = mod.get_ref_shift(config.mod_ref_shift_path)
+        
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
+
+        if mod_ref_shift_data is not None:
+            current_mod_ref_shift = mod_ref_shift_data.get(s.station_id, None)
+            
+            # skip stations for which we don't have the mwl2cd shift
+            if current_mod_ref_shift is None:
+                logger.info(f"Did not find reference level to MWL shift for {s}, skipping ...")
+                continue
+        else:
+            current_mod_ref_shift = None
+            
 
         logger.info("\n--------------------\n processing station  '%s' (%s)"
                     "\n--------------------\n", s.name, s.station_id)
