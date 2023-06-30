@@ -285,8 +285,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                         data=mod_data_twl.loc[:, c].to_frame(),
                         latitude=s.latitude,
                         constituents=config.detide_mod_constituents,
-                        do_filtering=config.mod_do_filtering, do_cleanup=False, 
-                        detide_min_frequency_hz=config.mod_detide_min_tide_frequency_hz)
+                        do_filtering=config.mod_do_filtering, 
+                        do_cleanup=False, 
+                        detide_min_frequency_hz=config.mod_detide_min_tide_frequency_hz,
+                        ray=config.mod_detide_rayleigh)
 
                 # remove longterm mean
                 # mod_data.loc[:, c] -= mod_data_twl[c].mean()

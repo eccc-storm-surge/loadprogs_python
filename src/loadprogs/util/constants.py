@@ -9,6 +9,7 @@ COLNAME_TORIGIN = "date_of_origin"
 COLNAME_TWL = "twl" # total water level
 
 OUT_TIME_FORMAT = "%Y%m%d%H%M"
+DEFAULT_DETIDE_RAYLEIGH = 0.9
 
 
 class OptionNames(object):
@@ -47,6 +48,7 @@ class OptionNames(object):
 
     class common(object):
         DETIDE_MIN_TIDE_FREQ_HZ = "detide_min_tide_frequency_hz" # non-inclusive to allow excluding Sa Ssa constituents
+        DETIDE_RAYLEIGH = "detide_rayleigh" # Rayleiigh constant fordetiding
 
     class misc(object):
         pass
@@ -61,6 +63,7 @@ def get_help():
         # common for obs and mod
         ("common", OrderedDict([
             (OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified")
+            (OptionNames.obs.DETIDE_RAYLEIGH, "real from 0 to 1, Rayleigh constant used for detiding")
         ])),
         ("mod", OrderedDict([
             (OptionNames.mod.MOD_BEG_DATE, r"Date of the first model experiment to process (inclusive), format %Y%m%d%H"),
@@ -82,6 +85,7 @@ def get_help():
             (OptionNames.obs.OBS_DATATYPE, "Type of observation files, possible values: txt (default), sqlite"),
             (OptionNames.obs.OBS_BEG_DATE, r"Start date of observation data in format %Y%m%d%H, inclusive"),
             (OptionNames.obs.OBS_END_DATE, r"End date of observation data in format %Y%m%d%H, inclusive"),
+            (OptionNames.obs.OBS_PERFORM_QC, "true/false preform quality control or not on observations"),
         ])),
         ("misc", OrderedDict([
 

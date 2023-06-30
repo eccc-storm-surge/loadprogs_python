@@ -83,6 +83,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # minimum tide frequency to consider when detiding
     _config.mod_detide_min_tide_frequency_hz = mod_config.getfloat(
         OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+    _config.mod_detide_rayleigh = mod_config.getfloat(
+        OptionNames.common.DETIDE_RAYLEIGH, fallback=constants.DEFAULT_DETIDE_RAYLEIGH
+    )
+
 
     _config.mod_do_filtering = mod_config.getboolean(OptionNames.mod.DETIDE_FILTERING, fallback=False)
 
@@ -174,6 +178,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # minimum tide frequency to consider when detiding
     _config.obs_detide_min_tide_frequency_hz = obs_config.getfloat(
         OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+    
+    _config.obs_detide_rayleigh = obs_config.getfloat(
+        OptionNames.common.DETIDE_RAYLEIGH, fallback=constants.DEFAULT_DETIDE_RAYLEIGH
+    )
 
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
 

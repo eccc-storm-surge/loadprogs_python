@@ -14,11 +14,12 @@ from ttide.t_tidec import t_tide
 from ttide import t_predic
 from . import utils
 from ..util import log_utils
+from ..util import constants
 
 logger = log_utils.get_logger(__name__)
 
-def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=0.5,
-                                do_cleanup=False, detide_min_frequency_hz=-np.Inf):
+def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=constants.DEFAULT_DETIDE_RAYLEIGH,
+                                do_cleanup=False, detide_min_frequency_hz=-np.Inf, do_qc=False):
     """
     detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
     """
@@ -278,7 +279,7 @@ class Station(object):
         self.assign_data(data)
         return data
 
-    def _detide(self, do_filtering=True, constituents=None, ray=0.5):
+    def _detide(self, do_filtering=True, constituents=None, ray=constants.DEFAULT_DETIDE_RAYLEIGH):
         """
 
         :param do_filtering:
