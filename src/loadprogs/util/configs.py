@@ -184,6 +184,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     )
 
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
+    _config.obs_do_qc = obs_config.getboolean(OptionNames.obs.OBS_PERFORM_QC, fallback=True)
 
 
     # --------------------------------------------

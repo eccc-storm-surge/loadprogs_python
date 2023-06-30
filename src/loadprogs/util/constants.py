@@ -19,6 +19,8 @@ class OptionNames(object):
         OBS_BEG_DATE = "datestart_obs"
         OBS_END_DATE = "dateend_obs"
         OBS_VARIABLE_ID = "variable_id" # for canhys to select needed variables from dataset
+        OBS_PERFORM_QC = "perform_qc" # true/false preform quality control or not on observations
+        
         
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"

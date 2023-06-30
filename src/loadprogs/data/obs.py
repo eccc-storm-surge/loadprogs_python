@@ -28,8 +28,10 @@ def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents
     data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
-    s = Station(do_filtering=do_filtering, station_info={"lat": latitude}, do_cleanup=do_cleanup,
-                detide_min_frequency_hz=detide_min_frequency_hz)
+    s = Station(do_filtering=do_filtering, 
+                station_info={"lat": latitude}, 
+                do_cleanup=do_cleanup,
+                detide_min_frequency_hz=detide_min_frequency_hz, do_qc=do_qc)
 
     s.data = data_
     s.get_detided_series(do_filtering=do_filtering, constituents=constituents, ray=ray)
@@ -68,17 +70,20 @@ class Station(object):
             # remove duplicate dates in index before converting to frequency
             self._data = self._data[~self._data.index.duplicated()]  # just in case
 
-            self.quality_control()
+            if self.do_qc:
+                self.quality_control()
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None, 
-                       do_cleanup=True, detide_min_frequency_hz=-np.Inf):
+                       do_cleanup=False, detide_min_frequency_hz=-np.Inf, 
+                       do_qc=True):
         """[summary]
 
         Args:
             data_file ([type], optional): [description]. Defaults to None.
             do_filtering (bool, optional): [description]. Defaults to False.
             station_info ([type], optional): [description]. Defaults to None.
-            do_cleanup (bool, optional): If True perform data cleanup before detiding. Defaults to True.
+            do_cleanup (bool, optional): If True perform data cleanup before detiding. Defaults to False.
+            do_qc (bool, optional): If True - perform quality control for total water level. Defaults to True
             detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
         """
         self.nlines_for_header = 6
@@ -110,25 +115,112 @@ class Station(object):
 
         self.ttidecon = None
 
-        # whether to perform or not data cleanup before detiding
+        # whether to perform or not data cleanup before detiding (deprecated, safer to use False)
         self.do_cleanup = do_cleanup
 
-    def quality_control(self):
+        # whether to perform qc on data (should not be needed for model)
+        self.do_qc = do_qc 
+
+
+
+    def quality_control(self, 
+                        nan_fill_spread_max_dt: timedelta = timedelta(hours=3),
+                        nan_fill_spread_min_dt: timedelta = timedelta(minutes=30),
+                        ):
         """
         Try to remove spikes
+        If the gap is smaller than nan_fill_spread_min_dt - do not touch it
+        nan_fill_spread_max_dt - period by which gap edges are extended
         """
+
+        
+        # make uniform time step
+        dt = (self._data.index[1:] - self._data.index[:-1]).min()
+        self._data = self._data.asfreq(dt)
+        logger.info(f"Processing station {self.station_id}")
+        logger.info(f"Padding data with nans to have uniform frequency of {dt = }")
+
+        nan_fill_spread_max_points = int(nan_fill_spread_max_dt.total_seconds() / dt.total_seconds())
+        nan_fill_spread_min_points = int(nan_fill_spread_min_dt.total_seconds() / dt.total_seconds())
+
+
         h = self._data["twl"]
+
         # IQR
-        Q1 = np.percentile(h, 25, interpolation = 'midpoint')
-        Q3 = np.percentile(h, 75, interpolation = 'midpoint')
+        h1 = h.dropna(axis="index")
+        Q1 = h1.quantile(q=0.25, interpolation = 'midpoint')
+        Q3 = h1.quantile(q=0.75, interpolation = 'midpoint')
         IQR = Q3 - Q1
 
-        upper = Q3 + 2 * IQR
-        lower = Q1 - 2 * IQR
+        upper = Q3 + 2.5 * IQR
+        lower = Q1 - 2.5 * IQR
         
-        crit = (lower <= h) & (h <= upper)
-        self._data.loc[~crit, "twl"] = np.nan
+        # if the values are already missing, no need to mark them for quality control
+        crit = ((lower <= h.values) & (h.values <= upper)) | np.isnan(h.values)
+        logger.info(f"0: {sum(crit) = }")
 
+
+        # remove points around bad values
+        from skimage import measure
+        labels = measure.label(crit, background=False)
+
+        df = pd.DataFrame.from_dict({"i": range(len(labels)), 
+                                    "label": labels})
+        
+        i_limits = [
+            (g["i"].min(), g["i"].max()) for label, g in df.groupby("label") if label != 0
+        ]
+
+        
+        logger.info(f"{i_limits = }")
+        # mask data around spikes
+        for i_min, i_max in i_limits:
+            if i_max - i_min + 1 <= 2 * nan_fill_spread_max_points:
+                crit[i_min:i_max + 1] = False
+            else:
+                if i_min > 0:
+                    crit[i_min:i_min + nan_fill_spread_max_points] = False
+                if i_max < len(labels) - 1:
+                    crit[i_max - nan_fill_spread_max_points + 1: i_max + 1] = False
+
+        # mask around edges of missing data regions
+        df = pd.DataFrame.from_dict({
+            "i": range(len(h.values)), 
+            "label": measure.label(np.isnan(h.values), background=False)
+        })
+        
+        logger.info(f"{df.label.value_counts() = }")
+
+        counts_and_limits = [(len(g["label"]), (g["i"].min(), g["i"].max())) for label, g in df.groupby("label") if label != 0]
+
+        for c, c_limits in counts_and_limits:
+            logger.info(f"{c = }; {c_limits = }; {nan_fill_spread_max_points = }; {nan_fill_spread_max_dt = } ")
+            if c < nan_fill_spread_min_points:
+                pass
+            else:
+                i1 = max(0, c_limits[0] - nan_fill_spread_max_points)
+                i2 = min(len(df) - 1, c_limits[1] + nan_fill_spread_max_points)
+                crit[i1:i2 + 1] = False
+
+        
+        # mask short data availability regions
+        df_good = pd.DataFrame.from_dict({
+            "i": range(len(h.values)), 
+            "label": measure.label(~np.isnan(h.values), background=False)
+        })
+       
+
+
+        if (~crit).any():
+            logger.info(f"""
+                            QC: {upper = }; {lower = }; 
+                            masking the following:
+                                {self._data.loc[~crit, "twl"].values}
+                          """)
+            logger.info(f"1: {sum(crit) = }")
+            self._data.loc[~crit, "twl"] = np.nan
+
+        
 
     def assign_data(self, df):
         self.data = df
@@ -468,7 +560,8 @@ def load_station_data_from_obs_dir(config):
 
     stations = [Station(do_filtering=config.obs_do_filtering, 
                         station_info=st_info_recs[st_id], 
-                        detide_min_frequency_hz=config.obs_detide_min_tide_frequency_hz)
+                        detide_min_frequency_hz=config.obs_detide_min_tide_frequency_hz,
+                        do_qc=config.obs_do_qc)
                     .assign_data(obs_st_ids_to_data[st_id])
                     .remove_data_before(config.beg_time_obs)
                     .remove_data_after(config.end_time_obs)
