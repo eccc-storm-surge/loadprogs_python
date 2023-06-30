@@ -66,7 +66,7 @@ def get_help():
     return OrderedDict([
         # common for obs and mod
         ("common", OrderedDict([
-            (OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified")
+            (OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified"),
             (OptionNames.obs.DETIDE_RAYLEIGH, "real from 0 to 1, Rayleigh constant used for detiding")
         ])),
         ("mod", OrderedDict([
