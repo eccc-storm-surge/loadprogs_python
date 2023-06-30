@@ -53,6 +53,8 @@ class OptionNames(object):
         DETIDE_RAYLEIGH = "detide_rayleigh" # Rayleiigh constant fordetiding
 
     class misc(object):
+        # true or false to remove or not the mean value during the analysis period
+        REMOVE_ANALYSIS_PERIOD_MEAN = "remove_analysis_period_mean"
         pass
 
 

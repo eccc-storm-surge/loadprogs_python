@@ -208,12 +208,12 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
 
     # for backward compatibility
     if "remove_anal_period_mean" in misc_config:
-        _config.remove_anal_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
+        _config.remove_analysis_period_mean = misc_config.getboolean("remove_anal_period_mean", fallback=True)
     else:
-        _config.remove_anal_period_mean = misc_config.getboolean("remove_analysis_period_mean", fallback=True)
+        _config.remove_analysis_period_mean = misc_config.getboolean(OptionNames.misc.REMOVE_ANALYSIS_PERIOD_MEAN, fallback=True)
 
     # check if b2b_max_lead_hour is set
-    if _config.remove_anal_period_mean:
+    if _config.remove_analysis_period_mean:
         if _config.b2b_max_lead_hours is None:
             msg = f"""{OptionNames.mod.B2B_MAX_LEAD_HOUR} not found in {config_path}
                   (it was renamed from b2b_freq_hours, please update your configs) 

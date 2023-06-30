@@ -242,7 +242,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         else:
             # still remove the long-term mean
-            obs_data = s.data[constants.COLNAME_TWL] - np.nanmean(s.data[constants.COLNAME_TWL].values)
+            # obs_data = s.data[constants.COLNAME_TWL] - np.nanmean(s.data[constants.COLNAME_TWL].values)
+            obs_data = s.data[constants.COLNAME_TWL]
+            
 
         # detide model time series if requested
         if config.detide_mod:
