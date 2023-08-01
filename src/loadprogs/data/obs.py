@@ -144,9 +144,9 @@ class Station(object):
 
         
         # make uniform time step
-        logger.info(f"Processing station {self.station_id}")
-        logger.info(f"Padding data with nans to have uniform frequency of {dt = }")
-
+        logger.info(f"QC: Processing station {self.station_id}")
+        dt = self._data["twl"].index[1] - self._data["twl"].index[0]
+    
         nan_fill_spread_max_points = int(nan_fill_spread_max_dt.total_seconds() / dt.total_seconds())
         nan_fill_spread_min_points = int(nan_fill_spread_min_dt.total_seconds() / dt.total_seconds())
 
@@ -412,6 +412,8 @@ class Station(object):
         v = clean_data.values.copy()
         v -= np.nanmean(v)
 
+
+        logger.debug(f"{sum(np.isnan(v)) = }; {len(v) = }")
         logger.debug(clean_data.head())
         logger.debug(f"ray={ray}; stime={clean_data.index[0]}; dt={computed_dt.total_seconds() / 3600.}")
 
@@ -425,7 +427,7 @@ class Station(object):
                      ray=ray,
                      constitnames=constituents,
                      stime=clean_data.index[0],
-                     out_style=None)
+                     out_style=None, lsq="direct")
 
         fu = con["fu"]
         nu = con["nameu"]
