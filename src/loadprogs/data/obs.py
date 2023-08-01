@@ -18,8 +18,10 @@ from ..util import constants
 
 logger = log_utils.get_logger(__name__)
 
-def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, ray=constants.DEFAULT_DETIDE_RAYLEIGH,
-                                do_cleanup=False, detide_min_frequency_hz=-np.Inf, do_qc=False):
+def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, 
+                                ray=constants.DEFAULT_DETIDE_RAYLEIGH,
+                                do_cleanup=False, 
+                                detide_min_frequency_hz=-np.Inf, do_qc=False):
     """
     detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
     """
@@ -60,6 +62,13 @@ class Station(object):
                 logger.info("setting time as index for the purpose of resampling")
                 self._data.set_index("time", inplace=True)
 
+                # remove duplicate dates in index before converting to frequency
+                self._data = self._data[~self._data.index.duplicated()]  # just in case
+
+                # make sure the data is equally spaced
+                dt_min = (self._data.index[1:] - self._data.index[:-1]).min()
+                self._data = self._data.asfreq(dt_min)
+
             # logger.info("\n%s\n", self._data.head())
 
             # all times are in UTC
@@ -67,8 +76,6 @@ class Station(object):
                 if self._data.index.tz is None:
                     self._data.index = self._data.index.tz_localize("UTC")
 
-            # remove duplicate dates in index before converting to frequency
-            self._data = self._data[~self._data.index.duplicated()]  # just in case
 
             if self.do_qc:
                 self.quality_control()
@@ -191,7 +198,8 @@ class Station(object):
         
         logger.info(f"{df.label.value_counts() = }")
 
-        counts_and_limits = [(len(g["label"]), (g["i"].min(), g["i"].max())) for label, g in df.groupby("label") if label != 0]
+        counts_and_limits = [(len(g["label"]), 
+                              (g["i"].min(), g["i"].max())) for label, g in df.groupby("label") if label != 0]
 
         for c, c_limits in counts_and_limits:
             logger.info(f"{c = }; {c_limits = }; {nan_fill_spread_max_points = }; {nan_fill_spread_max_dt = } ")
@@ -394,16 +402,22 @@ class Station(object):
         else:
             clean_data = self.data["twl"]
         
-        # the clean data is assumed to be uniformly spaced
-        computed_dt = clean_data.index[1] - clean_data.index[0]
-        # logger.info("computed dt for detiding: %s", computed_dt)
 
+        # the clean data is assumed to be uniformly spaced
+        computed_dt = (clean_data.index[1:] - clean_data.index[:-1]).min()
+ 
+        assert (clean_data.asfreq(computed_dt).dropna() == clean_data.dropna()).all(), "Detiding error: input data is not equally spaced in time"
+        
         n_time_steps_per_hour = 3600 // computed_dt.total_seconds()
         v = clean_data.values.copy()
         v -= np.nanmean(v)
 
+        logger.debug(clean_data.head())
+        logger.debug(f"ray={ray}; stime={clean_data.index[0]}; dt={computed_dt.total_seconds() / 3600.}")
+
         # logger.debug("nanmean(v) = %s", np.nanmean(v))
         # logger.debug(f"Before t_tide: v.shape={v.shape}")
+        logger.debug(f"data range: {np.nanmin(v)}, {np.nanmax(v)}")
         con = t_tide(v,
                      dt=computed_dt.total_seconds() / 3600.,
                      synth=synth,
@@ -483,17 +497,17 @@ class Station(object):
             filtered_part = filters1 + filters2 + filters3
             v_notide_filtered = v_notide - filters1 - filters2 - filters3
         
-        self.data["twl-mean"] = v
-        self.data["detided"] = v_notide_filtered
+        self._data["twl-mean"] = v
+        self._data["detided"] = v_notide_filtered
 
         # logger.debug("detided: \n %s \n", self.data["detided"])
         # logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
 
-        assert len(self.data) == len(v)
-        self.data["tides"] = con["xout"]
+        assert len(self._data) == len(v), f"{len(self._data) = }; {len(v) = }"
+        self._data["tides"] = con["xout"]
         self.ttidecon = con
 
-        self.data["filtered"] = filtered_part
+        self._data["filtered"] = filtered_part
 
         
 

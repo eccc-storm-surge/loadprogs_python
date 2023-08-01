@@ -357,7 +357,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
 
-        obs_data = obs_data.reindex(pd.to_datetime(obs_data.index.union(mod_data[constants.COLNAME_TIME].drop_duplicates())))
+        obs_data = obs_data.reindex(
+            pd.to_datetime(obs_data.index.union(mod_data[constants.COLNAME_TIME].drop_duplicates())))
         logger.debug("\n === obs_data.index === \n, %s", obs_data.index)
         logger.debug("\n === mod_data[time] === \n, %s", mod_data[constants.COLNAME_TIME].drop_duplicates())
 
@@ -395,7 +396,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
         # remove analysis period mean from the mod and obs
         if config.remove_analysis_period_mean and len(mod_data) > 0:
             mod_data = mod.remove_analysis_period_mean(mod_data, station=s,
-                                                       mod_member_keys=mod_member_keys, config=config)
+                                                       mod_member_keys=mod_member_keys, 
+                                                       config=config)
 
         # select only runs run_freq_hours apart (usually it is 36h)
         mod_data = mod_data.loc[mod_data[constants.COLNAME_TORIGIN].isin(origin_dates_of_interest), :]
