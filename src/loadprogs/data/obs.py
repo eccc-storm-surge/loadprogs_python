@@ -63,7 +63,7 @@ class Station(object):
                 self._data.set_index("time", inplace=True)
 
                 # remove duplicate dates in index before converting to frequency
-                self._data = self._data[~self._data.index.duplicated()]  # just in case
+                self._data = self._data[~self._data.index.duplicated()].sort_index()  # just in case
 
                 # make sure the data is equally spaced
                 dt_min = (self._data.index[1:] - self._data.index[:-1]).min()
@@ -138,12 +138,12 @@ class Station(object):
         Try to remove spikes
         If the gap is smaller than nan_fill_spread_min_dt - do not touch it
         nan_fill_spread_max_dt - period by which gap edges are extended
+
+        data is supposed to be uniform already
         """
 
         
         # make uniform time step
-        dt = (self._data.index[1:] - self._data.index[:-1]).min()
-        self._data = self._data.asfreq(dt)
         logger.info(f"Processing station {self.station_id}")
         logger.info(f"Padding data with nans to have uniform frequency of {dt = }")
 
