@@ -470,8 +470,10 @@ class Station(object):
 
             filter_order = 3
             band_type = "bandpass"
-            sos1 = signal.butter(filter_order, [2.0 / (26.0 * n_time_steps_per_hour), 2.0 / (22.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
-            sos2 = signal.butter(filter_order, [2.0 / (15.0 * n_time_steps_per_hour), 2.0 / (11.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
+            sos1 = signal.butter(filter_order, 
+                                 [2.0 / (26.0 * n_time_steps_per_hour), 2.0 / (22.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
+            sos2 = signal.butter(filter_order, 
+                                 [2.0 / (15.0 * n_time_steps_per_hour), 2.0 / (11.0 * n_time_steps_per_hour)], btype=band_type, output="sos")
             sos3 = signal.butter(filter_order, 2.0 / (8.0 * n_time_steps_per_hour), btype="high", output="sos")
 
             # params from JPP
