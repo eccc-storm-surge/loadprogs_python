@@ -706,6 +706,7 @@ def load_station_data_from_txt_dir(station_records, config):
             logger.info(f"{inp_file_st_id} is not found in {config.station_info} file.")
             continue
 
+        logger.info(f"Start parsing {inp_file} ...")
         try:
             df = pd.read_csv(inp_file, header=None, sep=r"\s+")
             logger.info("raw obs data from %s :\n%s\n", inp_file, df.head())
