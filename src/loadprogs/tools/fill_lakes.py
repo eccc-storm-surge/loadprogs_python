@@ -14,7 +14,7 @@ import xarray
 def read_cmd_args():
     parser = argparse.ArgumentParser(description=__my_doc)
 
-    parser.add_argument("--mask-inp", required=True, type=Path,
+    parser.add_argument("--mask-inp", required=False, type=Path,
                         help="path to a standard file containing @@ field with initial mask")
 
     parser.add_argument("--mask-inp-name", required=False, type=str, default="SSH",
@@ -37,11 +37,16 @@ def read_cmd_args():
     
     parser.add_argument("--nbdy-to-check", required=False, type=int, default=4,
                     help="number of boundary points to check for north folding or east-west periodicity")
+    
+
+    parser.add_argument("--min-bathy-limit", required=False, 
+                        type=float, default=-np.Inf, const=-np.Inf,
+                        help="Minimum bathymetry value to be considered as valid")
 
 
     args = parser.parse_args()
 
-    assert args.mask_inp.exists(), f"should exist: {args.mask_inp}"
+    
     assert args.bathy_inp.exists(), f"should exist: {args.bathy_inp}"
 
     return args
@@ -83,15 +88,28 @@ def simplify_equivalences(equiv_map: dict) -> dict:
 
 def work(args):
     
-    dfm = fstpy.StandardFileReader(args.mask_inp, decode_metadata=True).to_pandas()
-    sel = (dfm["nomvar"] == args.mask_inp_name) & (dfm["typvar"] == "@@")
-    df_sel = dfm.loc[sel, :].iloc[0:1, :]
-    msk = fstpy.compute(df_sel)["d"].iloc[0]
-    
+
+    lons, lats = get_cdfll(args.bathy_inp)
+
+    if args.min_bathy_limit == -np.Inf:
+        print(f"Using mask file to define wet regions: {args.mask_inp}")
+        assert args.mask_inp.exists(), f"should exist: {args.mask_inp}"
+        dfm = fstpy.StandardFileReader(args.mask_inp, decode_metadata=True).to_pandas()
+        sel = (dfm["nomvar"] == args.mask_inp_name) & (dfm["typvar"] == "@@")
+        df_sel = dfm.loc[sel, :].iloc[0:1, :]
+        msk = fstpy.compute(df_sel)["d"].iloc[0]
+    else:
+        print(f"Using bathymetry to define wet regions: bathy >= {args.min_bathy_limit} considered valid")
+        with xarray.open_dataset(args.bathy_inp) as ds:
+           vals = ds[args.bathy_inp_name].values
+           msk = vals >= args.min_bathy_limit
+ 
+
+        
     # ipdict = {f"ip{i}": df_sel.loc[:, f"ig{i}"].iloc[0] for i in range(1, 4)}
     # lons, lats = get_stdll(dfm, ipdict=ipdict)
     
-    lons, lats = get_cdfll(args.bathy_inp)
+    
 
     labels = measure.label(msk, connectivity=1)
     
