@@ -73,7 +73,7 @@ def get_cdfll(pth: Path):
     read 2d lon and lat arrays from netcdf, as lon/lat in standard file are 0 for eliminated procs
     """
     with xarray.open_dataset(pth) as ds:
-        return [ds[k].values.T for k in ["nav_lon", "nav_lat"]]
+        return [ds[k].values for k in ["nav_lon", "nav_lat"]]
 
 
 def simplify_equivalences(equiv_map: dict) -> dict:
@@ -98,18 +98,20 @@ def work(args):
         sel = (dfm["nomvar"] == args.mask_inp_name) & (dfm["typvar"] == "@@")
         df_sel = dfm.loc[sel, :].iloc[0:1, :]
         msk = fstpy.compute(df_sel)["d"].iloc[0]
+
+        # try to align the mask and the bathymetry fields
+        if msk.shape != lons.shape:
+            msk = msk.T
+
+        assert msk.shape == lons.shape, f"Mask and bathymetry shapes mismatch: {msk.shape = } and {lons.shape = }"
+
     else:
-        print(f"Using bathymetry to define wet regions: bathy >= {args.min_bathy_limit} considered valid")
+        print(f"Using bathymetry to define wet regions: bathy >= {args.min_bathy_limit} considered wet")
         with xarray.open_dataset(args.bathy_inp) as ds:
            vals = ds[args.bathy_inp_name].values
            msk = vals >= args.min_bathy_limit
  
 
-        
-    # ipdict = {f"ip{i}": df_sel.loc[:, f"ig{i}"].iloc[0] for i in range(1, 4)}
-    # lons, lats = get_stdll(dfm, ipdict=ipdict)
-    
-    
 
     labels = measure.label(msk, connectivity=1)
     
@@ -163,10 +165,10 @@ def work(args):
 
     with xarray.open_dataset(args.bathy_inp) as ds:
         vals = ds[args.bathy_inp_name].values
-        vals[to_fill.T] = 0.0 # fill selected lakes
+        vals[to_fill] = 0.0 # fill selected lakes
 
         ds[args.bathy_inp_name] = (ds[args.bathy_inp_name].dims, vals)
-        ds["regions"] = (ds[args.bathy_inp_name].dims, labels.T.astype(np.float32))
+        ds["regions"] = (ds[args.bathy_inp_name].dims, labels.astype(np.float32))
         ds.to_netcdf(args.bathy_out)
 
 
@@ -182,9 +184,12 @@ def test():
     args.mask_inp_name = "SSH"
     args.bathy_inp = data_root / "bathy64TS.nc"
     args.bathy_inp_name = "Bathymetry"
-    args.bathy_out = data_root / "bathy65TS.nc"
+    args.bathy_out = data_root / "bathy65TS_test.nc"
     args.nbdy_to_check = 4
     args.max_lake_size_grdpts = 10000
+    args.min_bathy_limit = -np.Inf
+
+    assert not args.bathy_out.exists(), f"Output already exists, please move or rm: {args.bathy_out}"
 
     work(args)
 
