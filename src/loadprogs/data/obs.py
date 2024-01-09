@@ -405,8 +405,8 @@ class Station(object):
 
         # the clean data is assumed to be uniformly spaced
         computed_dt = (clean_data.index[1:] - clean_data.index[:-1]).min()
- 
-        assert (clean_data.asfreq(computed_dt).dropna() == clean_data.dropna()).all(), "Detiding error: input data is not equally spaced in time"
+        assert computed_dt.total_seconds() > 0, "Detiding error, input timeseries is not sorted in time"
+        assert (clean_data.asfreq(computed_dt).index == clean_data.index).all(), "Detiding error: input data is not equally spaced in time"
         
         n_time_steps_per_hour = 3600 // computed_dt.total_seconds()
         v = clean_data.values.copy()

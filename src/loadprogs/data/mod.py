@@ -591,7 +591,7 @@ def get_mod_twl_for_b2b(mod_data, config, mod_member_keys=("mod_",)):
 
     mod_data_twl.set_index(constants.COLNAME_TIME, inplace=True)
 
-    return mod_data_twl
+    return mod_data_twl.sort_index()
 
 
 def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
