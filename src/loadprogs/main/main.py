@@ -257,8 +257,8 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
             logger.debug("\n ==== t_unique ==== \n %s \n", t_unique)
 
-            mod_tides = pd.Series(index=t_unique)
-            mod_to_filter = pd.Series(index=t_unique)
+            mod_tides = pd.Series(index=t_unique, dtype=float)
+            mod_to_filter = pd.Series(index=t_unique, dtype=float)
             mod_tides.loc[:] = 0.
             mod_to_filter.loc[:] = 0.
             mod_ttide_con = None
