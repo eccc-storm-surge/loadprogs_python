@@ -220,6 +220,9 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
                   """
             logger.error(msg)
             raise ValueError(msg)
+    
+    # wether to sort outputs
+    _config.sort_output = misc_config.getboolean(OptionNames.misc.SORT_OUTPUT, fallback=False)
 
     _config.keep_nan = misc_config.getboolean("keep_nan", fallback=False)
 

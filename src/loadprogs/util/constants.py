@@ -55,6 +55,7 @@ class OptionNames(object):
     class misc(object):
         # true or false to remove or not the mean value during the analysis period
         REMOVE_ANALYSIS_PERIOD_MEAN = "remove_analysis_period_mean"
+        SORT_OUTPUT = "sort_output"
         pass
 
 
