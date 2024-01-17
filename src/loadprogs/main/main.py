@@ -435,7 +435,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     mod_data[c] -= current_mod_ref_shift
 
             if config.sort_output:
-                mod_data.sort_values(constants.COLNAME_TORIGIN, inplace=True) 
+                mod_data.sort_values([constants.COLNAME_TORIGIN, constants.COLNAME_VALID_HOUR], inplace=True) 
             
             mod_data.to_csv(config.out_file,
                             mode="a", 
