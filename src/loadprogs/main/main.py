@@ -37,7 +37,7 @@ from datetime import timedelta
 from pathlib import Path
 
 # Custom modules
-from ..util import match_io
+from ..util import match_io, df_helpers
 from ..data import obs
 from ..data import mod
 from ..util.plot_ts_and_spectre import plot_ts_and_spectre
@@ -324,6 +324,10 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data[constants.COLNAME_TIME]].values
 
+                if config.mod_apply_rolling_mean_hours > 0:
+                    logger.info("Applying rolling mean to the model data, with the window=%d hours", config.mod_apply_rolling_mean_hours)
+                    a_mean = df_helpers.apply_rolling(mod_data, config.mod_apply_rolling_mean_hours, data_column=c)
+                    mod_data.loc[a_mean.index, c] = a_mean.loc[a_mean.index, c]
                 
                 # diags for detiding
                 if config.plot_detiding_diag:

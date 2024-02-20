@@ -46,6 +46,8 @@ class OptionNames(object):
         # (different for each station), to subtract before scoring,
         # makes no sense if removing analysis period mean
         REF_SHIFT_PATH = "ref_shift_path"
+        # if not 0 the rolling mean is applied at the end of the loadporgs
+        APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
          
 
     class common(object):
