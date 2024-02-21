@@ -4,7 +4,7 @@ import pandas as pd
 from .constants import COLNAME_TIME, COLNAME_TORIGIN
 
 def apply_rolling(a_df: pd.DataFrame, rolling_period_hours: int, 
-                  data_column: int | str = 6) -> pd.DataFrame:
+                  data_column=6) -> pd.DataFrame:
     
     result_db = []
     prev_chunk = None
