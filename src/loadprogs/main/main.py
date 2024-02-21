@@ -324,11 +324,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     member_id_to_mod_tides[c] += mod_to_filter  # attribute whatever is filtered to tides !!
                     mod_data.loc[:, c] -= mod_to_filter.loc[mod_data[constants.COLNAME_TIME]].values
 
-                if config.mod_apply_rolling_mean_hours > 0:
-                    logger.info("Applying rolling mean to the model data, with the window=%d hours", config.mod_apply_rolling_mean_hours)
-                    a_mean = df_helpers.apply_rolling(mod_data, config.mod_apply_rolling_mean_hours, data_column=c)
-                    mod_data.loc[a_mean.index, c] = a_mean.loc[a_mean.index, c]
-                
                 # diags for detiding
                 if config.plot_detiding_diag:
                     msg = f"plotting timeseries for mod at {s.station_id}"
@@ -350,6 +345,15 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
                     if mod_ttide_con is not None:
                         mod_ttide_con.classic_style(to_file=str(config.out_dir / f"{s.station_id}_mod_tides.csv"))
+
+
+        # applying rolling filter to the model outputs if requested
+        for c in mod_member_keys:
+            if config.mod_apply_rolling_mean_hours > 0:
+                logger.info("Applying rolling mean to the model data, with the window=%d hours", config.mod_apply_rolling_mean_hours)
+                a_mean = df_helpers.apply_rolling(mod_data, config.mod_apply_rolling_mean_hours, data_column=c)
+                mod_data.loc[a_mean.index, c] = a_mean.loc[a_mean.index, c]
+
 
         #  debugging
         logger.debug(
