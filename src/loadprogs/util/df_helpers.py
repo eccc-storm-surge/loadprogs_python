@@ -7,12 +7,12 @@ def apply_rolling(a_df: pd.DataFrame,
                   rolling_period_hours: int, 
                   data_column=6) -> pd.DataFrame:
     
+    window = pd.Timedelta(hours=rolling_period_hours)
     # if we only have timeseries, assume its index is dates
     if isinstance(a_df, pd.Series):
-        return a_df.sort_index().loc[::-1].mean()
+        return a_df.sort_index().loc[::-1].rolling(window=window).mean()
     
     result_db = []
-    window = pd.Timedelta(hours=rolling_period_hours)
     for do, chunk in a_df.groupby(COLNAME_TORIGIN, sort=True):
         inp = chunk
         inp = inp.sort_values(COLNAME_TIME)
