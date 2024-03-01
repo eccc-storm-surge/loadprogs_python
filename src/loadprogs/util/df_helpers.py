@@ -3,8 +3,13 @@ import pandas as pd
 
 from .constants import COLNAME_TIME, COLNAME_TORIGIN
 
-def apply_rolling(a_df: pd.DataFrame, rolling_period_hours: int, 
+def apply_rolling(a_df: pd.DataFrame, 
+                  rolling_period_hours: int, 
                   data_column=6) -> pd.DataFrame:
+    
+    # if we only have timeseries, assume its index is dates
+    if isinstance(a_df, pd.Series):
+        return a_df.sort_index().loc[::-1].mean()
     
     result_db = []
     window = pd.Timedelta(hours=rolling_period_hours)

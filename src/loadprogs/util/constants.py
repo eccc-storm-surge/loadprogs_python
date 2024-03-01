@@ -20,7 +20,8 @@ class OptionNames(object):
         OBS_END_DATE = "dateend_obs"
         OBS_VARIABLE_ID = "variable_id" # for canhys to select needed variables from dataset
         OBS_PERFORM_QC = "perform_qc" # true/false preform quality control or not on observations
-        
+        # if not 0 the rolling mean is applied at the end of the loadporgs
+        APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
         
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"

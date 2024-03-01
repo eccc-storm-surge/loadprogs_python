@@ -354,6 +354,11 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                 a_mean = df_helpers.apply_rolling(mod_data, config.mod_apply_rolling_mean_hours, data_column=c)
                 mod_data.loc[a_mean.index, c] = a_mean.loc[a_mean.index, c]
 
+        
+        if config.obs_apply_rolling_mean_hours > 0:
+            logger.info("Applying rolling mean to the obs data, with the window=%d hours", config.obs_apply_rolling_mean_hours)
+            obs_data = df_helpers.apply_rolling(obs_data, config.obs_apply_rolling_mean_hours)
+            
 
         #  debugging
         logger.debug(

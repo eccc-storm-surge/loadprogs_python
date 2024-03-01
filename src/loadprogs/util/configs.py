@@ -189,6 +189,9 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.obs_do_filtering = obs_config.getboolean("detide_obs_filtering", fallback=False)
     _config.obs_do_qc = obs_config.getboolean(OptionNames.obs.OBS_PERFORM_QC, fallback=False)
 
+    # window size in hours for the rolling mean
+    _config.obs_apply_rolling_mean_hours = obs_config.getint(OptionNames.obs.APPLY_ROLLING_MEAN_HOURS, 0)
+
 
     # --------------------------------------------
 
