@@ -635,7 +635,7 @@ def load_station_data_from_canhys_dir(station_records, config):
             continue
 
         try:
-            record_date = datetime.strptime(sql_file.name.split("_")[0], "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
+            record_date = datetime.strptime(sql_file.name.split("_")[0], r"%Y%m%d%H%M").replace(tzinfo=timezone.utc)
         except ValueError:
             logger.info(f"Naming for {sql_file.name} is not correct, please double check, skipping..")
             continue
@@ -686,7 +686,7 @@ def load_station_data_from_canhys_dir(station_records, config):
                        for canhys_id in canhys_ids_to_dfs}
 
     for r_id in real_ids_to_dfs:
-        real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format="%Y-%m-%d %H:%M:%S")
+        real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format=r"%Y-%m-%d %H:%M:%S")
 
     return real_ids_to_dfs
 
