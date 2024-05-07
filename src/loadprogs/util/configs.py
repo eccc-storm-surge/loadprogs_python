@@ -166,7 +166,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     if _config.obs_datatype in ["sqlite", "canhys"]:
         _config.translator_path = Path(obs_config.get("canhys_station_id_translation_dict"))
         _config.translator_path = _config.translator_path.expanduser()
-        _config.variable_id = obs_config.getint(OptionNames.obs.OBS_VARIABLE_ID, fallback=100) # 100 - water lev, 200 - streamflow , 300- temperature
+        
+        # comma-separated list of variable ids for the canhys db
+        _config.variable_id = obs_config.get(OptionNames.obs.OBS_VARIABLE_ID, fallback="100") # 100 - water lev, 200 - streamflow , 300- temperature
+
 
     # obs detiding options
     _config.detide_obs = obs_config.getboolean("detide_obs", fallback=False)

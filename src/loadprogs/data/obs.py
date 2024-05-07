@@ -666,7 +666,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         query = f"""SELECT siteid, datetimeutc, datavalue
                     FROM datavalue
                     WHERE siteid
-                    IN ({','.join(station_info_canhys_ids)}) and variableid={config.variable_id};"""
+                    IN ({','.join(station_info_canhys_ids)}) and variableid IN ({config.variable_id});"""
 
         data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby(
             "siteid")  # TODO: maybe move the grouping to the sqlite query
