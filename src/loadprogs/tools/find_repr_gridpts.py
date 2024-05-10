@@ -97,6 +97,7 @@ from loadprogs.data import mod, obs
 from loadprogs.data.obs import Station
 from loadprogs.util import scores, obs_file
 import pandas as pd
+from collections import defaultdict
 
 
 def read_cmd_args():
@@ -224,6 +225,11 @@ def work(cmd_args: argparse.Namespace):
     else:
         stations = obs.load_station_data_from_obs_file(config.station_info)
 
+    input_obs_data = pd.read_csv(config.station_info, sep=r"\s+", 
+                                 skiprows=2,
+                                 converters={"NO": str})
+
+
     station_id_to_mod_indices = {}
 
     lons = None
@@ -252,9 +258,10 @@ def work(cmd_args: argparse.Namespace):
         s.station_id: s for s in stations
     }
 
-    data = {
+    data = defaultdict(list)
+    data.update({
         "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": [],
-    }
+    })
 
     if lons is not None:
         data["DATA.MODEL_LON"] = []
@@ -277,6 +284,11 @@ def work(cmd_args: argparse.Namespace):
         data["ID"].append(s.name)
         data["LON"].append(s.longitude)
         data["LAT"].append(s.latitude)
+
+        for c in input_obs_data:
+            if c.startswith("DATA."):
+                assert (station_id == input_obs_data.NO).any()
+                data[c].append(input_obs_data.loc[station_id == input_obs_data.NO, c].values[0])
 
         print(f"Processing {station_id}")
 
@@ -332,9 +344,10 @@ def work(cmd_args: argparse.Namespace):
         data["DATA.MODEL_LAT"].append(lats[i_sel, j_sel])
 
     # save data to an obs file
-    col_order = ["ID", "NO", "LAT", "LON", "DATA.I", "DATA.J"]
-    if "DATA.MODEL_LON" in data:
-        col_order += ["DATA.MODEL_LON", "DATA.MODEL_LAT"]
+    col_order = ["ID", "NO", "LAT", "LON", ]
+    # add data columns
+    col_order += sorted(label for label in data if label.startswith("DATA."))
+    
     obs_file.save_dataframe_to_obs(pd.DataFrame.from_dict(data)[col_order], out_file=cmd_args.obs_index_out)
 
 
