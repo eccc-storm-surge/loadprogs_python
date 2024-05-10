@@ -590,7 +590,7 @@ def load_station_data_from_obs_dir(config):
                 for st_id in st_info_recs
                 if st_id in obs_st_ids_to_data]
 
-    return stations
+    return [s for s in stations if s.data is not None]
 
 
 def load_station_data_from_canhys_dir(station_records, config):
