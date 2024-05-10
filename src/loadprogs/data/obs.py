@@ -50,13 +50,13 @@ class Station(object):
 
     @data.setter
     def data(self, df):
-        if df is not None:
+        if df is not None and len(df.dropna()) > 1:
             self._data = df.copy()
         else:
             self._data = None
 
         
-        if self._data is not None and len(self._data.dropna()) > 0:
+        if self._data is not None:
 
             if "time" in self._data:
                 logger.info("setting time as index for the purpose of resampling")
