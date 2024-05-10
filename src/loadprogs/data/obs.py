@@ -663,7 +663,7 @@ def load_station_data_from_canhys_dir(station_records, config):
             continue
 
         # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
-        query = f"""SELECT siteid, datetimeutc, datavalue
+        query = f"""SELECT siteid, datetimeutc, datavalue, variableid
                     FROM datavalue
                     WHERE siteid
                     IN ({','.join(station_info_canhys_ids)}) and variableid IN ({config.variable_id});"""
@@ -686,8 +686,15 @@ def load_station_data_from_canhys_dir(station_records, config):
                        for canhys_id in canhys_ids_to_dfs}
 
     for r_id in real_ids_to_dfs:
-        real_ids_to_dfs[r_id]["time"] = pd.to_datetime(real_ids_to_dfs[r_id]["time"], format=r"%Y-%m-%d %H:%M:%S")
+        station_data = real_ids_to_dfs[r_id]
+        # parse time column
+        station_data["time"] = pd.to_datetime(station_data["time"], format=r"%Y-%m-%d %H:%M:%S")
 
+        # if we have several variable_id for a given station (i.e. multiple sensors), use the
+        # one with the longest record length
+        idx = station_data.groupby("variableid").count().idxmax(axis="index")
+        real_ids_to_dfs[r_id] = station_data.loc[station_data["variableid"] == idx.iloc[0]].drop("variableid",
+                                                                                                 axis="columns")
     return real_ids_to_dfs
 
 
@@ -719,8 +726,8 @@ def load_station_data_from_txt_dir(station_records, config):
             if len(df.columns) == 2:
                 twl_column_id = 1
                 supported_time_formats = [
-                    "%Y %m %d %H %M %S",
-                    "%Y %m %d %H %M"
+                    r"%Y %m %d %H %M %S",
+                    r"%Y %m %d %H %M"
                 ]
 
                 def __parse_time(tok):
