@@ -127,6 +127,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.mod_ref_shift_path = Path(_config.mod_ref_shift_path).expanduser()
     if _config.mod_ref_shift_path.name != NOTEXISTING_PATH:
         assert _config.mod_ref_shift_path.exists(), f"Could not find {_config.mod_ref_shift_path}"
+        _config.mod_ref_shift_key_field = mod_config.get(OptionNames.mod.REF_SHIFT_KEY_FIELD, fallback="StnId")
+        _config.mod_ref_shift_val_field = mod_config.get(OptionNames.mod.REF_SHIFT_VAL_FIELD, fallback="mwl2cd")
 
     # window size in hours for the rolling mean
     _config.mod_apply_rolling_mean_hours = mod_config.getint(OptionNames.mod.APPLY_ROLLING_MEAN_HOURS, 0)

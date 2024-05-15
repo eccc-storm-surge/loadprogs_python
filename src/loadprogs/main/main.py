@@ -161,7 +161,9 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
     mod_ref_shift_data = None
     if config.mod_ref_shift_path.exists():
         # read the db
-        mod_ref_shift_data = mod.get_ref_shift(config.mod_ref_shift_path)
+        mod_ref_shift_data = mod.get_ref_shift(config.mod_ref_shift_path, 
+                                               field_name_mapping = {"key": config.mod_ref_shift_key_field, 
+                                                                     "value": config.mod_ref_shift_val_field})
         
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
