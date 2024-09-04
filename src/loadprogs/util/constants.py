@@ -8,7 +8,7 @@ COLNAME_VALID_HOUR = "valid_hour"  # aka lead time
 COLNAME_TORIGIN = "date_of_origin"
 COLNAME_TWL = "twl" # total water level
 
-OUT_TIME_FORMAT = "%Y%m%d%H%M"
+OUT_TIME_FORMAT = r"%Y%m%d%H%M"
 DEFAULT_DETIDE_RAYLEIGH = 0.9
 
 
@@ -51,6 +51,8 @@ class OptionNames(object):
         REF_SHIFT_VAL_FIELD = "ref_shift_val_field" # colname for mwl2cd
         # if not 0 the rolling mean is applied at the end of the loadporgs
         APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
+        # either point_txt or 2D field data
+        MOD_DATATYPE = "mod_datatype"
          
 
     class common(object):
@@ -90,6 +92,8 @@ def get_help():
             (OptionNames.mod.DETIDE_CONSTITUENTS, """Comma-separated list of constituents,
                                                   default None - constituents determined automatically"""),
             (OptionNames.mod.TYPVAR, "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *"),
+            (OptionNames.mod.MOD_DATATYPE, "if point_txt assume all data is provided in a single text file, "
+                                           "otherwise it is assumed to be 2d fields in netcdf or standard files")
         ])), 
         ("obs", OrderedDict([
             (OptionNames.obs.OBS_DATATYPE, "Type of observation files, possible values: txt (default), sqlite"),

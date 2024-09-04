@@ -717,13 +717,16 @@ def load_station_data_from_txt_dir(station_records, config):
 
         logger.info(f"Start parsing {inp_file} ...")
         try:
-            df = pd.read_csv(inp_file, header=None, sep=r"\s+")
+
+            df = pd.read_csv(inp_file, header=None, sep=r"\s+")            
             logger.info("raw obs data from %s :\n%s\n", inp_file, df.head())
 
             twl_column_id = 5
 
             # preferred format
             if len(df.columns) == 2:
+
+                
                 twl_column_id = 1
                 supported_time_formats = [
                     r"%Y %m %d %H %M %S",
@@ -745,10 +748,16 @@ def load_station_data_from_txt_dir(station_records, config):
 
                 df["time"] = df[0].map(__parse_time)
             else:
-                df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(5)]), axis="columns")
-
+                # df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(twl_column_id)]), axis="columns")
+                fields = ["year", "month", "day", "hour", "minute"]
+                df["time"] = [pd.Timestamp(**dict(zip(fields, f))) for f in zip(*[df[i] for i in range(twl_column_id)])]
+                df["time"] = df["time"].dt.tz_localize(timezone.utc)
+                
+                # df["time"] = df.apply(lambda row: datetime(*[int(row[i]) for i in range(twl_column_id)]), axis="columns")
             df.rename({twl_column_id: "twl"}, inplace=True, axis="columns")
             df = df.loc[:, ["time", "twl"]]
+            crit = (df["time"] >= config.beg_time_obs) & (df["time"] <= config.end_time_obs)
+            df = df.loc[crit, :]
             print(df.head())
 
         except ValueError:

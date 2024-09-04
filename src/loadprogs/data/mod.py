@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 from pathlib import Path
 from typing import Tuple
 import pandas as pd
@@ -21,6 +21,7 @@ rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
 import logging
 import numpy as np
+
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -204,7 +205,15 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
     Returns:
 
     """
-    return get_mod_timeseries(
+
+    logger.info(f"{cfg.mod_datatype = }")
+
+    if cfg.mod_datatype == "point_txt":
+        # point data in a single text file
+        return get_mod_timeseries_point_txt(cfg, memder_ids=member_ids)
+
+    # fields from netcdf and standard files
+    return get_mod_timeseries_field(
         cfg.mod_dir, station_id_to_grid_indices=station_id_to_grid_indices,
         allow_missing=allow_missing,
         member_ids=member_ids,
@@ -218,15 +227,76 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
     )
 
 
-def get_mod_timeseries(mod_data_path: Path,
+def get_mod_timeseries_point_txt(cfg, memder_ids=("",)) -> pd.DataFrame:
+    """
+    reading model data from a single text file containing data at tide gauge points
+    skip the first row and discard header names, assuming that the first column in the file is the 
+    station id and the second is time.
+    returns pandas dataframe with the following columns
+    station_id, time, value, member_id, valid_hour
+    """
+
+    STID_COL = 0
+    TIME_COL = 1
+    value_col = int(cfg.mod_nomvar)
+
+    TIME_COL_FMT = r"%Y%m%d%H"
+
+    col_names = {
+        STID_COL: "station_id", 
+        TIME_COL: "time",
+    }
+
+    logger.info("mod_datatype=point_txt detected, expecting a single text file with data at tide gauges")
+
+    t_beg_s = f"{cfg.beg_time_mod:{TIME_COL_FMT}}"
+    t_end_s = f"{cfg.end_time_mod:{TIME_COL_FMT}}"
+
+
+    df_list = []
+    for member_id in memder_ids:
+        suffix = ""
+        if member_id != "":
+            suffix = f"_{member_id}"
+        
+        inp_file = cfg.mod_dir.parent / (cfg.mod_dir.name + suffix)
+            
+        col_names[value_col] = f"mod_{member_id}"
+        # try out different separators
+        for sep in [",", r"\s+"]:
+            try:
+                df = pd.read_csv(inp_file, skiprows=1, 
+                                 usecols=(STID_COL, TIME_COL, value_col),
+                                 sep=sep, header=None, converters={TIME_COL: str})
+                
+                crit = (df[TIME_COL] >= t_beg_s) & (df[TIME_COL] <= t_end_s)
+                df = df.loc[crit, :]
+                
+                df[TIME_COL] = pd.to_datetime(df[TIME_COL], format=TIME_COL_FMT, utc=True)
+                                            
+                df = df.rename(columns=col_names)
+
+            except (pd.errors.ParserError, ValueError):
+                logger.info("Failed to parse %s with sep=%s", inp_file, sep)
+                
+
+        df["member_id"] = member_id
+        df["valid_hour"] = 0
+        df[constants.COLNAME_TORIGIN] = df[constants.COLNAME_TIME] - pd.TimedeltaIndex(data=df["valid_hour"], unit="hours")
+        df_list.append(df)
+
+    return pd.concat(df_list, axis="index")
+
+def get_mod_timeseries_field(mod_data_path: Path,
                        station_id_to_grid_indices,
                        mod_nomvar="ETAS", mod_typvar="P@",
                        start_time=None, end_time=None,
                        member_ids=("",), run_freq_hours=12,
                        dt_texp_from_tbeg=timedelta(hours=0),
                        allow_missing=False, debug=False, nprocs=1
-                       ):
+                       ) -> pd.DataFrame:
     """
+    For standard or netCDF files 
     Read all the files in mod_data_path and store data in a pd.DataFrame
     remove the time mean
 

@@ -45,10 +45,10 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # --------------------------------------------
     
     _config.beg_time_mod = datetime.strptime(
-        mod_config.get(OptionNames.mod.MOD_BEG_DATE, fallback=dummy_date), "%Y%m%d%H").replace(tzinfo=pytz.utc)
+        mod_config.get(OptionNames.mod.MOD_BEG_DATE, fallback=dummy_date), r"%Y%m%d%H").replace(tzinfo=pytz.utc)
 
     _config.end_time_mod = datetime.strptime(
-        mod_config.get(OptionNames.mod.MOD_END_DATE, fallback=dummy_date), "%Y%m%d%H").replace(tzinfo=pytz.utc)
+        mod_config.get(OptionNames.mod.MOD_END_DATE, fallback=dummy_date), r"%Y%m%d%H").replace(tzinfo=pytz.utc)
 
     assert _config.end_time_mod >= _config.beg_time_mod, \
             f"{OptionNames.mod.MOD_BEG_DATE} should be less or equal than {OptionNames.mod.MOD_END_DATE}"
@@ -72,6 +72,11 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # select any typvar
     if _config.mod_typvar.strip() == "*":
         _config.mod_typvar = " "
+
+    # the form of model data
+    # if point_txt - then 1 text file contains all timeseries data identified by the station id
+    # if field the data should be 2d and either in standard or netcdf files.
+    _config.mod_datatype = mod_config.get(OptionNames.mod.MOD_DATATYPE, fallback="field")
 
     # mod detiding options
     _config.detide_mod = mod_config.getboolean(OptionNames.mod.DETIDE, fallback=False)
