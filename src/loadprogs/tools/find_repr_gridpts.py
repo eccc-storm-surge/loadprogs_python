@@ -84,7 +84,12 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --mod-files /home/sssm001/data/ppp5/u1/data/ppp4/maestro_hubs/gdsps/AC2019040512/pseudo-analysis/gridpt/forecast/gdsps/2019040509_001_1h \
                                                     --mod-bathy-vname SSH
 
-
+    # gesps 
+     python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/smco500/.suites/gdsps_20240611/forecast/config/main/cmde_postproc/gdsps_global.obs \
+                                                    --obs-index-out /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_global_obs_v1.0.0.obs \
+                                                    --nnearest 1 \
+                                                    --mod-files  /home/sssm001/data_maestro/ppp5/maestro_archives/cmde_gesps_inhouse-par-pass_v1.0.0_V3/gridpt/gesps.f.output_pre-level/2025010100_000 \
+                                                    --mod-bathy-vname SSH
 
 """
 import argparse
@@ -263,6 +268,8 @@ def work(cmd_args: argparse.Namespace):
         "NO": [], "ID": [], "LAT": [], "LON": [], "DATA.I": [], "DATA.J": [],
     })
 
+    reserved_columns = [f"DATA.{aname}" for aname in ["I", "J", "MODEL_LON", "MODEL_LAT"]]
+
     if lons is not None:
         data["DATA.MODEL_LON"] = []
         data["DATA.MODEL_LAT"] = []
@@ -286,7 +293,7 @@ def work(cmd_args: argparse.Namespace):
         data["LAT"].append(s.latitude)
 
         for c in input_obs_data:
-            if c.startswith("DATA."):
+            if c.startswith("DATA.") and (c not in reserved_columns):
                 assert (station_id == input_obs_data.NO).any()
                 data[c].append(input_obs_data.loc[station_id == input_obs_data.NO, c].values[0])
 
@@ -347,6 +354,9 @@ def work(cmd_args: argparse.Namespace):
     col_order = ["ID", "NO", "LAT", "LON", ]
     # add data columns
     col_order += sorted(label for label in data if label.startswith("DATA."))
+    print(data)
+    for k, v in data.items():
+        print(k, len(v), v)
     
     obs_file.save_dataframe_to_obs(pd.DataFrame.from_dict(data)[col_order], out_file=cmd_args.obs_index_out)
 
