@@ -135,9 +135,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     mod_groups_by_station = model_points.groupby(constants.COLNAME_STID)
 
-    for k, g in mod_groups_by_station:
-        logger.debug(f"{k} ({type(k)}) => {g}")
-
     conn = None
 
     # load external tides (from other sources if supplied)
