@@ -5,8 +5,9 @@ DATA_COLUMN_WIDTH = 15
 ID_COLUMN_WIDTH = 30
 
 import pandas as pd
+from pathlib import Path
 
-def save_dataframe_to_obs(df: pd.DataFrame, out_file="stations_Obs.obs"):
+def save_dataframe_to_obs(df: pd.DataFrame, out_file: str | Path ="stations_Obs.obs"):
     """
     Save dataframe in obs format, adding the states if provided
     :param df: should have columns (NO, ID, LON, LAT, DATA.I and DATA.J) ,
@@ -27,7 +28,7 @@ def save_dataframe_to_obs(df: pd.DataFrame, out_file="stations_Obs.obs"):
     :param out_file:
     :param station_states:
     """
-    with open(out_file, "w") as f:
+    with Path(out_file).open("w") as f:
         f.write(OBS_HEADER)
 
         # fmt_id = "{:<" + str(ID_COLUMN_WIDTH) + "}"
