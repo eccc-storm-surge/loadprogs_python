@@ -15,6 +15,7 @@ from ttide import t_predic
 from . import utils
 from ..util import log_utils
 from ..util import constants
+from collections import Counter
 
 logger = log_utils.get_logger(__name__)
 
@@ -26,8 +27,10 @@ def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents
     detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
     """
 
+    # the detiding expects equally spaced data filled with nans for missing points
+    data_ = data.copy().asfreq(pd.Timedelta(hours=1))
+
     # Make sure the total water level column can be found
-    data_ = data.copy()
     data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
 
     s = Station(do_filtering=do_filtering, 
@@ -65,9 +68,20 @@ class Station(object):
                 # remove duplicate dates in index before converting to frequency
                 self._data = self._data[~self._data.index.duplicated()].sort_index()  # just in case
 
+                
                 # make sure the data is equally spaced
-                dt_min = (self._data.index[1:] - self._data.index[:-1]).min()
-                self._data = self._data.asfreq(dt_min)
+                all_dt = (self._data.index[1:] - self._data.index[:-1])
+
+                cntr = Counter(all_dt)
+                dt_min = all_dt.min()
+                dt_sel = cntr.most_common(1)[0][0]
+
+                logger.info(f"{self.station_id}: time axis {self._data.index[0]}..{self._data.index[-1]}; freq={dt_sel}")
+                if dt_sel != dt_min:
+                    logger.info(f"Most frequent time step: {dt_sel} is not equal to the minimum time step={dt_min}")
+
+                self._data = self._data.asfreq(dt_sel)
+
 
             # logger.info("\n%s\n", self._data.head())
 

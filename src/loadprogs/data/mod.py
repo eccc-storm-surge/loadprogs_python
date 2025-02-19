@@ -262,6 +262,7 @@ def get_mod_timeseries_point_txt(cfg, memder_ids=("",)) -> pd.DataFrame:
         inp_file = cfg.mod_dir.parent / (cfg.mod_dir.name + suffix)
             
         col_names[value_col] = f"mod_{member_id}"
+        df = None
         # try out different separators
         for sep in [",", r"\s+"]:
             try:
@@ -278,7 +279,10 @@ def get_mod_timeseries_point_txt(cfg, memder_ids=("",)) -> pd.DataFrame:
 
             except (pd.errors.ParserError, ValueError):
                 logger.info("Failed to parse %s with sep=%s", inp_file, sep)
-                
+
+        if df is None:
+            raise IOError("Unknown error occurred when reading timeseries data from txt file(s). "
+                          "Maybe unknown field sep...")        
 
         df["member_id"] = member_id
         df["valid_hour"] = 0
