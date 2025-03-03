@@ -86,10 +86,11 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
 
     # gesps 
      python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/smco500/.suites/gdsps_20240611/forecast/config/main/cmde_postproc/gdsps_global.obs \
-                                                    --obs-index-out /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_global_obs_v1.0.0.obs \
+                                                    --obs-index-out /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_global_obs_v2.0.0.obs \
                                                     --nnearest 1 \
                                                     --mod-files  /home/sssm001/data_maestro/ppp5/maestro_archives/cmde_gesps_inhouse-par-pass_v1.0.0_V3/gridpt/gesps.f.output_pre-level/2025010100_000 \
-                                                    --mod-bathy-vname SSH
+                                                    --mod-bathy-vname SSH \
+                                                    --canhys-id-dict /home/olh001/canhys_cfg/1.3.8/cfg/stn.txt
 
 """
 import argparse
@@ -166,6 +167,11 @@ def read_cmd_args():
                         help="Minimum isolated lake size to be considered"
                         " (default=0, i.e. consider all lakes)",
                         default=0)
+    
+
+    parser.add_argument("--canhys-id-dict", required=False, type=Path,
+                        help="Path to the mapping of real station id to canhys id",
+                        default=None)
 
 
     args = parser.parse_args()
@@ -354,11 +360,22 @@ def work(cmd_args: argparse.Namespace):
     col_order = ["ID", "NO", "LAT", "LON", ]
     # add data columns
     col_order += sorted(label for label in data if label.startswith("DATA."))
-    print(data)
-    for k, v in data.items():
-        print(k, len(v), v)
-    
-    obs_file.save_dataframe_to_obs(pd.DataFrame.from_dict(data)[col_order], out_file=cmd_args.obs_index_out)
+  
+    df = pd.DataFrame.from_dict(data)[col_order]
+
+    if cmd_args.canhys_id_dict is not None:
+        df_dict = pd.read_csv(cmd_args.canhys_id_dict, sep="|", header=None)
+        
+        df_dict[2] = df_dict[2].str.lstrip("0")
+        id_dict = dict(zip(df_dict[2], df_dict[1]))
+        
+        df["DATA.CANHYS_ID"] = df["NO"].map(lambda real_id: id_dict.get(real_id, pd.NA))
+        df["DATA.CANHYS_ID"] = df["DATA.CANHYS_ID"].fillna(df["DATA.SSC_ID"].map(lambda real_id: id_dict.get(real_id, pd.NA)))
+
+    if "DATA.D" in df:
+        df = df.drop("DATA.D", axis="columns")
+
+    obs_file.save_dataframe_to_obs(df, out_file=cmd_args.obs_index_out)
 
 
 def main():
