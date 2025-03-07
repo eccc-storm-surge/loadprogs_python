@@ -592,6 +592,8 @@ def load_station_data_from_obs_dir(config):
 
     obs_st_ids_to_data = loading_funcs[config.obs_datatype](st_info_recs, config)
 
+    assert len(obs_st_ids_to_data) > 0, "No obs data were loaded !"
+
     # initialize list of stations without data added yet
 
     stations = [Station(do_filtering=config.obs_do_filtering, 
@@ -617,6 +619,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2),
                                          names=["canhys", "real"], sep="|",
+                                         header=None,
                                          converters=_converters).set_index("real")
 
     canhys_to_real_mapping = real_to_canhys_mapping.reset_index().set_index("canhys")
@@ -638,8 +641,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     canhys_ids_to_dfs = defaultdict(list)
 
-    for sql_file in sorted(config.obs_dir.iterdir()):
-        logger.info(f"processing file: {sql_file}")
+    for sql_file in sorted(config.obs_dir.iterdir(), key=lambda f: f.name):
         if not sql_file.is_file():
             logger.info(f"{sql_file.name} is not a file, skipping...")
             continue
@@ -657,15 +659,13 @@ def load_station_data_from_canhys_dir(station_records, config):
         # filter the dates
         if config.beg_time_obs is not None:
             if record_date + t_tolerance < config.beg_time_obs:
-                logger.info(
-                    f"Date of {sql_file.name} is before observation start date, skipping.. (tolerance={t_tolerance})")
                 continue
 
         if config.end_time_obs is not None:
             if record_date - t_tolerance > config.end_time_obs:
-                logger.info(
-                    f"Date of {sql_file.name} is after observation end date, finishing.. (tolerance={t_tolerance})")
                 continue
+
+        logger.info(f"processing file: {sql_file}")
 
         # read data
         conn = sqlite3.connect(sql_file)
