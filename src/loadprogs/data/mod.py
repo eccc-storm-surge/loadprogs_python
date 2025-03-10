@@ -582,7 +582,7 @@ def read_data_files(path_list,
         station_id_to_grid_indices:
         mod_nomvar:
     """
-    logger.debug("t_origin=%s", t_origin)
+    logger.debug("member_id=%s; t_origin=%s", member_id, t_origin)
     ftype = get_file_type(path_list[0])
     args = (path_list, station_id_to_grid_indices, mod_nomvar)
     if ftype == FILE_TYPE_FST:
