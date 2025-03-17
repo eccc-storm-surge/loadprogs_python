@@ -16,7 +16,10 @@ convert only stations specified in stnlist.csv
 # 4 - isolated spike or wrong value
 # 5 - missing value
 ACCEPTABLE_QC_VALUES = [0, 1, 2]
+
+VALUE_COLUMN = 2
 QC_FLAG_COLUMN = 3
+USE_IN_ANALYSIS_COLUMN = 4
 
 LON_TOKEN = "LONGITUDE"
 LAT_TOKEN = "LATITUDE"
@@ -79,9 +82,9 @@ async def convert_file(inp_f: Path, out_dir: Path, exclude_periods=()):
                         comment="#",
                         header=None)
 
-        df = df.loc[df.iloc[:, QC_FLAG_COLUMN].isin(ACCEPTABLE_QC_VALUES), :]
+        df = df.loc[df.loc[:, USE_IN_ANALYSIS_COLUMN] == 1, :]
 
-        df = df.loc[df[2] != null_value, :]
+        df = df.loc[df[VALUE_COLUMN] != null_value, :]
 
         # blacklist requested periods
         df.rename({"0_1": TIME_COLNAME}, axis="columns", inplace=True)
@@ -115,7 +118,7 @@ async def main():
     inp_dir = Path("/home/olh001/Python/surgemip/data/obs/GESLA3")
     inp_stn_list_pth = Path("data/obs/stnlist.csv")
     
-    out_dir = inp_dir.parent / f"{inp_dir.name}_loadprogs_v4"
+    out_dir = inp_dir.parent / f"{inp_dir.name}_loadprogs_v5"
     out_obs_file = inp_dir.parent / "gesla3_surgemip.obs"
 
     # ===========
