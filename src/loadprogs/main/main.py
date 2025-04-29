@@ -367,6 +367,12 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
         logger.debug("(obs) before reindex: \n %s \n", obs_data.head())
 
+
+        # remove model data outside the specified obs time range
+        t_selection = mod_data[constants.COLNAME_TIME] >= config.beg_time_obs
+        t_selection = t_selection & (mod_data[constants.COLNAME_TIME] <= config.end_time_obs)
+        mod_data = mod_data.loc[t_selection, :]
+
         obs_data = obs_data.reindex(
             pd.to_datetime(obs_data.index.union(mod_data[constants.COLNAME_TIME].drop_duplicates())))
         logger.debug("\n === obs_data.index === \n, %s", obs_data.index)
