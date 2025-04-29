@@ -456,17 +456,7 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                             index=False, header=False, 
                             quoting=csv.QUOTE_NONE)
 
-            # with config.out_file.open("a") as fout:
-            #     for row_index, row in mod_data.iterrows():
-            #         line = out_line_format.format(
-            #             row[constants.COLNAME_VALID_HOUR],
-            #             s.station_id,
-            #             s.latitude, s.longitude,
-            #             row[constants.COLNAME_TIME].strftime(constants.OUT_TIME_FORMAT),
-            #             row[f"{s.station_id}_obs"], *[row[k] for k in mod_member_keys]
-            #         )
-            #         fout.write(line)
-
+            
             # write tides in a separate file
             if len(member_id_to_mod_tides) > 0:
                 
