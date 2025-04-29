@@ -135,8 +135,6 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
 
     mod_groups_by_station = model_points.groupby(constants.COLNAME_STID)
 
-    conn = None
-
     # load external tides (from other sources if supplied)
     external_tides_groups_by_station = None
     if config.mod_external_tides.exists():
@@ -493,32 +491,14 @@ def main(config_path: Path = None, cfg_overrides: dict = None,
                     index=False, header=False, 
                     quoting=csv.QUOTE_NONE)
 
-
-                # with tides_file.open("a") as fout:
-                #     # assuming all the members have the same index
-                #     t_arr = member_id_to_mod_tides[mod_member_keys[0]].index
-                #     for t in t_arr:
-                #         line = out_line_format.format(
-                #             0,
-                #             s.station_id,
-                #             s.latitude, s.longitude,
-                #             t.strftime(constants.OUT_TIME_FORMAT),
-                #             -1.0,  # TODO: put observed tides in here
-                #             *[member_id_to_mod_tides[k][t] for k in mod_member_keys]
-                #         )
-                #         fout.write(line)
-
         if config.output_sqlite:
             mod_sql_data = mod.prepare_mod_sql_data(mod_data, mod_member_keys, stn=s)
 
             logger.info(f"mod_sql_data types: \n %s \n", mod_sql_data.dtypes)
 
-            conn = sqlite3.connect(config.out_file_sqlite)
-            mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists="append")
-            obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
-
-    if config.output_sqlite:
-        conn.close()
+            with sqlite3.connect(config.out_file_sqlite) as conn:
+                mod_sql_data.to_sql(name="data", con=conn, index=False, if_exists="append")
+                obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
 
     logger.info(f"Finished processing {config_path} .")
     logger.info(f"Output file: {config.out_file} .")
