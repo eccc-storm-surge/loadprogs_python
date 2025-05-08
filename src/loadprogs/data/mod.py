@@ -23,6 +23,12 @@ import logging
 import numpy as np
 import shelve
 
+import fstpy
+import dask
+from dask import array
+
+from multiprocessing import log_to_stderr
+
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -83,8 +89,8 @@ def map_stations_to_grid_indices(stations: List[obs.Station], stations_info_file
 
     obs_mod_map = {}
     for s in stations:
-        i = df.loc[s.station_id, "DATA.I"]
-        j = df.loc[s.station_id, "DATA.J"]
+        i = df.loc[s.station_id, "DATA.I"] # type: ignore
+        j = df.loc[s.station_id, "DATA.J"] # type: ignore
 
         obs_mod_map[s.station_id] = (i - 1, j - 1)
         if transpose_indices:
@@ -388,7 +394,7 @@ def get_mod_timeseries_field(mod_data_path: Path,
 
     # read actual data in parallel
     if not debug:
-        with Parallel(n_jobs=nprocs) as parallel:
+        with Parallel(n_jobs=nprocs, verbose=10) as parallel:
             df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar,
                                                         mod_typvar=mod_typvar, 
                                                         cache_dir=cache_dir, **inp) for inp in input_list)
@@ -489,14 +495,13 @@ def read_data_files_fst_fstpy(path_list,
 
     Returns:
     """
-    import fstpy
-    from dask import array
+    my_logger = log_to_stderr()
+    my_logger.setLevel(logging.INFO)
 
     df = fstpy.StandardFileReader(path_list, decode_metadata=True).to_pandas()
 
     sel = (df.nomvar == mod_nomvar) & (df.typvar == mod_typvar)
     df = df.loc[sel, :]
-
     
     df_list = []
 
@@ -504,11 +509,15 @@ def read_data_files_fst_fstpy(path_list,
     i_a, j_a = [station_id_to_grid_indices.iloc[:, i].values for i in range(2)]
     
     d_a = array.stack(field for field in df["d"]) # time, i, j
-    d_a = d_a.vindex[:, i_a, j_a].compute() # time, station
+    # d_a = d_a.vindex[:, i_a, j_a].T.compute() # time, station
 
-    for station_id, values in zip(stid_a, d_a):
-        df_point = df.drop(labels=["d"], axis="columns")
-        df_point["d"] = values
+    values = [d_a.vindex[:, i, j] for i, j in zip(i_a, j_a)]
+    values = dask.compute(*values)
+    my_logger.debug(f"{len(values) = }, {len(stid_a) = }, {path_list[0] = }, {min(values[0]) = }, {max(values[0]) = }")
+
+    for station_id, timeseries in zip(stid_a, values): 
+        df_point = df.loc[:, "date_of_validity"].to_frame().copy()
+        df_point["d"] = timeseries
         df_point["station_id"] = station_id
         df_list.append(df_point)
 
