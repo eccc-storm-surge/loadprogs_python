@@ -51,8 +51,11 @@ class OptionNames(object):
         REF_SHIFT_VAL_FIELD = "ref_shift_val_field" # colname for mwl2cd
         # if not 0 the rolling mean is applied at the end of the loadporgs
         APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
-        # either point_txt or 2D field data
+        # either 'point_txt' or 2D 'field' data
         MOD_DATATYPE = "mod_datatype"
+
+        # path to the cache directory for the model data
+        MOD_CACHE_DIR = "mod_cache_dir"
          
 
     class common(object):
@@ -71,38 +74,39 @@ def get_help():
     to be used to provide help on options in the .cfg files
     """
     
-    return OrderedDict([
+    return {
         # common for obs and mod
-        ("common", OrderedDict([
-            (OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified"),
-            (OptionNames.obs.DETIDE_RAYLEIGH, "real from 0 to 1, Rayleigh constant used for detiding")
-        ])),
-        ("mod", OrderedDict([
-            (OptionNames.mod.MOD_BEG_DATE, r"Date of the first model experiment to process (inclusive), format %Y%m%d%H"),
-            (OptionNames.mod.MOD_END_DATE, r"Date of the last model experiment to process (inclusive), format %Y%m%d%H"), 
-            (OptionNames.mod.DATA_DIR, "Path to the folder containing model outputs"),
-            (OptionNames.mod.B2B_MAX_LEAD_HOUR, """Maximum lead hour to be used for back to back timeseries construction,
-                                                not inclusive, i.e. when 12, then the max lead used for back to back is 11."""),
-            (OptionNames.mod.RUN_FREQ_HOURS, "Interval in hours between consequent experiments to be scored"),
-            (OptionNames.mod.DT_TEXP_TBEG, "difference in hours (possibly float) between the simulation start \n"
-                                           "and experiment date (contained in file names) in each file, default is 0"),
-            (OptionNames.mod.NOMVAR, "Variable name in the model output files, default is ETAS"),
-            (OptionNames.mod.DETIDE, """Flag to disable/enable detiding of model outputs (0/1 or False/True respectively)
-                                     default is 0"""),
-            (OptionNames.mod.DETIDE_CONSTITUENTS, """Comma-separated list of constituents,
-                                                  default None - constituents determined automatically"""),
-            (OptionNames.mod.TYPVAR, "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *"),
-            (OptionNames.mod.MOD_DATATYPE, "if point_txt assume all data is provided in a single text file, "
-                                           "otherwise it is assumed to be 2d fields in netcdf or standard files")
-        ])), 
-        ("obs", OrderedDict([
-            (OptionNames.obs.OBS_DATATYPE, "Type of observation files, possible values: txt (default), sqlite"),
-            (OptionNames.obs.OBS_BEG_DATE, r"Start date of observation data in format %Y%m%d%H, inclusive"),
-            (OptionNames.obs.OBS_END_DATE, r"End date of observation data in format %Y%m%d%H, inclusive"),
-            (OptionNames.obs.OBS_PERFORM_QC, "true/false preform quality control or not on observations"),
-        ])),
-        ("misc", OrderedDict([
+        "common": {
+            OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ: "non-inclusive to allow excluding Sa Ssa constituents, no limit is imposed if not specified",
+            OptionNames.common.DETIDE_RAYLEIGH: "real from 0 to 1, Rayleigh constant used for detiding"
+        },
+        "mod": {
+            OptionNames.mod.MOD_BEG_DATE: r"Date of the first model experiment to process (inclusive), format %Y%m%d%H",
+            OptionNames.mod.MOD_END_DATE: r"Date of the last model experiment to process (inclusive), format %Y%m%d%H", 
+            OptionNames.mod.DATA_DIR: "Path to the folder containing model outputs",
+            OptionNames.mod.B2B_MAX_LEAD_HOUR: """Maximum lead hour to be used for back to back timeseries construction,
+                                                not inclusive, i.e. when 12, then the max lead used for back to back is 11.""",
+            OptionNames.mod.RUN_FREQ_HOURS: "Interval in hours between consequent experiments to be scored",
+            OptionNames.mod.DT_TEXP_TBEG: "difference in hours (possibly float) between the simulation start \n"
+                                           "and experiment date (contained in file names) in each file, default is 0",
+            OptionNames.mod.NOMVAR: "Variable name in the model output files, default is ETAS",
+            OptionNames.mod.DETIDE: """Flag to disable/enable detiding of model outputs (0/1 or False/True respectively)
+                                     default is 0""",
+            OptionNames.mod.DETIDE_CONSTITUENTS: """Comma-separated list of constituents,
+                                                  default None - constituents determined automatically""",
+            OptionNames.mod.TYPVAR: "TYPVAR to filter variables in fst files, default is P@, not used for netcdf files, to select all typvar use *",
+            OptionNames.mod.MOD_DATATYPE: "if point_txt assume all data is provided in a single text file, "
+                                           "otherwise it is assumed to be 2d fields in netcdf or standard files",
+            OptionNames.mod.MOD_CACHE_DIR: "Path to the directory containing cache files from the model data."
+                                           "It is useful for huge amounts of data, where importing might take longer than the job's walltime limit"       
+        }, 
+        "obs": {
+            OptionNames.obs.OBS_DATATYPE: "Type of observation files, possible values: txt (default), sqlite",
+            OptionNames.obs.OBS_BEG_DATE: r"Start date of observation data in format %Y%m%d%H, inclusive",
+            OptionNames.obs.OBS_END_DATE: r"End date of observation data in format %Y%m%d%H, inclusive",
+            OptionNames.obs.OBS_PERFORM_QC: "true/false preform quality control or not on observations",
+        },
+        "misc": {
+        },
 
-        ])),
-
-    ])
+    }

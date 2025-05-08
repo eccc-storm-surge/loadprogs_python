@@ -62,7 +62,7 @@ def main_levelling_v01():
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
 
 
-def main(config_path: Path = None, cfg_overrides: dict = None,
+def main(config_path: Path, cfg_overrides: dict = None,
          allow_missing_mod_data: bool = False, debug: bool = False):
     """
     Entry point for processing a given simulation

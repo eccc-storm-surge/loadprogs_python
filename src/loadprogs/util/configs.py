@@ -78,6 +78,11 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # if field the data should be 2d and either in standard or netcdf files.
     _config.mod_datatype = mod_config.get(OptionNames.mod.MOD_DATATYPE, fallback="field")
 
+    # Path to the directory containing cached model data
+    _config.mod_cache_dir = mod_config.get(OptionNames.mod.MOD_CACHE_DIR, fallback=None)
+    if _config.mod_cache_dir is not None:
+        _config.mod_cache_dir = Path(_config.mod_cache_dir)
+
     # mod detiding options
     _config.detide_mod = mod_config.getboolean(OptionNames.mod.DETIDE, fallback=False)
     _config.detide_mod_constituents = mod_config.get(OptionNames.mod.DETIDE_CONSTITUENTS, fallback=None)
@@ -156,7 +161,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
             obs_config[OptionNames.obs.OBS_END_DATE], "%Y%m%d%H").replace(tzinfo=timezone.utc)
 
     if None not in [_config.beg_time_obs, _config.end_time_obs]:
-        if _config.beg_time_obs >= _config.end_time_obs:
+        if _config.beg_time_obs >= _config.end_time_obs: # type: ignore
             msg = f"""
                     ERROR, Configuration problem:
                     Expect start date to be before the end date, but got:

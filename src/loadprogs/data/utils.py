@@ -27,8 +27,8 @@ def remove_spikes(series: pd.Series, whis=1.5, inplace=False):
     if series_.isna().all():
         return series_
 
-    eliminate = series_.values > (whis * iqr + q3)
-    eliminate = (series_.values < (-whis * iqr + q1)) | eliminate
+    eliminate = series_.values > (whis * iqr + q3) # type: ignore
+    eliminate = (series_.values < (-whis * iqr + q1)) | eliminate # type: ignore
 
     series_[eliminate] = np.nan
 

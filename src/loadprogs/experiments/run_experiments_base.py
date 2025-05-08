@@ -50,16 +50,9 @@ def main(logger):
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
-
     
-    if not args.debug:
-        delayed_loadprogs_main = delayed(loadprogs_main)
-        Parallel(n_jobs=len(cfg_paths))(
-            delayed_loadprogs_main(config_path=Path(p), debug=args.debug) for p in cfg_paths
-        )
-    else:
-        for p in cfg_paths:
-            loadprogs_main(config_path=Path(p), debug=args.debug)
+    for p in cfg_paths:
+        loadprogs_main(config_path=Path(p), debug=args.debug)
 
 
 if __name__ == '__main__':

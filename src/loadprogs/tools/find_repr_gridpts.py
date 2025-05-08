@@ -101,6 +101,14 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --canhys-id-dict /home/olh001/canhys_cfg/1.3.8/cfg/stn.txt
 
 
+    # gesps for resps comparison
+     python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in  /home/olh001/Python/obs_to_grid_mapping/resps/resps_1_12.obs \
+                                                    --obs-index-out /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_east-coast-domain.obs \
+                                                    --nnearest 1 \
+                                                    --mod-files  /home/sssm001/data_maestro/ppp5/maestro_archives/cmde_gesps_inhouse-par-pass_v1.0.0_V3/gridpt/gesps.f.output_pre-level/2025010100_000 \
+                                                    --mod-bathy-vname SSH
+
+
 
                                                     
 """
