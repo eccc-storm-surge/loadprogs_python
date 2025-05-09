@@ -501,6 +501,11 @@ def read_data_files_fst_fstd2nc(path_list,
     import fstd2nc
     
     ds = fstd2nc.Buffer(path_list).to_xarray()
+    
+
+    std_dims = {"lon": "i", "lat": "j"}
+    ds = ds.rename(std_dims)
+    
     v = ds[mod_nomvar].squeeze()
 
     t_values = v.coords["time"].values
