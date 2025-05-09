@@ -393,7 +393,8 @@ def get_mod_timeseries_field(mod_data_path: Path,
     if cache_dir is not None:
         cache_dir.mkdir(exist_ok=True, parents=True)
 
-    memory = joblib.Memory(cache_dir, verbose=0)
+    memory = joblib.Memory(cache_dir, verbose=0) # cache_dir = None, disables caching
+    
     read_data_files_cached = memory.cache(read_data_files)
 
     # read actual data in parallel
@@ -505,7 +506,7 @@ def read_data_files_fst_fstd2nc(path_list,
 
     std_dims = {"lon": "i", "lat": "j"}
     ds = ds.rename(std_dims)
-    
+
     v = ds[mod_nomvar].squeeze()
 
     t_values = v.coords["time"].values
@@ -631,17 +632,6 @@ def read_data_files_cdf(path_list,
     logger.debug(f"Data fetch from nc took: {perf_counter() - t0} seconds")
     return pd.DataFrame.from_dict(data_dict)
 
-
-def get_cache_file(nomvar: str, typvar: str, t_origin: pd.Timestamp | None, 
-                   member_id: str, 
-                   cache_dir: Path):
-    """
-    Returns:
-        Path representing cache file
-    """
-
-    pth = Path(f"nomvar_{nomvar}_typvar_{typvar}_torigin_{t_origin:%Y%m%d%H%M%S}_member_{member_id}")
-    return cache_dir / pth
 
 
 
