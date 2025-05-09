@@ -28,7 +28,8 @@ import dask
 from dask import array
 
 from multiprocessing import log_to_stderr
-
+import joblib
+import xarray
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -392,16 +393,17 @@ def get_mod_timeseries_field(mod_data_path: Path,
     if cache_dir is not None:
         cache_dir.mkdir(exist_ok=True, parents=True)
 
+    memory = joblib.Memory(cache_dir, verbose=0)
+    read_data_files_cached = memory.cache(read_data_files)
+
     # read actual data in parallel
     if not debug:
         with Parallel(n_jobs=nprocs, verbose=10) as parallel:
-            df_list = parallel(delayed(read_data_files)(mod_nomvar=mod_nomvar,
-                                                        mod_typvar=mod_typvar, 
-                                                        cache_dir=cache_dir, **inp) for inp in input_list)
+            df_list = parallel(delayed(read_data_files_cached)(mod_nomvar=mod_nomvar,
+                                                        mod_typvar=mod_typvar, **inp) for inp in input_list)
     else:
         df_list = [read_data_files(mod_nomvar=mod_nomvar,
-                                   mod_typvar=mod_typvar,
-                                   cache_dir=cache_dir, **inp) for inp in input_list]
+                                   mod_typvar=mod_typvar, **inp) for inp in input_list]
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
@@ -481,6 +483,40 @@ def read_data_files_fst(path_list,
     rmn.fstcloseall(funit)
 
     return pd.DataFrame.from_dict(data_dict)
+
+
+def read_data_files_fst_fstd2nc(path_list,
+                              station_id_to_grid_indices: pd.DataFrame,
+                              mod_nomvar="ETAS", mod_typvar="P@") -> pd.DataFrame:
+    """
+    Read model data at points for given indices into a dataframe
+    Args:
+        path_list:
+        station_id_to_grid_indices (pd.DataFrame): with str station ids as labels 
+                    and corresponding i, j  values in columns [0, 1]
+        mod_nomvar:
+
+    Returns:
+    """
+    import fstd2nc
+    
+    ds = fstd2nc.Buffer(path_list).to_xarray()
+    v = ds[mod_nomvar].squeeze()
+
+    t_values = v.coords["time"].values
+    i_inds = xarray.DataArray(station_id_to_grid_indices.iloc[:, 0].values, dims="station_id")
+    j_inds = xarray.DataArray(station_id_to_grid_indices.iloc[:, 1].values, dims="station_id")
+    ts_points = v.isel(i=i_inds, j=j_inds).compute().transpose("station_id", "time")
+
+    df_list = []
+    for station_id, timeseries in zip(station_id_to_grid_indices.index, ts_points):
+        df_point = pd.DataFrame({"time": t_values, "value": timeseries.values})
+        df_point["station_id"] = station_id
+        df_list.append(df_point)
+    df_result = pd.concat(df_list)
+    df_result["time"] = pd.to_datetime(df_result["time"], utc=True)
+    return df_result
+
 
 def read_data_files_fst_fstpy(path_list,
                               station_id_to_grid_indices: pd.DataFrame,
@@ -575,7 +611,7 @@ def read_data_files_cdf(path_list,
 
         stid_list = station_id_to_grid_indices.index
         i_list = station_id_to_grid_indices.iloc[:, 0].values
-        j_list = station_id_to_grid_indices.iloc[:, 0].values
+        j_list = station_id_to_grid_indices.iloc[:, 1].values
 
         data_array = ds[mod_nomvar].values
         for station_id, i1, i2 in zip(stid_list, i_list, j_list):
@@ -603,13 +639,12 @@ def get_cache_file(nomvar: str, typvar: str, t_origin: pd.Timestamp | None,
     return cache_dir / pth
 
 
+
 def read_data_files(path_list,
                     station_id_to_grid_indices: pd.DataFrame,
                     t_origin: pd.Timestamp,
                     mod_nomvar="ETAS", mod_typvar="P@",
-                    member_id="", 
-                    cache_dir: Path | None = None
-                    ) -> pd.DataFrame:
+                    member_id="") -> pd.DataFrame:
     """
     General interface for accessing fst or cdf files
     Args:
@@ -619,27 +654,6 @@ def read_data_files(path_list,
         mod_typvar: str
     """
 
-    cache_file = None
-    cache = None
-    cache_key = None
-
-    if cache_dir is not None:
-        cache_key = sorted(path_list) + [pd.util.hash_pandas_object(station_id_to_grid_indices).sum(), ]
-        cache_key = "-".join(str(tok) for tok in cache_key) # unique cache key, shelve accepts only strings
-
-        cache_file = get_cache_file(nomvar=mod_nomvar, 
-                                    typvar=mod_typvar, 
-                                    t_origin=t_origin, 
-                                    member_id=member_id, 
-                                    cache_dir=cache_dir)
-        
-        cache = shelve.open(str(cache_file))
-        if cache_key in cache:
-            logger.debug(f"Reusing found cached data in cache file for model data: {cache_file}")
-            df = cache[cache_key]
-            cache.close()
-            return df
-
         
     logger.debug("Start reading member_id=%s; t_origin=%s", member_id, t_origin)
     ftype = get_file_type(path_list[0])
@@ -648,7 +662,7 @@ def read_data_files(path_list,
     assert len(station_id_to_grid_indices), "Station id to grid indices mapping is empty"
 
     if ftype == FILE_TYPE_FST:
-        df = read_data_files_fst_fstpy(*args, mod_typvar=mod_typvar)
+        df = read_data_files_fst_fstd2nc(*args, mod_typvar=mod_typvar)
     elif ftype == FILE_TYPE_CDF:
         df = read_data_files_cdf(*args)
     else:
@@ -659,10 +673,7 @@ def read_data_files(path_list,
     df["valid_hour"] = (pd.TimedeltaIndex(df["time"] - t_origin).total_seconds()) / 3600.
     df["member_id"] = member_id
 
-    if None not in [cache, cache_key]:
-        cache[cache_key] = df # type: ignore
-        cache.close() # type: ignore
-
+    
     return df
 
 
