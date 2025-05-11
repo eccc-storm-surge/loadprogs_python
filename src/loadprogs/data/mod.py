@@ -501,7 +501,7 @@ def read_data_files_fst_fstd2nc(path_list,
     """
     import fstd2nc
     
-    ds = fstd2nc.Buffer(path_list).to_xarray()
+    ds = fstd2nc.Buffer(path_list, vars=mod_nomvar).to_xarray()
     
 
     std_dims = {"lon": "i", "lat": "j"}
