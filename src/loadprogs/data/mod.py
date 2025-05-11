@@ -506,7 +506,7 @@ def read_data_files_fst_fstd2nc(path_list,
     except Exception as e:
         warnings.warn(f"Failed to read {path_list} with fstd2nc and {mod_nomvar}.\n")
         warnings.warn(f"Trying with {mod_typvar} instead.\n")
-        ds = fstd2nc.Buffer(path_list, filter=f"typvar == {mod_typvar}").to_xarray()
+        ds = fstd2nc.Buffer(path_list, filter=f"typvar == '{mod_typvar}'").to_xarray()
         for nv, v in ds.variables.items():
             if v.squeeze().ndim == 3:
                 mod_nomvar = nv
