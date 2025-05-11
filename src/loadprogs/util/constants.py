@@ -56,6 +56,9 @@ class OptionNames(object):
 
         # path to the cache directory for the model data
         MOD_CACHE_DIR = "mod_cache_dir"
+
+        # list of members to be detided
+        MOD_DETIDE_MEMBERS = "mod_detide_members"
          
 
     class common(object):
@@ -98,7 +101,8 @@ def get_help():
             OptionNames.mod.MOD_DATATYPE: "if point_txt assume all data is provided in a single text file, "
                                            "otherwise it is assumed to be 2d fields in netcdf or standard files",
             OptionNames.mod.MOD_CACHE_DIR: "Path to the directory containing cache files from the model data."
-                                           "It is useful for huge amounts of data, where importing might take longer than the job's walltime limit"       
+                                           "It is useful for huge amounts of data, where importing might take longer than the job's walltime limit",
+            OptionNames.mod.MOD_DETIDE_MEMBERS: "Comma-separated list of members to be detided, default is all members",       
         }, 
         "obs": {
             OptionNames.obs.OBS_DATATYPE: "Type of observation files, possible values: txt (default), sqlite",

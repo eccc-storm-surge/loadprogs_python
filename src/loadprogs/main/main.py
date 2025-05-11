@@ -262,7 +262,11 @@ def main(config_path: Path, cfg_overrides: dict = None,
 
             logger.debug("\n ==== mod_data_twl ==== \n %s \n", mod_data_twl.head())
 
-            for c in mod_member_keys:
+            # check for which members detiding is requested
+            # if not specified in the config file, detide all members
+            member_keys_to_detide = config.mod_detide_members if config.mod_detide_members is not None else mod_member_keys
+
+            for c in member_keys_to_detide:
 
                 if config.mod_external_tides.exists():  # tides are provided externally
 
