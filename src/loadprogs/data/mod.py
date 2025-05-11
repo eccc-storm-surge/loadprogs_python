@@ -21,7 +21,6 @@ rmn.fstopt(rmn.FSTOP_MSGLVL, rmn.FSTOPI_MSG_FATAL)
 
 import logging
 import numpy as np
-import shelve
 
 import fstpy
 import dask
@@ -30,6 +29,7 @@ from dask import array
 from multiprocessing import log_to_stderr
 import joblib
 import xarray
+import warnings
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -501,8 +501,16 @@ def read_data_files_fst_fstd2nc(path_list,
     """
     import fstd2nc
     
-    ds = fstd2nc.Buffer(path_list, vars=mod_nomvar).to_xarray()
-    
+    try:
+        ds = fstd2nc.Buffer(path_list, vars=mod_nomvar).to_xarray()
+    except Exception as e:
+        warnings.warn(f"Failed to read {path_list} with fstd2nc and {mod_nomvar}.\n")
+        warnings.warn(f"Trying with {mod_typvar} instead.\n")
+        ds = fstd2nc.Buffer(path_list, filter=f"typvar == {mod_typvar}").to_xarray()
+        for nv, v in ds.variables.items():
+            if v.squeeze().ndim == 3:
+                mod_nomvar = nv
+                break
 
     std_dims = {"lon": "i", "lat": "j"}
     ds = ds.rename(std_dims)
