@@ -768,13 +768,10 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
 
     logger.debug(f"tmean({station.station_id})={tmean}")
 
-    # mean to be removed from each member calculated based on the control member, which is assumed
-    # to be the first in the list
-
-    where_cond = (df["valid_hour"] < config.b2b_max_lead_hours) & (df["valid_hour"] >= config.b2b_min_lead_hour)
-    tmean = df.loc[where_cond, mod_member_keys[0]].mean()
-
+    # remove long time mean for all members
     for cn in mod_member_keys:
+        tmean = df.loc[crit, cn].mean()
+    
         logger.debug("Mod analysis period mean, removed: %.4f, member id = %s", tmean, cn)
         df.loc[:, cn] -= tmean  # remove long time mean only of the control member
     return df

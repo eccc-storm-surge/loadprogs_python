@@ -267,6 +267,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
             member_keys_to_detide = config.mod_detide_members if config.mod_detide_members is not None else mod_member_keys
 
             for c in member_keys_to_detide:
+                logger.debug("Detiding %s ==============", c)
 
                 if config.mod_external_tides.exists():  # tides are provided externally
 
