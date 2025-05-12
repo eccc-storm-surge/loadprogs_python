@@ -160,6 +160,12 @@ def main(config_path: Path, cfg_overrides: dict = None,
                                                field_name_mapping = {"key": config.mod_ref_shift_key_field, 
                                                                      "value": config.mod_ref_shift_val_field})
         
+
+    # check for which members detiding is requested
+    # if not specified in the config file, detide all members
+    member_keys_to_detide = config.mod_detide_members if config.mod_detide_members is not None else mod_member_keys
+
+        
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
 
@@ -261,10 +267,6 @@ def main(config_path: Path, cfg_overrides: dict = None,
             mod_ttide_con = None
 
             logger.debug("\n ==== mod_data_twl ==== \n %s \n", mod_data_twl.head())
-
-            # check for which members detiding is requested
-            # if not specified in the config file, detide all members
-            member_keys_to_detide = config.mod_detide_members if config.mod_detide_members is not None else mod_member_keys
 
             for c in member_keys_to_detide:
                 logger.debug("Detiding %s ==============", c)
@@ -472,7 +474,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
             if len(member_id_to_mod_tides) > 0:
                 
                 df_tides = pd.DataFrame.from_dict({
-                    constants.COLNAME_TIME: member_id_to_mod_tides[mod_member_keys[0]].index,
+                    constants.COLNAME_TIME: member_id_to_mod_tides[member_keys_to_detide[0]].index,
                 })
 
                 df_tides[constants.COLNAME_VALID_HOUR] = 0.
@@ -480,7 +482,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
                 df_tides["latitude"] = s.latitude
                 df_tides["longitude"] = s.longitude
                 df_tides[f"{s.station_id}_obs"] = -1.0
-                for k in mod_member_keys:
+                for k in member_keys_to_detide:
                     df_tides[k] = member_id_to_mod_tides[k].values
 
                 df_tides.to_csv(tides_file,
