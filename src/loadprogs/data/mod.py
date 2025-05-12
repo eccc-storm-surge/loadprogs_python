@@ -766,7 +766,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
     tmean = df.loc[crit, f"{station.station_id}_obs"].mean()
     df.loc[:, f"{station.station_id}_obs"] -= tmean
 
-    logger.debug(f"tmean({station.station_id})={tmean}")
+    logger.debug(f"observed tmean({station.station_id})={tmean}")
 
     # remove long time mean for all members
     for cn in mod_member_keys:
