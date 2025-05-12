@@ -86,7 +86,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     # list of members to be detided
     _config.mod_detide_members = mod_config.get(OptionNames.mod.MOD_DETIDE_MEMBERS, fallback=None)
     if _config.mod_detide_members is not None:
-        _config.mod_detide_members = [tok.strip() for tok in _config.mod_detide_members.split(",")]
+        _config.mod_detide_members = [f"mod_{tok.strip()}" for tok in _config.mod_detide_members.split(",")]
     
 
     # mod detiding options
@@ -94,7 +94,7 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.detide_mod_constituents = mod_config.get(OptionNames.mod.DETIDE_CONSTITUENTS, fallback=None)
 
     if _config.detide_mod_constituents is not None:
-        _config.detide_mod_constituents = [f"mod_{tok.strip()}" for tok in _config.detide_mod_constituents.split(",")]
+        _config.detide_mod_constituents = [tok.strip() for tok in _config.detide_mod_constituents.split(",")]
 
     # minimum tide frequency to consider when detiding
     _config.mod_detide_min_tide_frequency_hz = mod_config.getfloat(
