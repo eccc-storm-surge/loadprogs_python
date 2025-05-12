@@ -487,7 +487,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
 
                 df_tides.to_csv(tides_file,
                     mode="a", 
-                    columns=sel_columns,
+                    columns=sel_columns[:-len(mod_member_keys)] + member_keys_to_detide,
                     float_format="%.7f",
                     date_format=constants.OUT_TIME_FORMAT,
                     na_rep=str(np.nan),
