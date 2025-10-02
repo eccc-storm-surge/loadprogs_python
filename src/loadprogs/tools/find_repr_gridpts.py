@@ -394,6 +394,9 @@ def work(cmd_args: argparse.Namespace):
     if "DATA.D" in df:
         df = df.drop("DATA.D", axis="columns")
 
+    # create parent dir if needed
+    cmd_args.obs_index_out.parent.mkdir(exist_ok=True)
+    
     obs_file.save_dataframe_to_obs(df, out_file=cmd_args.obs_index_out)
 
 
