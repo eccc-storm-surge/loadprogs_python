@@ -53,11 +53,9 @@ class Station(object):
 
     @data.setter
     def data(self, df):
+        self._data: pd.DataFrame | None = None
         if df is not None and len(df.dropna()) > 1:
             self._data = df.copy()
-        else:
-            self._data = None
-
         
         if self._data is not None:
 
@@ -112,8 +110,8 @@ class Station(object):
         self.detide_min_freq_hz = detide_min_frequency_hz
 
         # station attributes
-        self.station_id = None
-        self.name = ""
+        self.station_id: str | None = None
+        self.name: str = ""
         self.latitude = None
         self.longitude = None
 

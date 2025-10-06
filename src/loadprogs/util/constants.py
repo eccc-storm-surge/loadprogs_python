@@ -22,6 +22,8 @@ class OptionNames(object):
         OBS_PERFORM_QC = "perform_qc" # true/false preform quality control or not on observations
         # if not 0 the rolling mean is applied at the end of the loadporgs
         APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
+        # path to the file relating canhys ids to real station ids
+        CANHYS_ID_TRANSLATION_DICT = "canhys_station_id_translation_dict"
         
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"
@@ -59,6 +61,9 @@ class OptionNames(object):
 
         # list of members to be detided
         MOD_DETIDE_MEMBERS = "mod_detide_members"
+
+        # True/False: output model tides
+        MOD_OUTPUT_TIDES = "mod_output_tides"
          
 
     class common(object):
@@ -69,6 +74,9 @@ class OptionNames(object):
         # true or false to remove or not the mean value during the analysis period
         REMOVE_ANALYSIS_PERIOD_MEAN = "remove_analysis_period_mean"
         SORT_OUTPUT = "sort_output"
+        OUT_FILE_SQLITE = "out_file_sqlite"
+        OUT_FILE_TXT = "out_file_txt"
+
         pass
 
 
@@ -102,15 +110,19 @@ def get_help():
                                            "otherwise it is assumed to be 2d fields in netcdf or standard files",
             OptionNames.mod.MOD_CACHE_DIR: "Path to the directory containing cache files from the model data."
                                            "It is useful for huge amounts of data, where importing might take longer than the job's walltime limit",
-            OptionNames.mod.MOD_DETIDE_MEMBERS: "Comma-separated list of members to be detided, default is all members",       
+            OptionNames.mod.MOD_DETIDE_MEMBERS: "Comma-separated list of members to be detided, default is all members", 
+            OptionNames.mod.MOD_OUTPUT_TIDES: "True/False output/or not model tides, usually computed using harmonic analysis"
         }, 
         "obs": {
             OptionNames.obs.OBS_DATATYPE: "Type of observation files, possible values: txt (default), sqlite",
             OptionNames.obs.OBS_BEG_DATE: r"Start date of observation data in format %Y%m%d%H, inclusive",
             OptionNames.obs.OBS_END_DATE: r"End date of observation data in format %Y%m%d%H, inclusive",
             OptionNames.obs.OBS_PERFORM_QC: "true/false preform quality control or not on observations",
+            OptionNames.obs.CANHYS_ID_TRANSLATION_DICT: "Path to canhys file relating internal Canhys ids to real station ids"
         },
         "misc": {
+            OptionNames.misc.OUT_FILE_SQLITE: "Path to sqlite output file",
+            OptionNames.misc.OUT_FILE_TXT: "Path to txt output file (usually wiht .dat extension)"
         },
 
     }

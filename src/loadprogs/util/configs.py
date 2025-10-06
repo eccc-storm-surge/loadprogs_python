@@ -21,7 +21,7 @@ MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
 NOTEXISTING_PATH = "__does_not_exist__"
 
 
-def parse_config_settings(config_path, cfg_overrides: dict = None):
+def parse_config_settings(config_path, cfg_overrides: dict | None = None):
     logger.info(f"Processing {config_path} ...")
 
     if config_path is None:
@@ -125,7 +125,8 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     if _config.mod_external_debias.name != NOTEXISTING_PATH:
         assert _config.mod_external_debias.exists(), f"{_config.mod_external_debias} should exist!"
 
-
+    # flag to output (True) or not (False) tides computed from model time series
+    _config.mod_output_tides = mod_config.getboolean(OptionNames.mod.MOD_OUTPUT_TIDES, fallback=False)
 
     # debias using the following formula:
     # FC = FC - mean(PA-Obs), (the mean is over avg_nhours, before the forecast start)
@@ -159,12 +160,12 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.beg_time_obs = None
     if OptionNames.obs.OBS_BEG_DATE in obs_config:
         _config.beg_time_obs = datetime.strptime(
-            obs_config[OptionNames.obs.OBS_BEG_DATE], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+            obs_config[OptionNames.obs.OBS_BEG_DATE], r"%Y%m%d%H").replace(tzinfo=timezone.utc)
     
     _config.end_time_obs = None
     if OptionNames.obs.OBS_END_DATE in obs_config:
         _config.end_time_obs = datetime.strptime(
-            obs_config[OptionNames.obs.OBS_END_DATE], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+            obs_config[OptionNames.obs.OBS_END_DATE], r"%Y%m%d%H").replace(tzinfo=timezone.utc)
 
     if None not in [_config.beg_time_obs, _config.end_time_obs]:
         if _config.beg_time_obs >= _config.end_time_obs: # type: ignore
@@ -182,7 +183,9 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.transpose_mod_indices = obs_config.getboolean("obs_transpose_mod_indices", fallback=False)
 
     if _config.obs_datatype in ["sqlite", "canhys"]:
-        _config.translator_path = Path(obs_config.get("canhys_station_id_translation_dict"))
+        translator_path = obs_config.get(OptionNames.obs.CANHYS_ID_TRANSLATION_DICT)
+        assert translator_path is not None, f"You have to specify {OptionNames.obs.CANHYS_ID_TRANSLATION_DICT}, in the [obs] section of the config."
+        _config.translator_path = Path(translator_path)
         _config.translator_path = _config.translator_path.expanduser()
         
         # comma-separated list of variable ids for the canhys db
@@ -222,14 +225,19 @@ def parse_config_settings(config_path, cfg_overrides: dict = None):
     _config.label = misc_config.get("label", fallback="")
 
     _config.out_dir = Path(misc_config.get("prepared_for_scoring_dir", fallback=".")).expanduser()
-    _config.out_file = _config.out_dir / ("surge_" + _config.label + ".dat")
+    out_file_txt = _config.out_dir / ("surge_" + _config.label + ".dat")
+    _config.out_file_txt = misc_config.get(OptionNames.misc.OUT_FILE_TXT, fallback=out_file_txt)
+    _config.out_file_txt = Path(_config.out_file_txt).expanduser()
     _config.output_txt = misc_config.getboolean("output_txt", fallback=True)
 
     # allow either output_sql or output_sqlite parameter names, means the same thing
     _config.output_sqlite = misc_config.getboolean("output_sql", fallback=False)
     _config.output_sqlite = misc_config.getboolean("output_sqlite", fallback=_config.output_sqlite)
     if _config.output_sqlite:
-        _config.out_file_sqlite = _config.out_dir / (_config.out_file.name[:-4] + ".sqlite")
+        out_file_sqlite = _config.out_dir / (_config.out_file_txt.stem + ".sqlite")
+        _config.out_file_sqlite = misc_config.get(OptionNames.misc.OUT_FILE_SQLITE, fallback=out_file_sqlite)
+        # assert _config.out_file_sqlite is not None
+        _config.out_file_sqlite = Path(_config.out_file_sqlite).expanduser()
 
     _config.plot_detiding_diag = misc_config.getboolean("plot_detiding_diag", fallback=True)
 

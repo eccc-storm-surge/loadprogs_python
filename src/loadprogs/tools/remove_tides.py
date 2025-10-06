@@ -36,6 +36,8 @@ def diff(inp_files, file_c, name_a, name_b, name_c):
             rec_b = rmn.fstlir(fu_inp, nomvar=name_b, ip1=rec_a["ip1"], ip2=rec_a["ip2"], ip3=rec_a["ip3"],
                                typvar=rec_a["typvar"], datev=rec_a["datev"])
 
+            assert rec_b is not None
+            
             rec_c = rec_a.copy()
             rec_c["nomvar"] = name_c
             if rec_a["typvar"] == "@@":

@@ -62,7 +62,7 @@ def main_levelling_v01():
     main(config_path=Path("configs/rdsps_pa/rdsps_pa_nolev.cfg"))
 
 
-def main(config_path: Path, cfg_overrides: dict = None,
+def main(config_path: Path, cfg_overrides: dict | None = None,
          allow_missing_mod_data: bool = False, debug: bool = False):
     """
     Entry point for processing a given simulation
@@ -88,11 +88,11 @@ def main(config_path: Path, cfg_overrides: dict = None,
     for k, v in vars(config).items():
         logger.info(f"{k} => {v}, ({type(v)})")
 
-    config.out_dir.mkdir(exist_ok=True, parents=True)
+    config.out_file_txt.parent.mkdir(exist_ok=True, parents=True)
 
     # do nothing if the output file already exists
-    if config.output_txt and config.out_file.exists():
-        logger.info(f"Already exists, won't redo:\n{config.out_file}")
+    if config.output_txt and config.out_file_txt.exists():
+        logger.info(f"Already exists, won't redo:\n{config.out_file_txt}")
         logger.info(f"Setting output_txt option to False (remove the file to rerun)")
         config.output_txt = False
 
@@ -101,12 +101,12 @@ def main(config_path: Path, cfg_overrides: dict = None,
         logger.info(f"Setting output_sqlite option to False (remove the file to rerun)")
         config.output_sqlite = False
 
-    if not (config.output_txt or config.output_sqlite):
+    if not any([config.output_txt, config.output_sqlite]):
         logger.info(f"No output requested, exiting!")
         return
 
     # remove the tides file if exists already
-    tides_file = config.out_file.parent / f"tides_{config.out_file.name}"
+    tides_file = config.out_file_txt.parent / f"tides_{config.out_file_txt.name}"
     if tides_file.exists():
         logger.info(f"The tides file {tides_file} will be overwritten!")
         tides_file.unlink()
@@ -169,6 +169,8 @@ def main(config_path: Path, cfg_overrides: dict = None,
     # Dump corresponding obs and mod data into a file for scoring
     for s in stations:
 
+        assert s.station_id is not None
+
         if mod_ref_shift_data is not None:
             current_mod_ref_shift = mod_ref_shift_data.get(s.station_id, None)
             
@@ -193,8 +195,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
         # this is to still output model data even when obs are missing
         if s.get_data_len_since() == 0:
             logger.info("No data found for %s (%s) station! \n",
-                        s.name, s.station_id
-                        )
+                        s.name, s.station_id)
 
             dummy = mod_data.drop_duplicates(subset=(constants.COLNAME_TIME))
             dummy = dummy.set_index(constants.COLNAME_TIME)
@@ -231,6 +232,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
             if config.plot_detiding_diag:
                 msg = f"plotting timeseries for {s.station_id}"
                 logging.info(msg)
+                assert s.data is not None
                 # Create time series and power spectrum plots for observational data
                 plot_ts_and_spectre(hourly_series=obs_data.asfreq("1H"),
                                     data_label="{}_{}".format(config.label, s.station_id),
@@ -460,7 +462,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
             if config.sort_output:
                 mod_data.sort_values([constants.COLNAME_TORIGIN, constants.COLNAME_VALID_HOUR], inplace=True) 
             
-            mod_data.to_csv(config.out_file,
+            mod_data.to_csv(config.out_file_txt,
                             mode="a", 
                             columns=sel_columns,
                             float_format="%.7f",
@@ -471,7 +473,7 @@ def main(config_path: Path, cfg_overrides: dict = None,
 
             
             # write tides in a separate file
-            if len(member_id_to_mod_tides) > 0:
+            if len(member_id_to_mod_tides) > 0 and config.mod_output_tides:
                 
                 df_tides = pd.DataFrame.from_dict({
                     constants.COLNAME_TIME: member_id_to_mod_tides[member_keys_to_detide[0]].index,
@@ -504,7 +506,11 @@ def main(config_path: Path, cfg_overrides: dict = None,
                 obs_sql_data.to_sql(name="obs", con=conn, index=False, if_exists="append")
 
     logger.info(f"Finished processing {config_path} .")
-    logger.info(f"Output file: {config.out_file} .")
+    
+    if config.output_txt:
+        logger.info(f"Output file (text): {config.out_file_txt} .")
+    if config.output_sqlite:
+        logger.info(f"Output file (sqlite): {config.out_file_sqlite} .")
     return obs.get_stid_to_stname_map(stations)
 
 
