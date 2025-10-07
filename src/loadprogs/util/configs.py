@@ -2,16 +2,15 @@ import configparser
 import logging
 
 from argparse import Namespace
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np
 
 import pytz
 
-from .config_interpolation import ExtendedEnvInterpolation
-from .constants import OptionNames
-from . import constants
-from typing import Callable
+from loadprogs.util.config_interpolation import ExtendedEnvInterpolation
+from loadprogs.util.constants import OptionNames
+from loadprogs.util import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -19,7 +18,12 @@ logger.setLevel(logging.DEBUG)
 
 MIN_NHOURS_FOR_DETIDING_DEFAULT = 2160
 
-NOTEXISTING_PATH = "__does_not_exist__"
+# NOTEXISTING_PATH = "__does_not_exist__"
+
+"""
+Options priority: 
+    overrides dict > config files > fallback defaults
+"""
 
 
 class BaseConv(object):
@@ -86,8 +90,8 @@ class BaseConv(object):
         if not isinstance(p, Path):
             p = Path(tok).expanduser()
 
-
-        assert (not missing_ok) and p.exists(), f"Does not exist {p}"
+        if not missing_ok:
+            assert p.exists(), f"Does not exist {p}"
         return p
 
     def bool(self, opt_name, fallback=None, required=True) -> bool:
@@ -180,7 +184,7 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
     _config.mod_datatype = m.get(OptionNames.mod.MOD_DATATYPE, fallback="field")
 
     # Path to the directory containing cached model data
-    _config.mod_cache_dir = m.path(OptionNames.mod.MOD_CACHE_DIR, missing_ok=True)
+    _config.mod_cache_dir = m.path(OptionNames.mod.MOD_CACHE_DIR, missing_ok=True, required=False)
     
     # list of members to be detided
     _config.mod_detide_members = m.list(OptionNames.mod.MOD_DETIDE_MEMBERS, required=False, prefix="mod_")
@@ -267,7 +271,6 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
                         {OptionNames.obs.OBS_END_DATE} = {_config.end_time_obs}
                    """
             raise ValueError(msg)
-
 
     _config.station_info = o.path(OptionNames.obs.STATION_INFO)
     _config.obs_dir = o.path(OptionNames.obs.OBS_DIR)
@@ -359,12 +362,16 @@ if __name__ == "__main__":
     import time
 
     t0 = time.perf_counter()
+    import log_utils
+    logger = log_utils.get_logger("test-config-read")
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
+    logger.info(Path(".").absolute())
 
     # debug code for running module directly
     cfg = parse_config_settings(config_path=Path(
         "configs/rdsps/migration_2019_par/rdsps_fc_ops_160_test.cfg"))
-    print(cfg)
+    for k, v in cfg.__dict__.items():
+        print(f"{k} => {v}")
+
     print(f"Execution time: {time.perf_counter() - t0} seconds.")
