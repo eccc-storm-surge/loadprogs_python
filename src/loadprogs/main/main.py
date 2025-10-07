@@ -118,6 +118,11 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
     # Load obs (the list of stations is from the .obs file)
     stations = obs.load_station_data_from_obs_dir(config)
 
+    # remove time mean over the whole obs period
+    if config.obs_remove_mean:
+        for s in stations:
+            s.remove_mean()
+
     
     mod_member_keys = [mod.get_mod_col_name(member_id=member_id) for member_id in member_ids]
     # Load mod corresponding to obs and take out time avg (the model data is loaded from rpn files)
@@ -137,7 +142,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
 
     # load external tides (from other sources if supplied)
     external_tides_groups_by_station = None
-    if config.mod_external_tides.exists():
+    if config.mod_external_tides is not None:
         logger.info(f"Using externally provided tides from: {config.mod_external_tides}")
         external_tides = match_io.read_dat(config.mod_external_tides)
 
@@ -147,7 +152,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
 
     # load external data for debiasing (usually mod-obs matches from a corresponding PA simulation)
     external_debias_groups_by_station = None
-    if config.mod_external_debias.exists():
+    if config.mod_external_debias is not None:
         external_debias = match_io.read_dat(config.mod_external_debias)
         external_debias_groups_by_station = external_debias.groupby(constants.COLNAME_STID)
 
@@ -170,6 +175,8 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
     for s in stations:
 
         assert s.station_id is not None
+
+
 
         if mod_ref_shift_data is not None:
             current_mod_ref_shift = mod_ref_shift_data.get(s.station_id, None)
@@ -273,7 +280,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
             for c in member_keys_to_detide:
                 logger.debug("Detiding %s ==============", c)
 
-                if config.mod_external_tides.exists():  # tides are provided externally
+                if config.mod_external_tides is not None:  # tides are provided externally
 
                     if config.mod_do_filtering:
                         logger.info("No filtering is applied to the model outputs when tides are externally provided!")

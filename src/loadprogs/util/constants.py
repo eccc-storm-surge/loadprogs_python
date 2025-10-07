@@ -24,6 +24,15 @@ class OptionNames(object):
         APPLY_ROLLING_MEAN_HOURS = "apply_rolling_mean_hours"
         # path to the file relating canhys ids to real station ids
         CANHYS_ID_TRANSLATION_DICT = "canhys_station_id_translation_dict"
+
+        # path to the obs file with station coords and corresponding model indices
+        STATION_INFO = "station_info"
+
+        # directory containing obs data
+        OBS_DIR = "obs_dir"
+
+        # preprocessing: remove mean prior to comparing with model
+        OBS_REMOVE_MEAN = "obs_remove_mean"
         
     class mod(object):
         MOD_BEG_DATE = "datestart_mod"
@@ -35,6 +44,7 @@ class OptionNames(object):
         RUN_FREQ_HOURS = "run_freq_hours"
         DT_TEXP_TBEG = "dt_texp_from_tbeg_hours"
         NOMVAR = "mod_nomvar"
+        MOD_IP1 = "mod_ip1" # select vertical level
         TYPVAR = "mod_typvar"
         DETIDE = "detide_mod"
         DETIDE_CONSTITUENTS = "detide_mod_constituents"
@@ -64,6 +74,8 @@ class OptionNames(object):
 
         # True/False: output model tides
         MOD_OUTPUT_TIDES = "mod_output_tides"
+
+        
          
 
     class common(object):
@@ -76,7 +88,7 @@ class OptionNames(object):
         SORT_OUTPUT = "sort_output"
         OUT_FILE_SQLITE = "out_file_sqlite"
         OUT_FILE_TXT = "out_file_txt"
-
+        OUT_DIR = "prepared_for_scoring_dir"
         pass
 
 
@@ -101,6 +113,7 @@ def get_help():
             OptionNames.mod.DT_TEXP_TBEG: "difference in hours (possibly float) between the simulation start \n"
                                            "and experiment date (contained in file names) in each file, default is 0",
             OptionNames.mod.NOMVAR: "Variable name in the model output files, default is ETAS",
+            OptionNames.mod.MOD_IP1: "IP1 for vertical level selection from fst files",
             OptionNames.mod.DETIDE: """Flag to disable/enable detiding of model outputs (0/1 or False/True respectively)
                                      default is 0""",
             OptionNames.mod.DETIDE_CONSTITUENTS: """Comma-separated list of constituents,
@@ -118,11 +131,15 @@ def get_help():
             OptionNames.obs.OBS_BEG_DATE: r"Start date of observation data in format %Y%m%d%H, inclusive",
             OptionNames.obs.OBS_END_DATE: r"End date of observation data in format %Y%m%d%H, inclusive",
             OptionNames.obs.OBS_PERFORM_QC: "true/false preform quality control or not on observations",
-            OptionNames.obs.CANHYS_ID_TRANSLATION_DICT: "Path to canhys file relating internal Canhys ids to real station ids"
+            OptionNames.obs.CANHYS_ID_TRANSLATION_DICT: "Path to canhys file relating internal Canhys ids to real station ids",
+            OptionNames.obs.STATION_INFO: "Path to the .obs file with the list of stations with corresponding indices on the model grid", 
+            OptionNames.obs.OBS_REMOVE_MEAN: "remove mean, over the period (datestart_obs - dateend_obs), different from analysis period",
+            OptionNames.obs.OBS_DIR: "folder containing obs data"
         },
         "misc": {
             OptionNames.misc.OUT_FILE_SQLITE: "Path to sqlite output file",
-            OptionNames.misc.OUT_FILE_TXT: "Path to txt output file (usually wiht .dat extension)"
+            OptionNames.misc.OUT_FILE_TXT: "Path to txt output file (usually wiht .dat extension)",
+            OptionNames.misc.OUT_DIR: "Directory where output files are saved, ignored if OUT_FILE_* options are set separately"
         },
 
     }

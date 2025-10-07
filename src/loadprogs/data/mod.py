@@ -488,7 +488,7 @@ def read_data_files_fst(path_list,
 
 def read_data_files_fst_fstd2nc(path_list,
                               station_id_to_grid_indices: pd.DataFrame,
-                              mod_nomvar="ETAS", mod_typvar="P@") -> pd.DataFrame:
+                              mod_nomvar="ETAS", mod_typvar="P@", mod_ip1=-1) -> pd.DataFrame:
     """
     Read model data at points for given indices into a dataframe
     Args:
@@ -501,12 +501,17 @@ def read_data_files_fst_fstd2nc(path_list,
     """
     import fstd2nc
     
+    query = f"(typvar == '{mod_typvar}')"
+
+    if mod_ip1 != -1:
+        query = f"{query} & (ip1 == {mod_ip1})"
+        
     try:
-        ds = fstd2nc.Buffer(path_list, vars=mod_nomvar).to_xarray()
+        ds = fstd2nc.Buffer(path_list, vars=mod_nomvar, fileter=query).to_xarray()
     except Exception as e:
         warnings.warn(f"Failed to read {path_list} with fstd2nc and {mod_nomvar}.\n")
         warnings.warn(f"Trying with {mod_typvar} instead.\n")
-        ds = fstd2nc.Buffer(path_list, filter=f"typvar == '{mod_typvar}'").to_xarray()
+        ds = fstd2nc.Buffer(path_list, filter=query).to_xarray()
         for nv, v in ds.variables.items():
             if v.squeeze().ndim == 3:
                 mod_nomvar = nv
@@ -646,7 +651,7 @@ def read_data_files_cdf(path_list,
 def read_data_files(path_list,
                     station_id_to_grid_indices: pd.DataFrame,
                     t_origin: pd.Timestamp,
-                    mod_nomvar="ETAS", mod_typvar="P@",
+                    mod_nomvar="ETAS", mod_typvar="P@", mod_ip1=-1,
                     member_id="") -> pd.DataFrame:
     """
     General interface for accessing fst or cdf files

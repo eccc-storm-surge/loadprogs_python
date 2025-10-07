@@ -525,6 +525,13 @@ class Station(object):
 
         self._data["filtered"] = filtered_part
 
+
+    def remove_mean(self):
+        """Remove time mean
+        """
+        if self.data is not None:
+            self.data["twl"] = self.data["twl"] - self.data["twl"].mean()
+
         
 
 @lru_cache
