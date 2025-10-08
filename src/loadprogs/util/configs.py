@@ -314,16 +314,16 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
     # Miscellaneous configurations
     # --------------------------------------------
     misc = BaseConv(misc_config, cfg_overrides)
-    _config.label = misc.get("label", fallback="")
+    _config.label = misc.get(OptionNames.misc.LABEL, fallback="")
 
     _config.out_dir = misc.path(OptionNames.misc.OUT_DIR, fallback=Path("."), missing_ok=True)
     out_file_txt = _config.out_dir / ("surge_" + _config.label + ".dat")
     _config.out_file_txt = misc.path(OptionNames.misc.OUT_FILE_TXT, fallback=out_file_txt)
-    _config.output_txt = misc.bool("output_txt", fallback=True)
+    _config.output_txt = misc.bool(OptionNames.misc.OUTPUT_TXT, fallback=True)
 
     # allow either output_sql or output_sqlite parameter names, means the same thing
     _config.output_sqlite = misc.bool("output_sql", fallback=False)
-    _config.output_sqlite = misc.bool("output_sqlite", fallback=_config.output_sqlite)
+    _config.output_sqlite = misc.bool(OptionNames.misc.OUTPUT_SQLITE, fallback=_config.output_sqlite)
     if _config.output_sqlite:
         out_file_sqlite = _config.out_dir / (_config.out_file_txt.stem + ".sqlite")
         _config.out_file_sqlite = misc.path(OptionNames.misc.OUT_FILE_SQLITE, fallback=out_file_sqlite, missing_ok=True)

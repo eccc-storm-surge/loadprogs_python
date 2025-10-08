@@ -86,9 +86,15 @@ class OptionNames(object):
         # true or false to remove or not the mean value during the analysis period
         REMOVE_ANALYSIS_PERIOD_MEAN = "remove_analysis_period_mean"
         SORT_OUTPUT = "sort_output"
+        
+        OUTPUT_SQLITE = "output_sqlite"
         OUT_FILE_SQLITE = "out_file_sqlite"
+
+        OUTPUT_TXT = "output_txt"
         OUT_FILE_TXT = "out_file_txt"
+        
         OUT_DIR = "prepared_for_scoring_dir"
+        LABEL = "label"
         pass
 
 
@@ -137,9 +143,12 @@ def get_help():
             OptionNames.obs.OBS_DIR: "folder containing obs data"
         },
         "misc": {
+            OptionNames.misc.OUTPUT_SQLITE: "flag True/False to turn on/off output to text files",
             OptionNames.misc.OUT_FILE_SQLITE: "Path to sqlite output file",
+            OptionNames.misc.OUTPUT_TXT: "flag True/False to turn on/off output to text files",
             OptionNames.misc.OUT_FILE_TXT: "Path to txt output file (usually wiht .dat extension)",
-            OptionNames.misc.OUT_DIR: "Directory where output files are saved, ignored if OUT_FILE_* options are set separately"
+            OptionNames.misc.OUT_DIR: "Directory where output files are saved, ignored if OUT_FILE_* options are set separately",
+            OptionNames.misc.LABEL: "system/experiment label"
         },
 
     }
