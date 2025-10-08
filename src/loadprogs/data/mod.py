@@ -227,6 +227,7 @@ def get_mod_timeseries_cfg(cfg, station_id_to_grid_indices, allow_missing=False,
         member_ids=member_ids,
         mod_nomvar=cfg.mod_nomvar,
         mod_typvar=cfg.mod_typvar,
+        mod_ip1=cfg.mod_ip1,
         start_time=cfg.beg_time_mod,
         end_time=cfg.end_time_mod,
         run_freq_hours=cfg.run_freq_hours,
@@ -302,7 +303,7 @@ def get_mod_timeseries_point_txt(cfg, memder_ids=("",)) -> pd.DataFrame:
 
 def get_mod_timeseries_field(mod_data_path: Path,
                        station_id_to_grid_indices,
-                       mod_nomvar="ETAS", mod_typvar="P@",
+                       mod_nomvar="ETAS", mod_typvar="P@", mod_ip1=-1,
                        start_time: pd.Timestamp | None = None, 
                        end_time: pd.Timestamp | None = None,
                        member_ids=("",), run_freq_hours=12,
@@ -401,10 +402,12 @@ def get_mod_timeseries_field(mod_data_path: Path,
     if not debug:
         with Parallel(n_jobs=nprocs, verbose=10) as parallel:
             df_list = parallel(delayed(read_data_files_cached)(mod_nomvar=mod_nomvar,
-                                                        mod_typvar=mod_typvar, **inp) for inp in input_list)
+                                                               mod_typvar=mod_typvar, 
+                                                               mod_ip1=mod_ip1, **inp) for inp in input_list)
     else:
         df_list = [read_data_files(mod_nomvar=mod_nomvar,
-                                   mod_typvar=mod_typvar, **inp) for inp in input_list]
+                                   mod_typvar=mod_typvar,
+                                   mod_ip1=mod_ip1, **inp) for inp in input_list]
 
     # combine the model data for all experiments and members into a single dataframe
     df = pd.concat(df_list, axis=0)
@@ -507,10 +510,12 @@ def read_data_files_fst_fstd2nc(path_list,
         query = f"{query} & (ip1 == {mod_ip1})"
         
     try:
-        ds = fstd2nc.Buffer(path_list, vars=mod_nomvar, fileter=query).to_xarray()
+        logger.debug(f"querying mod file {query =}")
+        ds = fstd2nc.Buffer(path_list, vars=mod_nomvar, filter=query).to_xarray()
     except Exception as e:
         warnings.warn(f"Failed to read {path_list} with fstd2nc and {mod_nomvar}.\n")
-        warnings.warn(f"Trying with {mod_typvar} instead.\n")
+        warnings.warn(f"error: \n {e = } \n")
+        warnings.warn(f"Trying querying by typvar={mod_typvar} only, instead.\n")
         ds = fstd2nc.Buffer(path_list, filter=query).to_xarray()
         for nv, v in ds.variables.items():
             if v.squeeze().ndim == 3:
@@ -521,7 +526,7 @@ def read_data_files_fst_fstd2nc(path_list,
     ds = ds.rename(std_dims)
 
     v = ds[mod_nomvar].squeeze()
-
+    
     t_values = v.coords["time"].values
     i_inds = xarray.DataArray(station_id_to_grid_indices.iloc[:, 0].values, dims="station_id")
     j_inds = xarray.DataArray(station_id_to_grid_indices.iloc[:, 1].values, dims="station_id")
@@ -670,7 +675,7 @@ def read_data_files(path_list,
     assert len(station_id_to_grid_indices), "Station id to grid indices mapping is empty"
 
     if ftype == FILE_TYPE_FST:
-        df = read_data_files_fst_fstd2nc(*args, mod_typvar=mod_typvar)
+        df = read_data_files_fst_fstd2nc(*args, mod_typvar=mod_typvar, mod_ip1=mod_ip1)
     elif ftype == FILE_TYPE_CDF:
         df = read_data_files_cdf(*args)
     else:
