@@ -159,7 +159,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
 
     # get mod reference shift from sqlite
     mod_ref_shift_data = None
-    if config.mod_ref_shift_path.exists():
+    if config.mod_ref_shift_path is not None:
         # read the db
         mod_ref_shift_data = mod.get_ref_shift(config.mod_ref_shift_path, 
                                                field_name_mapping = {"key": config.mod_ref_shift_key_field, 
