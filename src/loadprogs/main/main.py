@@ -410,7 +410,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
 
         obs_sql_data.reset_index(inplace=True)
         if len(obs_sql_data) > 0:
-            obs_sql_data.loc[:, constants.COLNAME_TIME] = s.station_id
+            obs_sql_data.loc[:, constants.COLNAME_STID] = s.station_id
 
         # forecast start dates based on run_freq_hours
         origin_dates_of_interest = mod.get_list_of_origin_dates(mod_data,
