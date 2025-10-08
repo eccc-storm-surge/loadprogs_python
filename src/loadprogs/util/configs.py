@@ -88,7 +88,9 @@ class BaseConv(object):
         p = tok
         # in case we get it from overrides as path object
         if not isinstance(p, Path):
-            p = Path(tok).expanduser()
+            p = Path(tok)
+            
+        p = p.expanduser()
 
         if not missing_ok:
             assert p.exists(), f"Does not exist {p}"
