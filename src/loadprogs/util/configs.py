@@ -353,10 +353,6 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
 
     # --------------------------------------------
 
-    # apply overrides if provided
-    cfg_overrides = dict() if cfg_overrides is None else cfg_overrides
-    _config.__dict__.update(cfg_overrides)
-
     return _config
 
 
