@@ -534,8 +534,23 @@ class Station(object):
     def remove_mean(self):
         """Remove time mean
         """
-        if self.data is not None:
-            self.data["twl"] = self.data["twl"] - self.data["twl"].mean()
+        if self.data is None or len(self.data) == 0:
+            return
+
+        # try to filter wrong data           
+        q1 = self.data[TWL_COLNAME].quantile(q=0.25)
+        q3 = self.data[TWL_COLNAME].quantile(q=0.75)
+        iqr = q3 - q1
+        sel = self.data[TWL_COLNAME] >= (q1 - 10 * iqr)
+        sel = sel & (self.data[TWL_COLNAME] <= (q3 + 10 * iqr))
+
+        reject = self.data.loc[:, TWL_COLNAME].loc[~sel]
+        if len(reject) > 0:
+            logger.info(f"{self.station_id}: Rejecting in remove_mean"
+                        f" due to {q1 = }, {q3 = }, {iqr = }, \n values= \n{reject}")
+            logger.info("Description of rejected \n %s \n", reject.describe())
+        
+        self.data[TWL_COLNAME] = self.data[TWL_COLNAME] - self.data[TWL_COLNAME].mean()
 
         
 
