@@ -19,6 +19,8 @@ from collections import Counter
 
 logger = log_utils.get_logger(__name__)
 
+TWL_COLNAME = "twl"
+
 def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, 
                                 ray=constants.DEFAULT_DETIDE_RAYLEIGH,
                                 do_cleanup=False, 
@@ -31,7 +33,7 @@ def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents
     data_ = data.copy().asfreq(pd.Timedelta(hours=1))
 
     # Make sure the total water level column can be found
-    data_.rename({data_.columns[-1]: "twl"}, axis="columns", inplace=True)
+    data_.rename({data_.columns[-1]: TWL_COLNAME}, axis="columns", inplace=True)
 
     s = Station(do_filtering=do_filtering, 
                 station_info={"lat": latitude}, 
@@ -157,13 +159,13 @@ class Station(object):
         
         # make uniform time step
         logger.info(f"QC: Processing station {self.station_id}")
-        dt = self._data["twl"].index[1] - self._data["twl"].index[0]
+        dt = self._data[TWL_COLNAME].index[1] - self._data[TWL_COLNAME].index[0]
     
         nan_fill_spread_max_points = int(nan_fill_spread_max_dt.total_seconds() / dt.total_seconds())
         nan_fill_spread_min_points = int(nan_fill_spread_min_dt.total_seconds() / dt.total_seconds())
 
 
-        h = self._data["twl"]
+        h = self._data[TWL_COLNAME]
 
         # IQR
         h1 = h.dropna(axis="index")
@@ -235,10 +237,10 @@ class Station(object):
             logger.info(f"""
                             QC: {upper = }; {lower = }; 
                             masking the following:
-                                {self._data.loc[~crit, "twl"].values}
+                                {self._data.loc[~crit, TWL_COLNAME].values}
                           """)
             logger.info(f"1: {sum(crit) = }")
-            self._data.loc[~crit, "twl"] = np.nan
+            self._data.loc[~crit, TWL_COLNAME] = np.nan
 
         
 
@@ -337,7 +339,7 @@ class Station(object):
                     self.latitude = float(value)
 
     def get_twl_data_vector(self):
-        return self.data["twl"].values.copy()
+        return self.data[TWL_COLNAME].values.copy()
 
     def get_detided_series(self, do_filtering=True, constituents=None, ray=0.5):
         key = "detided"
@@ -362,7 +364,7 @@ class Station(object):
 
         # remove spikes (like we had in canhys 176 instead of 4)
         data = self._data.copy()
-        data["twl"] = utils.remove_spikes(data["twl"], whis=5)
+        data[TWL_COLNAME] = utils.remove_spikes(data[TWL_COLNAME], whis=5)
 
         data = data.reindex(data.index.union(minute_index), axis=0)
         logger.debug("before interpolation\n: %s", data.head())
@@ -383,7 +385,7 @@ class Station(object):
         data = utils.remove_leading_trailing_nans(data, focus_col="twl")
 
         # extend no-data region to eliminate spikes/trends at the edges
-        data["twl"] = utils.remove_edges(data["twl"])
+        data[TWL_COLNAME] = utils.remove_edges(data[TWL_COLNAME])
 
         logger.debug(f"t[1]-t[0] = {data.index[1]} - {data.index[0]}")
         logger.debug("obs processed (before detiding): \n%s\n", data.head())
@@ -408,11 +410,14 @@ class Station(object):
         # detide
         # v = self.get_twl_data_vector()
 
+        msg = f"{self.station_id}: no data to detide.."
+        assert self.data is not None, msg
+        assert self._data is not None, msg
 
         if self.do_cleanup:
-            clean_data = self._cleanup_data_for_detiding()["twl"]
+            clean_data = self._cleanup_data_for_detiding()[TWL_COLNAME]
         else:
-            clean_data = self.data["twl"]
+            clean_data = self.data[TWL_COLNAME]
         
 
         # the clean data is assumed to be uniformly spaced
@@ -519,7 +524,7 @@ class Station(object):
         # logger.debug("detided: \n %s \n", self.data["detided"])
         # logger.debug("v_notide_filtered: \n %s \n", v_notide_filtered)
 
-        assert len(self._data) == len(v), f"{len(self._data) = }; {len(v) = }"
+        assert len(self.data) == len(v), f"{len(self.data) = }; {len(v) = }"
         self._data["tides"] = con["xout"]
         self.ttidecon = con
 
