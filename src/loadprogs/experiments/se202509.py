@@ -22,7 +22,6 @@ def read_cmd_args():
                         help="delay in days into the past to select model outputs and obs. If n, look for n days before --date")
     
     parser.add_argument("--test-run", action="store_true",
-                        default=pd.Timedelta(days=0),
                         help="uses TEST_HUB to store results")
 
     return parser.parse_args()
@@ -34,8 +33,11 @@ def main():
     use one year back of obs data to level.
     """
     
-    TEST_HUB = Path("data/se-GESPS-RESPS-202509")
     args = read_cmd_args()
+    TEST_HUB = None
+    if args.test_run:
+        TEST_HUB = Path("data/se-GESPS-RESPS-202509")
+    
 
     # 
     exp_duration = pd.Timedelta(days=16)
