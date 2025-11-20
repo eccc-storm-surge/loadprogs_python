@@ -28,6 +28,10 @@ def main(logger):
     parser.add_argument("-d", "--debug", nargs="?", const=True,
                         default=False, required=False)
 
+    parser.add_argument("-f", "--force", action="store_true",
+                        default=False, required=False, help="force rerun of loadprogs if present")
+
+
     parser.add_argument("--help_cfg", "--help-cfg", 
                         help="print list of configuration options (.cfg file) with descriptions and exit",
                         default=False, 
@@ -52,7 +56,8 @@ def main(logger):
         logger.setLevel(logging.DEBUG)
     
     for p in cfg_paths:
-        loadprogs_main(config_path=Path(p), debug=args.debug)
+        loadprogs_main(config_path=Path(p), debug=args.debug, 
+                       force=args.force)
 
 
 if __name__ == '__main__':
