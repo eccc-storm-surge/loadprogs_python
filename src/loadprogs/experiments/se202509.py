@@ -103,9 +103,18 @@ def main():
             overrides[OptionNames.misc.OUT_DIR] = out_dir
             overrides[OptionNames.misc.LABEL] = label
 
-            loadprogs_main(config_path=cfg, cfg_overrides=overrides)
+            loadprogs_main(config_path=cfg, cfg_overrides=overrides, force=True)
+
+    # cleanup
+    # for system_id, opts in system_to_opts.items():
+    #     data_dir = Path(opts[OptionNames.mod.DATA_DIR]).expanduser()
+    #     print(f"cleanup {data_dir = } for {system_id = } and {exp_date = }")
+    #     for f in data_dir.glob(f"{exp_date:%Y%m%d}*"):
+    #         print(f"to remove: {f}")
 
 
+      
+    
 
 if __name__ == "__main__":
     main()

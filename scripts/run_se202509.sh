@@ -1,4 +1,4 @@
-#ord_soumet= -mach ppp5 -cpus 80 -t 3600
+#ord_soumet= -mach ppp5 -cpus 80 -t 21600
 
 
 # Example launching for list of dates
@@ -30,5 +30,8 @@ if [ "${test_run}" = "1" ]; then
     opts="--test-run"
 fi
 
-python src/loadprogs/experiments/se202509.py --date ${exp_date} \
-                                             --delay-days ${delay_days} ${opts}
+
+for dd in $(seq 1 ${delay_days}); do
+    python src/loadprogs/experiments/se202509.py --date ${exp_date} \
+                                                 --delay-days ${dd} ${opts}
+done
