@@ -63,7 +63,9 @@ def main_levelling_v01():
 
 
 def main(config_path: Path, cfg_overrides: dict | None = None,
-         allow_missing_mod_data: bool = False, debug: bool = False):
+         allow_missing_mod_data: bool = False, 
+         debug: bool = False, 
+         force: bool = False):
     """
     Entry point for processing a given simulation
     Args:
@@ -71,6 +73,7 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
         allow_missing_mod_data: if True allows model data to be missing, otherwise fails
         config_path: path to the loadprogs config file
         cfg_overrides: config properties to be overriden, useful for embedded use for monitoring
+        force: if True removes output file and reruns loadprogs, defalut False (do nothing if output file exists)
     """
 
     logging.basicConfig()
@@ -91,15 +94,26 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
     config.out_file_txt.parent.mkdir(exist_ok=True, parents=True)
 
     # do nothing if the output file already exists
+    assert isinstance(config.out_file_txt, Path)
+    assert isinstance(config.out_file_sqlite, Path)
+
     if config.output_txt and config.out_file_txt.exists():
-        logger.info(f"Already exists, won't redo:\n{config.out_file_txt}")
-        logger.info(f"Setting output_txt option to False (remove the file to rerun)")
-        config.output_txt = False
+        if not force:
+            logger.info(f"Already exists, won't redo:\n{config.out_file_txt}")
+            logger.info(f"Setting output_txt option to False (remove the file to rerun)")
+            config.output_txt = False
+        else:
+            logger.info(f"force option is set to True, removing {config.out_file_txt} to re-create.")
+            config.out_file_txt.unlink(missing_ok=True)
 
     if config.output_sqlite and config.out_file_sqlite.exists():
-        logger.info(f"Already exists, won't redo:\n{config.out_file_sqlite}")
-        logger.info(f"Setting output_sqlite option to False (remove the file to rerun)")
-        config.output_sqlite = False
+        if not force:
+            logger.info(f"Already exists, won't redo:\n{config.out_file_sqlite}")
+            logger.info(f"Setting output_sqlite option to False (remove the file to rerun)")
+            config.output_sqlite = False
+        else:
+            logger.info(f"force option is set to True, removing {config.out_file_sqlite} to re-create.")
+            config.out_file_sqlite.unlink(missing_ok=True)
 
     if not any([config.output_txt, config.output_sqlite]):
         logger.info(f"No output requested, exiting!")
