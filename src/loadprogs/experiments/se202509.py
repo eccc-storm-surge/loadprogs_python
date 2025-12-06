@@ -61,7 +61,7 @@ def main():
 
         },
         "GESPS": {
-            OptionNames.obs.STATION_INFO: Path("/home/swav000/projets/se-GESPS-RESPS-202509/gesps/gesps-usr-grid_east-coast-domain.obs"),
+            OptionNames.obs.STATION_INFO: Path("/home/swav000/projets/se-GESPS-RESPS-202509/gesps/gesps-usr-grid_Canada.obs"),
             OptionNames.misc.OUTPUT_TXT: False,
             OptionNames.misc.OUTPUT_SQLITE: True,
             OptionNames.mod.DATA_DIR: Path("~swav000/data/ppp5/rarc/GESPS/parallel.forecasts.gesps.usr"),
