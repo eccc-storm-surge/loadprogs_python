@@ -41,7 +41,7 @@ def main():
 
     # 
     exp_duration = pd.Timedelta(days=16)
-    exp_hour_list = [0, 12] 
+    exp_hour_list = [0, ] 
     obs_duration = pd.Timedelta(days=365) 
 
     exp_date = args.date - args.delay_days
