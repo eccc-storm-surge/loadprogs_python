@@ -93,17 +93,29 @@ def main():
 
             if TEST_HUB is not None:
                 out_dir = TEST_HUB / label 
+                out_dir_tmp = TEST_HUB / f"{out_dir.name}_tmp"
             else:
                 out_dir = cfg.parent / "data"
+                out_dir_tmp = cfg.parent / f"{out_dir.name}_tmp"
 
+
+            
             out_dir.mkdir(exist_ok=True, parents=True)
+            out_dir_tmp.mkdir(exist_ok=True, parents=True)
+
+            out_file_tmp = out_dir_tmp / f"{exp_time:%Y%m%d%H}.sqlite"
+            out_file = out_dir / out_file_tmp.name
 
             # create data link near the .cfg files
-            overrides[OptionNames.misc.OUT_FILE_SQLITE] = out_dir / f"{exp_time:%Y%m%d%H}.sqlite"
-            overrides[OptionNames.misc.OUT_DIR] = out_dir
+            overrides[OptionNames.misc.OUT_FILE_SQLITE] = out_file_tmp
+            overrides[OptionNames.misc.OUT_DIR] = out_dir_tmp
             overrides[OptionNames.misc.LABEL] = label
 
             loadprogs_main(config_path=cfg, cfg_overrides=overrides, force=True)
+
+            # at the end move final file to the final destination
+            # to avoid dealing with incomplete files
+            out_file_tmp.rename(out_file)
 
     # cleanup
     # for system_id, opts in system_to_opts.items():
