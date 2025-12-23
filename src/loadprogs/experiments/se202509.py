@@ -95,8 +95,8 @@ def main():
                 out_dir = TEST_HUB / label 
                 out_dir_tmp = TEST_HUB / f"{out_dir.name}_tmp"
             else:
-                out_dir = cfg.parent / "data"
-                out_dir_tmp = out_dir.resolve().parent / f"{out_dir.name}_tmp"
+                out_dir = (cfg.parent / "data").resolve()
+                out_dir_tmp = out_dir.parent / f"{out_dir.name}_tmp"
 
             
             out_dir.mkdir(exist_ok=True, parents=True)
