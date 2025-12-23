@@ -96,8 +96,7 @@ def main():
                 out_dir_tmp = TEST_HUB / f"{out_dir.name}_tmp"
             else:
                 out_dir = cfg.parent / "data"
-                out_dir_tmp = cfg.parent / f"{out_dir.name}_tmp"
-
+                out_dir_tmp = cfg.parent.resolve() / f"{out_dir.name}_tmp"
 
             
             out_dir.mkdir(exist_ok=True, parents=True)
