@@ -324,9 +324,9 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
     # allow either output_sql or output_sqlite parameter names, means the same thing
     _config.output_sqlite = misc.bool("output_sql", fallback=False)
     _config.output_sqlite = misc.bool(OptionNames.misc.OUTPUT_SQLITE, fallback=_config.output_sqlite)
-    if _config.output_sqlite:
-        out_file_sqlite = _config.out_dir / (_config.out_file_txt.stem + ".sqlite")
-        _config.out_file_sqlite = misc.path(OptionNames.misc.OUT_FILE_SQLITE, fallback=out_file_sqlite, missing_ok=True)
+
+    out_file_sqlite = _config.out_dir / (_config.out_file_txt.stem + ".sqlite")
+    _config.out_file_sqlite = misc.path(OptionNames.misc.OUT_FILE_SQLITE, fallback=out_file_sqlite, missing_ok=True)
         
 
     _config.plot_detiding_diag = misc.bool("plot_detiding_diag", fallback=False)
