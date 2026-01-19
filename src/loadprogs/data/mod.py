@@ -783,7 +783,7 @@ def remove_analysis_period_mean(mod_data, station, mod_member_keys, config):
         tmean = df.loc[crit, cn].mean()
     
         logger.debug("Mod analysis period mean, removed: %.4f, member id = %s", tmean, cn)
-        df.loc[:, cn] -= tmean  # remove long time mean only of the control member
+        df.loc[:, cn] -= tmean
     return df
 
 
