@@ -25,11 +25,15 @@ def main(logger):
                         help="list of paths to the configuration files",
                         required=False)
     
-    parser.add_argument("-d", "--debug", nargs="?", const=True,
+    parser.add_argument("-d", "--debug", action="store_true",
                         default=False, required=False)
 
     parser.add_argument("-f", "--force", action="store_true",
                         default=False, required=False, help="force rerun of loadprogs if present")
+
+    parser.add_argument("-allow-missing-model", "--allow-missing-model",
+                        default=False, required=False, help="Allow missing model data", 
+                        action="store_true")
 
 
     parser.add_argument("--help_cfg", "--help-cfg", 
@@ -52,12 +56,16 @@ def main(logger):
 
     cfg_paths = args.cfg_paths
 
+    if cfg_paths is None:
+        logger.info("No configs provided ...")
+        cfg_paths = ()
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
     
     for p in cfg_paths:
         loadprogs_main(config_path=Path(p), debug=args.debug, 
-                       force=args.force)
+                       force=args.force, allow_missing_mod_data=args.allow_missing_model)
 
 
 if __name__ == '__main__':

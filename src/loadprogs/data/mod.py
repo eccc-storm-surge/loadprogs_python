@@ -372,7 +372,9 @@ def get_mod_timeseries_field(mod_data_path: Path,
             if len(data_files) == 0:
                 msg = f"Could not find any file for the experiment on {exp_t} in {mod_data_path}"
                 if allow_missing:
+                    msg = f"{msg}, but you allow missing model data, so we skip this run."
                     logger.info(msg)
+                    continue
                 else:
                     raise IOError(msg)
 
