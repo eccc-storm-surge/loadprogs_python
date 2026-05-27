@@ -108,6 +108,13 @@ if wishing to generate .obs file for the closest model grid cells (i.e. without 
                                                     --mod-files  /home/sssm001/data_maestro/ppp5/maestro_archives/cmde_gesps_inhouse-par-pass_v1.0.0_V3/gridpt/gesps.f.output_pre-level/2025010100_000 \
                                                     --mod-bathy-vname SSH
 
+    # gesps for gdsps stations
+    python src/loadprogs/tools/find_repr_gridpts.py --obs-index-in /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_global_obs_v2.0.0.obs \
+                                            --obs-index-out /home/olh001/Python/obs_to_grid_mapping/gesps/gesps_global_obs_v3.0.0.obs \
+                                            --nnearest 1 \
+                                            --mod-files /home/sssm001/data_maestro/ppp7/maestro_archives/cmde_gesps_test_cycles_u3-migration/gridpt/prog_pre-level/2021110100_-120_000 \
+                                            --mod-bathy-vname SSH
+
 
 
                                                     
