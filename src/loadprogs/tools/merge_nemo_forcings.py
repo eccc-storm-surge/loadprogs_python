@@ -129,7 +129,7 @@ def main():
                 print(f"Already exists, will overwrite: {out_pth}")
           
             write_jobs.append(
-                merge(inp_pths, out_pth)
+                merge(inp_pths, out_pth, field_to_fillvalue=field_to_fillvalue)
             )
             # print(f"{out_pth} <--- {inp_pths}")
     
