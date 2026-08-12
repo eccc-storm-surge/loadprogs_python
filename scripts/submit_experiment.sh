@@ -7,18 +7,17 @@ config="i_do_not_exist"
 project_root="i_do_not_exist"
 
 eval $(cclargs $0 "[script to launch verification of different experiments in parallel]"\
-  -project_root "~/Python/loadprogs_python/" "~/Python/loadprogs_python/"  [verification script to be run] \
-  -config "i_do_not_exist" "i_do_not_exist"  [path to the config used by the verification script] \
+  -project_root "/home/${USER}/Python/loadprogs_python/" "/home/${USER}/Python/loadprogs_python/"  "[verification script to be run]" \
+  -config "i_do_not_exist" "i_do_not_exist"  "[path to the config used by the verification script]" \
   -nosubmit "0" "0" "[put 1 if need to run interactively]" \
   ++ $*)
 
 
-. ~olh001/.profile_python3
+. r.load.dot /fs/ssm/eccc/cmd/cmds/apps/pixi/202607/00/pixi_0.75.0_all
 
 cd ${project_root} || exit
 
-export PYTHONPATH=./src:${PYTHONPATH}
 
-python src/loadprogs/experiments/run_experiments_base.py --cfg ${config}
+pixi run python src/loadprogs/experiments/run_experiments_base.py --cfg ${config}
 
 

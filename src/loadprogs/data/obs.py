@@ -24,7 +24,7 @@ TWL_COLNAME = "twl"
 def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents=None, 
                                 ray=constants.DEFAULT_DETIDE_RAYLEIGH,
                                 do_cleanup=False, 
-                                detide_min_frequency_hz=-np.Inf, do_qc=False):
+                                detide_min_frequency_hz=-np.inf, do_qc=False):
     """
     detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
     """
@@ -95,7 +95,7 @@ class Station(object):
                 self.quality_control()
 
     def __init__(self, data_file=None, do_filtering=False, station_info=None, 
-                       do_cleanup=False, detide_min_frequency_hz=-np.Inf, 
+                       do_cleanup=False, detide_min_frequency_hz=-np.inf, 
                        do_qc=True):
         """[summary]
 
