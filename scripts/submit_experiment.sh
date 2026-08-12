@@ -18,6 +18,6 @@ eval $(cclargs $0 "[script to launch verification of different experiments in pa
 cd ${project_root} || exit
 
 
-pixi run python src/loadprogs/experiments/run_experiments_base.py --cfg ${config}
+pixi run --offline python src/loadprogs/experiments/run_experiments_base.py --cfg ${config}
 
 
