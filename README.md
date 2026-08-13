@@ -26,6 +26,14 @@ To read model outputs from standard RPN files, `rpnpy` is used:
 . r.load.dot eccc/mrd/rpn/libs/19.6.0 eccc/mrd/rpn/MIG/ENV/x/rpnpy/2.1-u1.rc11
 ```
 
+Testing
+=====
+Submit a test experiment on Science:
+
+```bash
+ord_soumet ./scripts/submit_experiment.sh -mach ppp8 -args "=-config configs/test-resps.cfg"
+```
+
 Finding representative points 
 ======
 

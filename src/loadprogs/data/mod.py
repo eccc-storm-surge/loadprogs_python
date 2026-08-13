@@ -1,6 +1,6 @@
 from datetime import timedelta, timezone
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, cast
 import pandas as pd
 import pytz
 from joblib import Parallel, delayed
@@ -401,11 +401,14 @@ def get_mod_timeseries_field(mod_data_path: Path,
     read_data_files_cached = memory.cache(read_data_files)
 
     # read actual data in parallel
+    df_list: List[pd.DataFrame]
     if not debug:
         with Parallel(n_jobs=nprocs, verbose=10) as parallel:
-            df_list = parallel(delayed(read_data_files_cached)(mod_nomvar=mod_nomvar,
+            gen = parallel(delayed(read_data_files_cached)(mod_nomvar=mod_nomvar,
                                                                mod_typvar=mod_typvar, 
                                                                mod_ip1=mod_ip1, **inp) for inp in input_list)
+            
+            df_list = cast(List[pd.DataFrame], list(gen))
     else:
         df_list = [read_data_files(mod_nomvar=mod_nomvar,
                                    mod_typvar=mod_typvar,
@@ -438,7 +441,7 @@ def get_mod_timeseries_field(mod_data_path: Path,
     if debug:
         df.sort_values([constants.COLNAME_TIME, "valid_hour"], inplace=True)
 
-    df[constants.COLNAME_TORIGIN] = df[constants.COLNAME_TIME] - pd.TimedeltaIndex(data=df["valid_hour"], unit="hour")
+    df[constants.COLNAME_TORIGIN] = df[constants.COLNAME_TIME] - pd.to_timedelta(df["valid_hour"], unit="hour")
 
     logger.debug("model points")
     logger.debug("\n %s \n", df)

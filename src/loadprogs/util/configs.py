@@ -199,7 +199,7 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
     
     # minimum tide frequency to consider when detiding
     _config.mod_detide_min_tide_frequency_hz = m.float(
-        OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+        OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.inf)
     
     _config.mod_detide_rayleigh = m.float(
         OptionNames.common.DETIDE_RAYLEIGH, fallback=constants.DEFAULT_DETIDE_RAYLEIGH
@@ -295,7 +295,7 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
 
     # minimum tide frequency to consider when detiding
     _config.obs_detide_min_tide_frequency_hz = o.float(
-        OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.Inf)
+        OptionNames.common.DETIDE_MIN_TIDE_FREQ_HZ, fallback=-np.inf)
     
     _config.obs_detide_rayleigh = o.float(
         OptionNames.common.DETIDE_RAYLEIGH, fallback=constants.DEFAULT_DETIDE_RAYLEIGH
