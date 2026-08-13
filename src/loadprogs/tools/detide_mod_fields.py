@@ -384,11 +384,11 @@ def main():
 
 
 def test():
-    inp_dir = Path("/home/sssm001/data/ppp5/maestro_archives/gesps_v001_final_cycles_V2/gridpt/gesps.f.output_pre-level/")
+    inp_dir = Path("/home/sssm001/data/ppp7/u2/maestro/gesps_v001_final_cycles_V2/gridpt/gesps.f.output_pre-level/")
     args = argparse.Namespace(
         **dict(
             inp_dir=inp_dir,
-            out_dir=Path("data/gesps-detide-fields-test/"),
+            out_dir=Path("test_data/gesps-detide-fields-test/"),
             twl_nomvar="SSH",
             lat_nomvar="lat",
             surge_nomvar="etas",
