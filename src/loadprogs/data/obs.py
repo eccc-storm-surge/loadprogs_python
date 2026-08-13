@@ -26,7 +26,7 @@ def get_tides_and_filter_hourly(data, latitude, do_filtering=False, constituents
                                 do_cleanup=False, 
                                 detide_min_frequency_hz=-np.inf, do_qc=False):
     """
-    detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.Inf
+    detide_min_freq_hz (float, optional): minimum frequency to be considered when removing tides, default is -np.inf
     """
 
     # the detiding expects equally spaced data filled with nans for missing points
@@ -156,6 +156,7 @@ class Station(object):
         data is supposed to be uniform already
         """
 
+        assert self._data is not None, "Cannot do quality control, there is no data loaded"
         
         # make uniform time step
         logger.info(f"QC: Processing station {self.station_id}")
@@ -306,7 +307,7 @@ class Station(object):
         self._data = self.data[self.data.index >= start_date]
         return self
 
-    def remove_data_after(self, end_date: datetime = None):
+    def remove_data_after(self, end_date: datetime | None = None):
         """
         Remove data points for time after end_date
         :param end_date:
@@ -330,7 +331,7 @@ class Station(object):
                 vname, value = line.split(",")
                 value = value.strip()
                 if "Station_Number" in vname:
-                    self.station_id = int(value)
+                    self.station_id = value
                 elif "Station_Name" in vname:
                     self.name = value
                 elif "Longitude" in vname:
@@ -358,6 +359,8 @@ class Station(object):
         # input data cleanup
         # utils.remove_spikes(self._data["twl"], inplace=True, whis=1.5)
         
+        assert self._data is not None, "Cannot cleanup for detiding, no data loaded yet"
+
         minute_index = pd.date_range(self._data.index.min(),
                                      self._data.index.max(),
                                      freq=timedelta(minutes=1))
