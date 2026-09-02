@@ -1,5 +1,5 @@
 """
-* For GESPS abd Adcirc take loadprogs outputs and compute daily max
+* For GESPS and Adcirc take loadprogs outputs and compute daily max
 * For JRC data get obs data from the previous point and insert data 
 * the resulting data should be the usable in surge_validation
 """
