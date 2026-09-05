@@ -438,7 +438,7 @@ def skip_block(slices: tuple[slice, slice, slice], data_path: Path, ssh_name: st
         if isinstance(arr.metadata.fill_value, (str, int, float)):
             fill_value = float(arr.metadata.fill_value)
         
-    good = ~np.isclose(vals[0], fill_value)
+    good = ~np.isclose(vals[0], fill_value) & (~np.isnan(vals[0]))
     good = good & (~np.isclose(vals.min(axis=0), vals.max(axis=0)))
 
     del ds, arr, vals
@@ -480,16 +480,11 @@ def compute_coefs_for_block(
     if  np.isnan(fill_value) and hasattr(arr.metadata, "fill_value"):
         if isinstance(arr.metadata.fill_value, (str, int, float)):
             fill_value = float(arr.metadata.fill_value)
-        
-    good = ~np.isclose(vals[0], fill_value)
+
+    good = ~np.isclose(vals[0], fill_value) & (~np.isnan(vals[0]))
     good = good & (~np.isclose(vals.min(axis=0), vals.max(axis=0)))
 
-    if not good.any():
-        sys.stderr.write(f"{fill_value = }; {vals[:, 0, 0].min() = }; {vals[:, 0, 0].max() = }")
-        sys.stderr.flush()
-        del ds, arr, vals, t_arr, t_values, lats
-        return None
-        
+    # there are always valid data as all non-valid data blocks are skipped in the previous step   
     i_arr, j_arr = np.where(good)
 
     i_offset, j_offset = slices[-2].start, slices[-1].start
@@ -855,7 +850,7 @@ def test():
             rayleigh=0.9,
             nworkers_per_job=256,
             threads_per_worker=8,
-            njobs=4,
+            njobs=8,
             chunk_npoints_x=10,
             chunk_npoints_y=10,
             detide_batch_size=40,
