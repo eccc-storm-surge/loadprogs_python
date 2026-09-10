@@ -560,6 +560,11 @@ def get_cluster(args, local_cluster=False, dashboard_address=None) -> PBSCluster
     Returns:
         dask.distributed.Cluster: The Dask cluster.
     """
+
+    log_dir = Path("logs").absolute()
+    log_dir.mkdir(exist_ok=True, parents=True)
+
+
     if local_cluster:
         cluster = LocalCluster(
             n_workers=args.nworkers, 
@@ -579,7 +584,8 @@ def get_cluster(args, local_cluster=False, dashboard_address=None) -> PBSCluster
             queue="development",
             # Worker terminates if scheduler is missing for 60 seconds
             # death_timeout=60,
-            dashboard_address=None  # Optional: specify a dashboard address for monitoring
+            dashboard_address=None,  # Optional: specify a dashboard address for monitoring
+            log_directory=log_dir
         )
 
     return cluster

@@ -26,9 +26,10 @@ NUMEXPR_MAX_THREADS = "256"
 [tool.pixi.tasks]
 check-pythonpath = "echo $PYTHONPATH"
 detide-field-test = "rm -f dask-worker.o* dask-worker.e*; ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args /home/olh001/Python/loadprogs_python src/loadprogs/tools/detide_mod_fields.py"
+detide-field-test-reconstruct = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 3600 -args /home/olh001/Python/loadprogs_python src/loadprogs/tools/detide_mod_fields_reconstruct.py"
 detide-ciopsw-nemo36 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) /home/olh001/Python/loadprogs_python/src/loadprogs/tests/test_detide_mod_fields/ciopsw_nemo36.py"
 detide-ciopsw-nemo4 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) /home/olh001/Python/loadprogs_python/src/loadprogs/tests/test_detide_mod_fields/ciopsw_nemo4.py"
-
+detide-ciopse = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) /home/olh001/Python/loadprogs_python/src/loadprogs/tests/test_detide_mod_fields/ciopse.py"
 
 [tool.pixi.dependencies]
 python = ">=3.13,<3.14"
@@ -53,6 +54,7 @@ pyarrow = ">=25.0.0,<26"
 distributed = ">=2026.8.0,<2027"
 jupyter-server-proxy = ">=4.5.0,<5"
 bokeh = ">=3.10.0,<4"
+tqdm = ">=4.70.0,<5"
 
 
 [tool.pixi.pypi-dependencies]

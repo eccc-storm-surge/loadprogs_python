@@ -348,6 +348,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/terminado-0.18.1-pyhc90fa1f_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/toolz-1.1.0-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.70.0-pyh8f84b5b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.16.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.16.0-h69aa097_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
@@ -723,6 +724,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/terminado-0.18.1-pyhc90fa1f_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tinycss2-1.4.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/toolz-1.1.0-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.70.0-pyh8f84b5b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.16.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing-extensions-4.16.0-h69aa097_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/typing_extensions-4.16.0-pyhcf101f3_0.conda
@@ -3127,7 +3129,7 @@ packages:
   - python_abi 3.13.* *_cp313
   license: Apache-2.0
   purls:
-  - pkg:pypi/msgpack?source=hash-mapping
+  - pkg:pypi/msgpack?source=compressed-mapping
   run_exports: {}
   size: 114787
   timestamp: 1787850893427
@@ -3614,7 +3616,8 @@ packages:
   license: LGPL-3.0-only
   license_family: LGPL
   purls:
-  - pkg:pypi/pyside6?source=compressed-mapping
+  - pkg:pypi/pyside6?source=hash-mapping
+  - pkg:pypi/shiboken6?source=hash-mapping
   run_exports: {}
   size: 13946979
   timestamp: 1787219441414
@@ -3817,7 +3820,7 @@ packages:
   license: MIT
   license_family: MIT
   purls:
-  - pkg:pypi/rpds-py?source=compressed-mapping
+  - pkg:pypi/rpds-py?source=hash-mapping
   run_exports: {}
   size: 300001
   timestamp: 1787344291397
@@ -5045,7 +5048,7 @@ packages:
   - python
   license: BSD-3-Clause
   purls:
-  - pkg:pypi/ipython?source=hash-mapping
+  - pkg:pypi/ipython?source=compressed-mapping
   run_exports: {}
   size: 730292
   timestamp: 1787921913409
@@ -6085,6 +6088,22 @@ packages:
   run_exports: {}
   size: 53978
   timestamp: 1760707830681
+- conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.70.0-pyh8f84b5b_0.conda
+  sha256: a4d9e9da15b13f1ab047e7db412e2ed564bc615832e80213cf129b973c3abf4a
+  md5: 00953c3b729e03b0ae21f49fdf3441bb
+  depends:
+  - python >=3.10
+  - __unix
+  - python
+  constrains:
+  - envwrap >=0.2
+  - ipywidgets >=6.0
+  license: MPL-2.0 and MIT
+  purls:
+  - pkg:pypi/tqdm?source=hash-mapping
+  run_exports: {}
+  size: 98184
+  timestamp: 1785172528905
 - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.16.1-pyhcf101f3_0.conda
   sha256: 03dba5917f944c6684ab44c81daacac1624cd148e4b2cae215dcec594a210c48
   md5: a79bf97561232a31447b6246c2153ab5
