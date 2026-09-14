@@ -208,6 +208,12 @@ def main(config_path: Path, cfg_overrides: dict | None = None,
 
         member_id_to_mod_tides = {}
 
+
+
+        if s.station_id not in mod_groups_by_station.groups:
+            print(f"No model data found for {s.station_id}, skipping")
+            continue
+
         # get model data for corresponding station
         mod_data = mod_groups_by_station.get_group(s.station_id).copy()
 
