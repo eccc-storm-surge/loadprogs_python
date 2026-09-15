@@ -127,7 +127,9 @@ def main():
 
     label_to_inp_pth = {
         "ECCC_GDSPS": Path("/home/olh001/Python/surgemip/data/loadprogs/SURGEMIP_SURGE/merged_ECCC_GDSPS_2013-2018.dat"),
-        "UND-ANL_GADCIRC-btp": Path("/home/olh001/Python/surgemip/data/loadprogs/SURGEMIP_SURGE/merged_UND-ANL_GADCIRC-btp_2013-2018.dat")
+        "UND-ANL_GADCIRC-btp": Path("/home/olh001/Python/surgemip/data/loadprogs/SURGEMIP_SURGE/merged_UND-ANL_GADCIRC-btp_2013-2018.dat"),
+        "GOOGLE-50KM-PRED.": Path("/home/olh001/Python/surgemip/data/loadprogs/SURGEMIP_SURGE/merged_GOOGLE_50KM_PREDICTIONS_2013-2018.dat"),
+        "GTSM": Path("/home/olh001/Python/surgemip/data/loadprogs/SURGEMIP_SURGE/merged_GTSM_2013-2018.dat")
     }
 
     jrc_dir = Path("/home/olh001/Python/surgemip/data/model/daily_max/JRC_dailyMaxSurgeLevel")
