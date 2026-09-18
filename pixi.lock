@@ -366,7 +366,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zarr-3.3.0-pyhc364b38_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zict-3.0.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.1.dev2+g72cf6214a-py313hf70daa8_0.conda
+      - conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.5-py313hf70daa8_0.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/cmcdict-2026.8.1-py313hf70daa8_1.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/eccc_libgeoref-1.7.0-hb0f4dca_0.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/eccc_librmn-20.1.0-hb0f4dca_0.conda
@@ -742,7 +742,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zarr-3.3.0-pyhc364b38_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zict-3.0.0-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.1.dev2+g72cf6214a-py313hf70daa8_0.conda
+      - conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.5-py313hf70daa8_0.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/cmcdict-2026.8.1-py313hf70daa8_1.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/eccc_libgeoref-1.7.0-hb0f4dca_0.conda
       - conda: https://conda.anaconda.org/fortiers/linux-64/eccc_librmn-20.1.0-hb0f4dca_0.conda
@@ -5048,7 +5048,7 @@ packages:
   - python
   license: BSD-3-Clause
   purls:
-  - pkg:pypi/ipython?source=compressed-mapping
+  - pkg:pypi/ipython?source=hash-mapping
   run_exports: {}
   size: 730292
   timestamp: 1787921913409
@@ -6345,9 +6345,9 @@ packages:
   run_exports: {}
   size: 24190
   timestamp: 1779159948016
-- conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.1.dev2+g72cf6214a-py313hf70daa8_0.conda
-  sha256: 45153b501e91609d4ec23151ffc56b45f3c600399dd10ee22bfe7128c2eebb80
-  md5: a5180ae9792e844bb606261479bbc6b8
+- conda: https://conda.anaconda.org/fortiers/linux-64/cmc-io-2026.9.5-py313hf70daa8_0.conda
+  sha256: d5aa86425220cc8e7e6d8f3961e664f2a7416b731a4767076d11df3e4e87762d
+  md5: acc021c774d800bb58b780a402db320d
   depends:
   - python >=3.12
   - numpy >=1.26
@@ -6357,8 +6357,8 @@ packages:
   - max >=26.5.0.dev0,<27
   - python_abi 3.13.* *_cp313
   license: LGPL-3.0-or-later
-  size: 2680726
-  timestamp: 1788319227670
+  size: 2748894
+  timestamp: 1789659814024
 - conda: https://conda.anaconda.org/fortiers/linux-64/cmcdict-2026.8.1-py313hf70daa8_1.conda
   sha256: d406cd8a89b7f4d8378319ea73c489c627dbdcd0df438905d207026a25d71b57
   md5: bee6186c58004f90270fb778e970d733
