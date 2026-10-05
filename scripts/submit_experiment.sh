@@ -13,7 +13,7 @@ eval $(cclargs $0 "[script to launch verification of different experiments in pa
   ++ $*)
 
 
-. r.load.dot /fs/ssm/eccc/cmd/cmds/apps/pixi/202607/00/pixi_0.75.0_all
+. r.load.dot /fs/ssm/eccc/cmd/cmds/apps/pixi/pixi_0.75.0_all
 
 cd ${project_root} || exit
 

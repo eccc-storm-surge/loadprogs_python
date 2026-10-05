@@ -38,8 +38,15 @@ def parse_dt_hours(tok):
 def read_cmd_args():
     parser = argparse.ArgumentParser(description="detide model outputs on grids")
     
-    parser.add_argument("--inp_dir", required=True, type=Path,
-                        help="path to the input directory")
+
+    parser.add_argument("--input_file_type", required=False, default="fst", type=str,
+                        help="type of input files", choices=["fst", "nc_onefile"])
+
+    parser.add_argument("--input_file_path", required=False, default=None, type=Path,
+                        help="path to input files, ignored when input_file_type is not *onefile")
+
+    parser.add_argument("--inp_dir", required=False, default=None, type=Path,
+                        help="path to the input directory, ignored when input_file_type is *onefile")
 
     parser.add_argument("--out_dir", required=True, type=Path,
                         help="path to the output directory")
@@ -53,14 +60,17 @@ def read_cmd_args():
                         help="total water level field name")
 
     # select experiments corresponding files
-    parser.add_argument("--t_exp_beg", required=True, type=parse_date,
-                        help=f"select beg exp date, inclusive, derived from the file name prefix, format={DATE_FORMAT_escaped}")
+    parser.add_argument("--t_exp_beg", required=False, default=None, type=parse_date,
+                        help=f"select beg exp date, inclusive, derived from the file name prefix, format={DATE_FORMAT_escaped},"
+                        " not used when inpuy_file_type=*onefile")
     
-    parser.add_argument("--t_exp_end", required=True, type=parse_date,
-                        help=f"select end exp date, inclusive, derived from the file name prefix, format={DATE_FORMAT_escaped}")
+    parser.add_argument("--t_exp_end", required=False, default=None, type=parse_date,
+                        help=f"select end exp date, inclusive, derived from the file name prefix, format={DATE_FORMAT_escaped},"
+                        " not used when inpuy_file_type=*onefile")
 
-    parser.add_argument("--dt_exp_hours", required=True, type=parse_dt_hours,
-                        help="frequency (in hours) of experiment files to take into account")
+    parser.add_argument("--dt_exp_hours", required=False, default=None, type=parse_dt_hours,
+                        help="frequency (in hours) of experiment files to take into account,"
+                        " not used when inpuy_file_type=*onefile")
 
     parser.add_argument("--filename_suffix", required=False, default="", 
                         help="suffix of files to be treated, e.g. to select a particular member: suffix=_001")
@@ -255,6 +265,10 @@ def get_out_filename(args: argparse.Namespace, prefix="", suffix=".nc"):
     if prefix != "":
         prefix += "_"
 
+    if hasattr(args, "input_file_type"):
+        if args.input_file_type.endswith("onefile"):
+            return f"{prefix}{args.input_file_path.name}{suffix}"
+
     nhours = int(args.dt_exp_hours.total_seconds() // 3600)
     prefix = f"{prefix}chunking_x_{args.chunk_npoints_x}_y_{args.chunk_npoints_y}_"
     return f"{prefix}{args.t_exp_beg:{DATE_FORMAT}}_{args.t_exp_end:{DATE_FORMAT}}_{nhours}h{suffix}"
@@ -287,6 +301,15 @@ def read_spatial_coords(args):
     """
     """
 
+    if args.input_file_type == "nc_onefile":
+        with xarray.open_dataset(args.input_file_path) as ds:
+            return {
+                args.lat_nomvar: ds[args.lat_nomvar].load(),
+                args.lon_nomvar: ds[args.lon_nomvar].load()                
+            }
+
+
+    # default for multiple fst files in the input directory
     pth = next(f for f in args.inp_dir.glob(f"{args.t_exp_beg:{DATE_FORMAT}}*{args.filename_suffix}"))
     print(f"Reading coordinates from {pth}")
 
@@ -294,7 +317,7 @@ def read_spatial_coords(args):
 
     return extract_coords_from_dataset(ds, args)
 
-def read_data(args):
+def read_data_fst(args) -> xarray.DataArray:
     assert isinstance(args.inp_dir, Path)
     assert isinstance(args.filename_suffix, str)
 
@@ -365,6 +388,36 @@ def read_data(args):
     ds = ds.squeeze(drop=True)
     print(f"Final dataset shape: {ds.sizes}, dimensions: {ds.dims}, coordinates: {list(ds.coords)}")
     return ds[args.twl_nomvar]
+
+
+def read_data_nc_onefile(args) -> xarray.DataArray:
+    """
+    All model fields are in single netcdf file
+    """
+
+    chunks = {args.time_dim_name: 100}
+    data_array = xarray.open_dataset(args.input_file_path, chunks=chunks)[args.twl_nomvar]
+    
+    # CRITICAL: Wipe out the original NetCDF disk chunk encoding.
+    # If left intact, Xarray will try to use the old bad chunk layout when writing to Zarr.
+    if "chunks" in data_array.encoding:
+        del data_array.encoding["chunks"]
+
+    return data_array
+
+
+def read_data(args):
+
+    if not hasattr(args, "input_file_type"):
+        print("Assuming input_file_type=fst (multiple forecasts in a folder)")
+        args.input_file_type = "fst"
+
+    if args.input_file_type == "fst":
+        return read_data_fst(args)
+    elif args.input_file_type == "nc_onefile": # all data in a single netcdf file
+        return read_data_nc_onefile(args)
+    else:
+        raise ValueError(f"Unknown : {args.input_file_type = }")
 
 
 def utide_wrap(t, u, lat, rayleigh, verbose=False, noop=False):
