@@ -28,14 +28,17 @@ Range               : [-10 10]
 
 """
 
+def setup_worker_env():
+    import os
+    # Must be set BEFORE importing numpy, scipy, or utide
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+setup_worker_env()
+
 import os
-# Must be set BEFORE importing numpy, scipy, or utide
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-
-
 from pathlib import Path
 import time
 import argparse
@@ -47,22 +50,49 @@ import multiprocessing
 import functools as ft
 import itertools as itt
 import pandas as pd
+import xarray
+import fasteners
 
 from dask import array as da
+from dask.delayed import delayed
+from dask.diagnostics import ProgressBar
 
-from tqdm import tqdm
+import dask.dataframe as dd
+
+
+from distributed import Client, wait
+from dask_jobqueue.pbs import PBSCluster
+import duckdb
+
 import utide
-
 import cmcio
 
-GLOBAL_BUNCHES_COL = pyarrow.StructArray.from_arrays([], fields=[])
 EXEC_START_TIME = time.perf_counter()
+
+import dask
+from distributed import WorkerPlugin
+
+
+# 2. REDIRECT THE SPILLER (Breaks the /dev/shm RAM-disk loop)
+# Point this to your HPC's true physical scratch space (usually /tmp or /scratch)
+dask.config.set({'temporary-directory': os.environ.get("TMPDIR", os.getcwd())})
+
+class ThreadLimitPlugin(WorkerPlugin):
+    def setup(self, worker):
+        setup_worker_env()
+
+
+
 
 def read_cmd_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="detide model outputs on grids (compute tide and surge components)")
     
     parser.add_argument("--inp_dir", required=True, type=Path,
                         help="path to the input directory, files containing SSH")
+
+    parser.add_argument("--inp_filetype", required=False, default="fst", type=str,
+                            help="type of the input files", choices=["fst, nc"])
+    
 
     parser.add_argument("--inp_file_suffix", required=False, default="", type=str,
                             help="file name suffix, for file selection, i.e. _000 for control member")
@@ -109,7 +139,7 @@ def read_coef_table(pth: Path) -> pyarrow.Table:
     bunch_arr = tb.column("bunch")
     return i_arr, j_arr, bunch_arr
 
-def read_coef_spatial_indices(pth: Path) -> pyarrow.Table:
+def read_coef_spatial_indices(pth: Path):
     """
     columns: i, j
     """
@@ -123,132 +153,190 @@ def read_coef_table_meta(pth: Path) -> pq.FileMetaData:
     return pq.read_metadata(pth)
 
 
-def reconstruct(t, r):
+
+def reconstruct(tide_coef_pth: Path, r, t_beg, t_end, freq):
     """
     Args:
-        r (tuple): (i_beg, i_end), i_end - end index of a slice non-inclusive
+        t_beg, t_end: inclusive time period limits
+        freq: time step required
+        tide_coef_file: path to the parquet file with tide coefficients
+        r (tuple): (i_beg, i_end) - spatial chunk, i_beg - start index of a slice, i_end - end index of a slice non-inclusive
     """
-    global GLOBAL_BUNCHES_COL
+    
+    # bunch_inp = GLOBAL_BUNCHES_COL.slice(r[0], r[1] - r[0]).to_numpy(zero_copy_only=False)
 
-    bunch_inp = GLOBAL_BUNCHES_COL.slice(r[0], r[1] - r[0]).to_numpy(zero_copy_only=False)
-    res = []
-    for b in bunch_inp:
-        bunch_out = utide.reconstruct(t, b, verbose=False)
-        res.append(bunch_out.h)
-    return res
+    offset = r[0]
+    limit = r[1] - r[0]
+    column_name = "bunch"
+    with duckdb.connect() as con:
+        query = f"""
+            select {column_name} from read_parquet('{tide_coef_pth}') 
+            LIMIT {limit} OFFSET {offset}
+        """
+        tb = con.sql(query).fetch_arrow_table()
+
+    bunch_inp = tb[column_name].to_numpy(zero_copy_only=False)
+    t = pd.date_range(t_beg, t_end, freq=freq, inclusive="both")
+
+    return [
+        utide.reconstruct(t, b, verbose=False).h for b in bunch_inp
+    ]
+
 
 
 def compute_tide_surge(f_inp: Path,
                        coef_i: np.ndarray, 
                        coef_j: np.ndarray,
+                       client,
                        args: argparse.Namespace):
     """
     computes tide and surge fields and save in the same layout 
     as input file but to the output directory
     """
-    global GLOBAL_BUNCHES_COL
+    
     
     tide_nomvar = "SSHT"
     etas_nomvar = "ETAS"
 
     out_dir: Path = args.out_dir
     
+    if args.inp_filetype == "nc":
+        ds_in = xarray.open_dataset(f_inp)
+        if "time_counter" in ds_in.dims:
+            ds_in = ds_in.rename({"time_counter": "time"})
 
-    ds_in = cmcio.open_fst(f_inp)[0]
+        ds_in = ds_in.chunk({dn: 100 for dn in ds_in.dims})
+    else:
+        ds_in = cmcio.open_fst(f_inp)[0]
 
     # drop first offset hours
     dt_offest = pd.Timedelta(hours=args.offset_hours)
     ds_in = ds_in.where(ds_in.time >= (ds_in.time[0] + dt_offest), drop=True)
 
     t = ds_in.time.values
+    freq = pd.to_timedelta(t[1] - t[0])
+    n_times = len(t)
 
     ssh = ds_in[args.twl_nomvar]
     ssh = ssh.squeeze()
-    
 
-    print(f"Loaded {args.twl_nomvar} into memory.")
+    n_points = len(coef_i)    
+    batch_size = 500
+    batch_beg_indices = np.arange(n_points, step=batch_size, dtype=int)
+    batch_end_indices = batch_beg_indices + batch_size
+
+    if batch_end_indices[-1] > n_points:
+        batch_end_indices[-1] = n_points
+
+    batch_ranges = list(zip(batch_beg_indices, batch_end_indices))
+
+
+
+
+    lazy_reconstruct = delayed(reconstruct)
+    # 2. Build a list of lazy pointers. This is INSTANT and does not block.
+    lazy_chunks = [
+        lazy_reconstruct(args.tide_coef_file, r, t[0], t[-1], freq) 
+        for r in batch_ranges
+    ]
 
     
-    print("computing tides")
-    total_items = len(GLOBAL_BUNCHES_COL)
-    num_workers = 250
-    step = total_items // num_workers
-    ranges = [(i, min(i + step, total_items)) for i in range(0, total_items, step)]
-    
-    print(f"Distributing {total_items} items across {num_workers} workers via index ranges...")
-    reconstruct_inj = ft.partial(reconstruct, t)
+    persisted_collection = client.compute(lazy_chunks)
 
+    def stream_chunks(futures):
+        for f in futures:
+            data = client.gather(f)
+            yield data
+            del data  # Explicitly clear client-side intermediate reference
     
-    with multiprocessing.Pool(processes=num_workers) as pool:
-        results = list(tqdm(
-            itt.chain.from_iterable(
-                pool.map(reconstruct_inj, ranges)
-            ), total=total_items, desc="Reconstructing tides"
-        ))
+    local_data_stream = stream_chunks(persisted_collection)
 
+    tide_zip = np.array(
+        list(itt.chain.from_iterable(local_data_stream)), 
+        dtype=np.float32).T
+
+    tide_full = np.zeros(ssh.shape, dtype=np.float32)
+    tide_full[:, coef_i, coef_j] = tide_zip
+
+    new_chunking = {dn: -1  for dn in ssh.dims}
     
-    tide_data = np.zeros(ssh.shape)
-    tide_data[:, coef_i, coef_j] = np.array(results).T
-    tide = ssh.copy(data=tide_data).where(~ssh.isnull())
+    # Get the total number of registered workers
+    num_workers = len(client.scheduler_info()['workers'])
     
+    new_chunking["time"] = max(int(ssh.sizes["time"] // num_workers), 1)
+
+    ssh = ssh.chunk(new_chunking)
+
+    # read ssh into memory
+    # 1. Break the open dask-backed array into individual lazy chunks
+    chunks = ssh.data.to_delayed().flatten()
+
+    # 3. Reconstruct the clean, unified NumPy array locally on the client
+    ssh_numpy = np.concatenate(dask.compute(*chunks)).reshape(ssh.shape)
+    
+    tide = ssh.copy(data=np.where(~np.isnan(ssh_numpy), tide_full, np.nan))
 
     for attn, attv in tide.attrs.items():
         if isinstance(attv, bool):
             tide.attrs[attn] = str(attv)
 
     ds_in[tide_nomvar] = tide
-    ds_in[etas_nomvar] = ssh - tide
+    ds_in[etas_nomvar] = tide.copy(data=ssh_numpy - tide_full)
 
 
     print(f"Saving tides and surge ")
     output_vars = [tide_nomvar, etas_nomvar]
+
+    # zarr_pth = args.out_dir / f"{f_inp.name}.zarr"
+    # ds_out = ds_in[output_vars]
+    # target_chunks = {dn: ssh.data.chunks[di] for di, dn in enumerate(ssh.dims)}
+    # lazy_zarr = ds_out.chunk(target_chunks).to_zarr(zarr_pth, 
+    #                                        compute=False, 
+    #                                        mode="w")
+
+    # Wrap your Zarr computation statement with the progress bar context
+    # with ProgressBar():
+    #     lazy_zarr.compute()
+
+
     if args.out_filetype in ["cdf", "nc"]:
 
-        f_out: Path = out_dir / f"{f_inp.name}.{args.out_filetype}"
-        
-        trouble_attrs = [att for att in ds_in.attrs if att.startswith("fst_")]
-        for att in trouble_attrs:
-            ds_in.attrs.pop(att, None)
+        fname = f"{f_inp.name}".lower().replace("ssh", "etas_ssht")
+        if not fname.endswith(f".nc"):
+            fname = f"{fname}.nc"
 
-        for v in output_vars:
-            trouble_attrs = [att for att in ds_in[v].attrs if att.startswith("fst_")]
-            for att in  trouble_attrs:
-                ds_in[v].attrs.pop(att, None)
-
+        f_out: Path = out_dir / f"{fname}"
         # Create a dictionary specifying compression settings for each variable
         # 'complevel' ranges from 1 (fastest/least) to 9 (slowest/most). 4 or 5 is the sweet spot.
-        comp = dict(zlib=True, complevel=5)
-
+        target_chunksizes = tuple(c[0] for c in ssh.chunks)
+        comp = dict(zlib=False, complevel=1, chunksizes=target_chunksizes)
+        
         # Apply this setting to all data variables in your Dataset
         encoding = {var: comp for var in output_vars}
 
-        ds_in[output_vars].to_netcdf(f_out, encoding=encoding)
-    else:
+        
+        print(f"Saving tides and surge to {f_out} with encoding {encoding}")
+        ds_in[output_vars].to_netcdf(f_out, encoding=encoding, 
+                                            engine="netcdf4", 
+                                            format="NETCDF4")
+
+        print(f"Saved tides and surge to {f_out} in netcdf format")
+        
+    elif args.out_filetype == "fst":
         for v in output_vars:
             v_f_out = out_dir / v / f_inp.name
             v_f_out.parent.mkdir(exist_ok=True)
 
+            print(f"Saving {v} to {v_f_out} in fst format")
             nrecords = cmcio.write_fst(
                 ds_in[[v,]], v_f_out, 
                 storage="xdf",
                 overwrite=True
             )
+            print(f"Saved {nrecords} records of {v} to {v_f_out} in fst format")
+    else:
+        print("No file conversion requested, leaving as zarr")
 
-
-
-def claim_file(lock_file_path):
-    """
-    Attempts to atomically claim a file by creating a unique .lock file.
-    Returns True if successfully claimed, False if another job beat us to it.
-    """
-    try:
-        # Atomic file creation across cluster network nodes
-        fd = os.open(lock_file_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        with os.fdopen(fd, 'w') as f:
-            f.write(f"Claimed by PBS_JOBID: {os.environ.get('PBS_JOBID', 'local')}\n")
-        return True
-    except FileExistsError:
-        return False
 
 
 def get_remaining_minutes(args):
@@ -256,43 +344,97 @@ def get_remaining_minutes(args):
     return args.walltime_minutes - ellapseed_minutes
 
 
-def work(args):
-    global GLOBAL_BUNCHES_COL
+
+def get_client(args=None):
+    if args is None:
+        nnodes = 5
+        total_cpu_per_node = 256
+        threads_per_worker = 1
+        total_memory = "700GB"
+    else:
+        nnodes = args.nnodes
+        total_cpu_per_node = args.total_cpu_per_node
+        threads_per_worker = args.threads_per_worker
+        total_memory = args.total_memory
+    
+    cluster = PBSCluster(
+        cores=total_cpu_per_node,                     # Total CPU requested per PBS job
+        processes=total_cpu_per_node // threads_per_worker,                # Total processes requested per PBS job
+        memory=total_memory,                    # Total RAM requested per PBS job
+        resource_spec=f"select=1:ncpus={total_cpu_per_node}:mem={total_memory}", # Matches your system qsub/qstat specs
+        walltime="03:00:00",
+        queue="development",
+        # Worker terminates if scheduler is missing for 60 seconds
+        # death_timeout=60,
+        dashboard_address=None,  # Optional: specify a dashboard address for monitoring
+        log_directory=Path("logs")
+    )
+    cluster.scale(jobs=nnodes)
+    return Client(cluster)
+
+
+def work(args, client: Client | None = None):
     assert isinstance(args.inp_dir, Path)
+    assert isinstance(args.tide_coef_file, Path)
 
-    i_arr, j_arr, GLOBAL_BUNCHES_COL = read_coef_table(args.tide_coef_file)
+    # convert to absolute path for workers    
+    args.tide_coef_file = args.tide_coef_file.absolute()
 
+    i_arr, j_arr = read_coef_spatial_indices(args.tide_coef_file)
+
+    
     inp_files = [f for f in args.inp_dir.iterdir() if f.is_file() and f.name.endswith(args.inp_file_suffix)]
 
     out_dir: Path = args.out_dir
 
+    cleanup_jobs = False
+    if client is None:
+        client = get_client(args)
+        cleanup_jobs = True
+
+    print(f"{client.dashboard_link = }")
+
+    # Register the plugin to bind it globally to all existing and future workers
+    client.register_plugin(ThreadLimitPlugin())
+
+    
     for i, f in enumerate(inp_files):
 
         f_lock = out_dir / f"{f.name}.lock"
         f_done = out_dir / f"{f.name}.done"
 
+        lock = fasteners.InterProcessLock(f_lock)
+
         if f_done.exists():
             print(f"Nothing to do for {f}, marked as done with {f_done}")
             continue
 
-        if f_lock.exists():
-            print(f"Looks like {f} is being worked on, as {f_lock} exists, skipping")
-            continue
-
         remaining_minutes = get_remaining_minutes(args)
         if remaining_minutes < args.atomic_work_minutes:
-            print(f"Won't be able to do much work in {remaining_minutes}, exiting")
-            return
+            raise RuntimeError(f"Won't be able to do much work in {remaining_minutes}, exiting")
+            
 
-        
-        if claim_file(f_lock):
+        acquired = lock.acquire(blocking=False)
+        if acquired:
             try:
                 print(f"Processing {f} ({i = })")
-                compute_tide_surge(f, i_arr, j_arr, args)
-                claim_file(f_done) # create done file
+                compute_tide_surge(f, i_arr, j_arr, client, args)
+
+                client.restart()  # Restart the client to free up memory after each file
+                f_done.touch() # create done file
             finally:
-                f_lock.unlink()
+                lock.release()
+        else:
+            print(f"Looks like {f} is being worked on, as {f_lock} exists, skipping")
+
     
+    # if created a cluster, shut it down after processing all files
+    if cleanup_jobs:
+        client.shutdown()
+        client.close()
+        if client.cluster is not None:
+            client.cluster.close()
+
     print("All files processed")
 
 def main():
@@ -305,6 +447,7 @@ def test():
     args = argparse.Namespace(
         **dict(
             inp_dir=inp_dir,
+            inp_filetype="fst",
             inp_file_suffix="360_000",
             out_dir=Path("test_data/gesps-detide-fields-test/gesps_v001_final_cycles_V2"),
             twl_nomvar="SSH",
