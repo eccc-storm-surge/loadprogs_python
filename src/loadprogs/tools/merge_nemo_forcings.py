@@ -7,13 +7,21 @@ from pathlib import Path
 from collections import defaultdict
 import xarray
 from dask.diagnostics.progress import ProgressBar
-from dask import config
 from typing import List
+
+from loadprogs.tools.setmiss import Method, constant_impl, nearest_impl
+
 
 import dask
 from dask.distributed import Client, LocalCluster, as_completed
 
 
+coord_names = {
+    "time_name": "time",
+    "depth_name": "depth",
+    "lat_name": "lat",
+    "lon_name": "lon"
+}
 
 
 def merge(inp_pths: List[Path], out_pth: Path, field_to_fillvalue: dict | None = None):
@@ -34,11 +42,12 @@ def merge(inp_pths: List[Path], out_pth: Path, field_to_fillvalue: dict | None =
 
     for field_name, fill_value in field_to_fillvalue.items():
         if field_name in ds_inp:
-            field = ds_inp[field_name]
-            ds_inp[field_name] = field.where(field.notnull(), fill_value)
+            if fill_value == "nn":
+                ds_inp = nearest_impl(ds_inp, coord_names=coord_names)
+            elif isinstance(fill_value, (int, float)):
+                ds_inp = constant_impl(ds_inp, fill_value=fill_value)
 
     return ds_inp.to_netcdf(out_pth, compute=False)
-
 
 
 def get_inp_file_name(t: pd.Timestamp, t_format: str,
@@ -68,10 +77,10 @@ def main():
 
     client = Client(cluster) # Starts a local cluster
     src_dir = Path("/home/sssm001/.suites/gesps-add-etas/generate-forcings-db/hub/ppp7/netcdf/forcings_db_links")
-    dst_dir = Path("test_data/atm-forcing-clim-2025-2026")
+    dst_dir = Path("test_data/atm-forcing-clim-2025-2026_v1")
 
     out_prefix = "GEPS_"
-    var_list = ("GL", "UIW", "VIW")
+    var_list = ("GL", "UIW", "VIW", "SALW", "TM", "PN", "tU", "tV")
 
     inp_prefix = ""
     inp_suffix = "_000.nc"
@@ -79,7 +88,10 @@ def main():
     # missing values replaced with these
     field_to_fillvalue = {
         "GL": 0,
-        "UIW": 0, "VIW": 0
+        "UIW": 0, 
+        "VIW": 0,
+        "SALW": "nn",
+        "TM": "nn",
     }
 
 
