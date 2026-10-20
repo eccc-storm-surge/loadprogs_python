@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import pandas as pd
 import pytz
+from functools import wraps
 
 from .constants import COLNAME_STID, COLNAME_TIME
 
@@ -18,7 +19,28 @@ col_index_to_name_map = {
 }
 
 
-def read_dat(fp: Path, date_format="%Y%m%d%H", tz=pytz.utc):
+def read_dat_augment(f):
+
+    date_formats = [
+        r"%Y%m%d%H",
+        r"%Y%m%d%H%M",
+        r"%Y%m%d%H%M%S"
+    ]
+
+    def wrapper(*args, **kwargs):
+        for fmt in date_formats:
+            try:
+                kwargs.update(dict(
+                    date_format=fmt
+                ))
+                return f(*args, **kwargs)
+            except ValueError:
+                print(f"{fmt=} did not work, trying another from the list")
+    
+    return wrapper
+
+@read_dat_augment
+def read_dat(fp: Path, date_format=r"%Y%m%d%H", tz=pytz.utc):
     """
 
     Args:
@@ -62,7 +84,14 @@ def read_dat(fp: Path, date_format="%Y%m%d%H", tz=pytz.utc):
     ve_save = None
     for sep in sep_list:
         try:
-            df = pd.read_csv(fp, sep=sep, header=None, converters=converters)
+            df = pd.read_csv(fp, 
+                             sep=sep, 
+                             header=None, 
+                             converters=converters)
+            
+            if len(df.columns) == 1:
+                raise ValueError("Should be more than 1 columns, try a different separator")
+            
             ve_save = None
             break
         except ValueError as ve:
