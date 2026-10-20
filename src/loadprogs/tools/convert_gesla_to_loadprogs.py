@@ -31,7 +31,7 @@ TIME_COLNAME = "time"
 
 # periods to exclude, inclusive
 exclude_periods = (
-    (pd.Timestamp(2017, 9, 1), pd.Timestamp(2017, 12, 31, 23, 59)), 
+    (pd.Timestamp(2017, 9, 1, 0, 0, 0), pd.Timestamp(2017, 12, 31, 23, 59, 0)), 
 )
 
 

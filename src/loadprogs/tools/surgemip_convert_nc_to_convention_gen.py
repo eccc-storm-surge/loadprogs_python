@@ -2,6 +2,8 @@ from pathlib import Path
 import pandas as pd
 import xarray
 
+from convert_gesla_to_loadprogs import exclude_periods
+
 STNID_COLNAME = "StnID"
 TIME_COLNAME = "Valid_Hindcast_time(YYYYMMDDHH)"
 WATERLEVEL_COLNAME = "Water_level"
@@ -33,7 +35,16 @@ def main(raw_pth: Path, out_pth: Path,
 
     if t_end is not None:
         df = df.loc[df.index.get_level_values(nc_time_dim_name) < t_end, :]
-    
+
+
+    # exclude data for some periods if requested
+    t_column = df.index.get_level_values(nc_time_dim_name)
+    excl = t_column.map(lambda t: False).to_numpy()
+
+    for (t1, t2) in exclude_periods:
+        excl = excl | ((t_column >= t1) & (t_column <= t2))
+
+    df = df.loc[~excl, :]
 
     df[STNID_COLNAME] = df.index.get_level_values("node").map(
         lambda node_idx: station_info["FILE NAME"].iloc[node_idx])
