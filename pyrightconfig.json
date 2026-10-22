@@ -1,7 +1,0 @@
-{
-    "exclude": [
-        "data",
-        "configs",
-        "test_data"
-    ]
-}
