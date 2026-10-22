@@ -24,19 +24,28 @@ coord_names = {
 }
 
 
+
 def merge(inp_pths: List[Path], out_pth: Path, field_to_fillvalue: dict | None = None):
-    
+
     if field_to_fillvalue is None:
         field_to_fillvalue = {}
 
     dim_order = ("time", "j", "i")
+
     print(f"Prep to merge {inp_pths} into {out_pth}")
     
     ds_inp = xarray.open_mfdataset(inp_pths, 
                                 data_vars="minimal", 
-                                parallel=True,
+                                parallel=False,
                                 preprocess=process)
-        
+
+    dim_order = [
+        coord_names["time_name"], "j", "i"
+    ]
+    
+    if len(ds_inp.dims) == 4:
+        dim_order.insert(1, coord_names["depth_name"]) 
+
     ds_inp = ds_inp.transpose(*dim_order)
     ds_inp.encoding["unlimited_dims"] = ["time"]
 
@@ -44,10 +53,11 @@ def merge(inp_pths: List[Path], out_pth: Path, field_to_fillvalue: dict | None =
         if field_name in ds_inp:
             if fill_value == "nn":
                 ds_inp = nearest_impl(ds_inp, coord_names=coord_names)
+                assert not ds_inp[field_name].isnull().any()
             elif isinstance(fill_value, (int, float)):
                 ds_inp = constant_impl(ds_inp, fill_value=fill_value)
 
-    return ds_inp.to_netcdf(out_pth, compute=False)
+    return ds_inp.to_netcdf(out_pth, compute=True)
 
 
 def get_inp_file_name(t: pd.Timestamp, t_format: str,
@@ -55,13 +65,14 @@ def get_inp_file_name(t: pd.Timestamp, t_format: str,
     return f"{prefix}{t:{t_format}}{suffix}"
 
 
-def process(ds):
+def process(ds: xarray.Dataset):
     """
     remove depth dimension prior to concatenating files
     """
     dims_to_squeeze = ["depth"]
 
-    dims_to_squeeze = list(set(dims_to_squeeze).intersection(ds.dims))
+    dims_to_squeeze = list(set(dims_to_squeeze).intersection(
+        {n for n, s in ds.sizes.items() if s == 1}))
 
     if len(dims_to_squeeze) > 0:
         ds = ds.squeeze(dim=dims_to_squeeze, drop=True)
@@ -69,7 +80,7 @@ def process(ds):
 
 
 def main():
-    n_workers = 12
+    n_workers = 48
     cluster = LocalCluster(
         n_workers=n_workers,          # Total number of processes (workers)
         threads_per_worker=1, # Number of threads inside each process
@@ -119,13 +130,16 @@ def main():
         print(f"{len(mdates)} dates/files for month {m:02d}")
 
 
-    if not dst_dir.exists():
-        dst_dir.mkdir(exist_ok=True, parents=True)
+    dst_dir.mkdir(exist_ok=True, parents=True)
 
     
     write_jobs = []
     for m, mdates in month_to_dates.items():
         for vname in var_list:
+
+            if vname != "SALW":
+                continue
+
             out_pth = dst_dir / f"{out_prefix}{vname}_m{m:02d}.nc"
             
             inp_pths = [
@@ -138,15 +152,19 @@ def main():
                 assert inp.exists()
 
             if out_pth.exists():
+                out_pth.unlink()
                 print(f"Already exists, will overwrite: {out_pth}")
-          
-            write_jobs.append(
-                merge(inp_pths, out_pth, field_to_fillvalue=field_to_fillvalue)
-            )
+
+            wj = merge(inp_pths, out_pth, field_to_fillvalue=field_to_fillvalue)
+            
+            if wj is not None:
+                write_jobs.append(wj)
             # print(f"{out_pth} <--- {inp_pths}")
     
 
-    dask.compute(write_jobs)
+    if len(write_jobs) > 0:
+        dask.compute(write_jobs)
+
     print(f"Executed delayed jobs: {len(write_jobs)}")
     
 

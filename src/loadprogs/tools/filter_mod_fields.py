@@ -11,9 +11,9 @@ import numpy as np
 class FilterParams:
     
     def __init__(self, K=None, Mu=None, H=None) -> None:
-        self.K: xarray.DataArray = K
-        self.H: xarray.DataArray = H
-        self.Mu: xarray.DataArray = Mu
+        self.K: xarray.DataArray | None = K
+        self.H: xarray.DataArray | None = H
+        self.Mu: xarray.DataArray | None = Mu
     
     @classmethod
     def from_dataset(cls, 

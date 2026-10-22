@@ -115,6 +115,7 @@ def nearest_impl(dsi,
             bad = dai.isnull()
             
             if not bad.any() or bad.all():
+                print(f"No masked values found in {grid_key = }")
                 continue
 
             if not grid_key in memo_var_level_to_grids:
