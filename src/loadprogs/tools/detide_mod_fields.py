@@ -369,8 +369,7 @@ def read_data_fst_nc(args) -> xarray.DataArray:
 
 
     datasets = []
-    for ds_list, f in zip(opened_datasets, files):
-        ds = ds_list[0]  # Extract the first (and likely only) dataset from the list
+    for ds, f in zip(opened_datasets, files):
         print("Selecting time period from file:", f)
         t_origin = file_to_torigin[f]
         t_min = t_origin + args.lead_hour_min
