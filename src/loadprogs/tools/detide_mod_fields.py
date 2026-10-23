@@ -40,7 +40,7 @@ def read_cmd_args():
     
 
     parser.add_argument("--input_file_type", required=False, default="fst", type=str,
-                        help="type of input files", choices=["fst", "nc_onefile"])
+                        help="type of input files", choices=["fst", "nc", "nc_onefile"])
 
     parser.add_argument("--input_file_path", required=False, default=None, type=Path,
                         help="path to input files, ignored when input_file_type is not *onefile")
@@ -297,6 +297,13 @@ def extract_coords_from_dataset(ds: xarray.Dataset, args):
     }
 
 
+def get_data_file_opener(args):
+    file_opener = lambda p: cmcio.open_fst(p)[0]
+    if args.input_file_type == "nc":
+        file_opener = xarray.open_dataset
+
+    return file_opener
+
 def read_spatial_coords(args):
     """
     """
@@ -308,12 +315,11 @@ def read_spatial_coords(args):
                 args.lon_nomvar: ds[args.lon_nomvar].load()                
             }
 
-
     # default for multiple fst files in the input directory
     pth = next(f for f in args.inp_dir.glob(f"{args.t_exp_beg:{DATE_FORMAT}}*{args.filename_suffix}"))
     print(f"Reading coordinates from {pth}")
 
-    ds = cmcio.open_fst(pth)[0]
+    ds = get_data_file_opener(args)(pth)
 
     return extract_coords_from_dataset(ds, args)
 
@@ -359,7 +365,7 @@ def read_data_fst(args) -> xarray.DataArray:
 
 
     with Pool(processes=20) as pool:
-        opened_datasets = pool.map(cmcio.open_fst, files)
+        opened_datasets = pool.map(get_data_file_opener(args), files)
 
 
     datasets = []
