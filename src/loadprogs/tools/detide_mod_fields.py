@@ -323,7 +323,7 @@ def read_spatial_coords(args):
 
     return extract_coords_from_dataset(ds, args)
 
-def read_data_fst(args) -> xarray.DataArray:
+def read_data_fst_nc(args) -> xarray.DataArray:
     assert isinstance(args.inp_dir, Path)
     assert isinstance(args.filename_suffix, str)
 
@@ -418,8 +418,8 @@ def read_data(args):
         print("Assuming input_file_type=fst (multiple forecasts in a folder)")
         args.input_file_type = "fst"
 
-    if args.input_file_type == "fst":
-        return read_data_fst(args)
+    if args.input_file_type in ["fst", "nc"]:
+        return read_data_fst_nc(args)
     elif args.input_file_type == "nc_onefile": # all data in a single netcdf file
         return read_data_nc_onefile(args)
     else:
