@@ -300,7 +300,7 @@ def extract_coords_from_dataset(ds: xarray.Dataset, args):
 def get_data_file_opener(args):
     file_opener = lambda p: cmcio.open_fst(p)[0]
     if args.input_file_type == "nc":
-        file_opener = xarray.open_dataset
+        file_opener = lambda p: xarray.open_dataset(p, chunks="auto")
 
     return file_opener
 
