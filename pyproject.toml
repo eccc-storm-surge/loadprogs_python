@@ -33,6 +33,7 @@ detide-ciopsw-nemo36 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 1
 detide-ciopsw-nemo4 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) /home/olh001/Python/loadprogs_python/src/loadprogs/tests/test_detide_mod_fields/ciopsw_nemo4.py"
 detide-ciopse = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) /home/olh001/Python/loadprogs_python/src/loadprogs/tests/test_detide_mod_fields/ciopse.py"
 detide-hindcast-gdsps-era5 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) src/loadprogs/tests/test_detide_mod_fields/test_detide_1993_2025_hindcast_era5.py"
+detide-hindcast-gdsps-orca12 = "ord_soumet ./scripts/launch_pyscript.sh -mach moira -t 10800 -args $(pwd) src/loadprogs/tests/test_detide_mod_fields/detide_gdsps_on_riops_region.py"
 
 [tool.pixi.dependencies]
 python = ">=3.13,<3.14"
