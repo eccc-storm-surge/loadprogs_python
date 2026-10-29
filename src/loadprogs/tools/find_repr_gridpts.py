@@ -396,7 +396,8 @@ def work(cmd_args: argparse.Namespace):
         id_dict = dict(zip(df_dict[2], df_dict[1]))
         
         df["DATA.CANHYS_ID"] = df["NO"].map(lambda real_id: id_dict.get(real_id, pd.NA))
-        df["DATA.CANHYS_ID"] = df["DATA.CANHYS_ID"].fillna(df["DATA.SSC_ID"].map(lambda real_id: id_dict.get(real_id, pd.NA)))
+        if "DATA.SSC_ID" in df.columns:
+            df["DATA.CANHYS_ID"] = df["DATA.CANHYS_ID"].fillna(df["DATA.SSC_ID"].map(lambda real_id: id_dict.get(real_id, pd.NA)))
 
     if "DATA.D" in df:
         df = df.drop("DATA.D", axis="columns")
