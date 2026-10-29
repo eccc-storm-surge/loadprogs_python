@@ -429,6 +429,7 @@ def work(args, client: Client | None = None):
                 f_done.touch() # create done file
             finally:
                 lock.release()
+                f_lock.unlink(missing_ok=True)
         else:
             print(f"Looks like {f} is being worked on, as {f_lock} exists, skipping")
 
