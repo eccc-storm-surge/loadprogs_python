@@ -297,10 +297,16 @@ def extract_coords_from_dataset(ds: xarray.Dataset, args):
     }
 
 
+def fst_file_opener(p: Path):
+    return cmcio.open_fst(p)[0]
+
+def nc_file_opener(p: Path):
+    return xarray.open_dataset(p, chunks="auto")
+
 def get_data_file_opener(args):
-    file_opener = lambda p: cmcio.open_fst(p)[0]
+    file_opener = fst_file_opener 
     if args.input_file_type == "nc":
-        file_opener = lambda p: xarray.open_dataset(p, chunks="auto")
+        file_opener = nc_file_opener
 
     return file_opener
 
@@ -857,6 +863,7 @@ def save_tide_data_as_fields_cdf(tb_coef: pyarrow.Table,
     coords = read_spatial_coords(args)
 
     out_file.unlink(missing_ok=True)
+    out_file.touch()
 
     names_col = pc.struct_field(tb_coef["bunch"], "name")
     cnames = np.unique(np.concatenate(names_col.to_pylist()))

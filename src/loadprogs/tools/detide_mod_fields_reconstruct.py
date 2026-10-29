@@ -308,15 +308,20 @@ def compute_tide_surge(f_inp: Path,
         f_out: Path = out_dir / f"{fname}"
         # Create a dictionary specifying compression settings for each variable
         # 'complevel' ranges from 1 (fastest/least) to 9 (slowest/most). 4 or 5 is the sweet spot.
-        target_chunksizes = tuple(c[0] for c in ssh.chunks)
+        target_chunksizes = (min(ssh.shape[0], 100),) + ssh.shape[1:]
         comp = dict(zlib=False, complevel=1, chunksizes=target_chunksizes)
         
         # Apply this setting to all data variables in your Dataset
         encoding = {var: comp for var in output_vars}
 
         
+        
         print(f"Saving tides and surge to {f_out} with encoding {encoding}")
-        ds_in[output_vars].to_netcdf(f_out, encoding=encoding, 
+        ds_out = ds_in[output_vars]
+        print({name: type(var.data).__name__ for name, var in ds_out.variables.items()})
+        ds_out.load()
+        print("loaded output dataset into memory.")
+        ds_out.to_netcdf(f_out, encoding=encoding, 
                                             engine="netcdf4", 
                                             format="NETCDF4")
 
