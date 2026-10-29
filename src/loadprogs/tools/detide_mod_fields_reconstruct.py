@@ -322,8 +322,8 @@ def compute_tide_surge(f_inp: Path,
         ds_out.load()
         print("loaded output dataset into memory.")
         ds_out.to_netcdf(f_out, encoding=encoding, 
-                                            engine="netcdf4", 
-                                            format="NETCDF4")
+                                engine="netcdf4", 
+                                format="NETCDF4")
 
         print(f"Saved tides and surge to {f_out} in netcdf format")
         
