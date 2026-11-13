@@ -53,7 +53,7 @@ def main():
                 t_exp_end=t_exp_end,
                 rayleigh=0.9,
                 nworkers_per_job=256,
-                threads_per_worker=8,
+                threads_per_worker=4,
                 njobs=8,
                 chunk_npoints_x=50, 
                 chunk_npoints_y=50,
