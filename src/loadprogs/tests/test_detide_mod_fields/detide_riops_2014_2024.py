@@ -86,7 +86,7 @@ def main():
 
         args_recon = argparse.Namespace(
             **dict(
-                # inp_dir=inp_dir,
+                inp_dir=inp_dir,
                 inp_files=files,
                 # Match the NEMO file ending pattern for the target year
                 inp_file_suffix="_1h_grid_T.nc",
