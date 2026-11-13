@@ -301,7 +301,7 @@ def compute_tide_surge(f_inp: Path,
 
     if args.out_filetype in ["cdf", "nc"]:
 
-        fname = f"{f_inp.name}".lower().replace("ssh", "etas_ssht")
+        fname = f"{f_inp.name}".replace("SSH", "etas_ssht")
         if not fname.endswith(f".nc"):
             fname = f"{fname}.nc"
 
