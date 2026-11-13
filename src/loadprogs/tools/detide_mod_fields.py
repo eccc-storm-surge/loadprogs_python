@@ -383,7 +383,7 @@ def read_data_fst_nc(args) -> xarray.DataArray:
 
         ds = ds.sel({
             args.time_dim_name: slice(t_min, t_max - t_epsilon)})
-
+        ds = ds.drop_vars(["time_instant"], errors="ignore")
         datasets.append(ds)
         
 

@@ -387,8 +387,10 @@ def work(args, client: Client | None = None):
 
     i_arr, j_arr = read_coef_spatial_indices(args.tide_coef_file)
 
-    
-    inp_files = [f for f in args.inp_dir.iterdir() if f.is_file() and f.name.endswith(args.inp_file_suffix)]
+    if hasattr(args, "inp_files"):
+        inp_files = args.inp_files
+    else:
+        inp_files = [f for f in args.inp_dir.iterdir() if f.is_file() and f.name.endswith(args.inp_file_suffix)]
 
     out_dir: Path = args.out_dir
 
