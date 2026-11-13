@@ -379,7 +379,6 @@ def get_client(args=None):
 
 
 def work(args, client: Client | None = None):
-    assert isinstance(args.inp_dir, Path)
     assert isinstance(args.tide_coef_file, Path)
 
     # convert to absolute path for workers    
@@ -390,6 +389,7 @@ def work(args, client: Client | None = None):
     if hasattr(args, "inp_files"):
         inp_files = args.inp_files
     else:
+        assert isinstance(args.inp_dir, Path)
         inp_files = [f for f in args.inp_dir.iterdir() if f.is_file() and f.name.endswith(args.inp_file_suffix)]
 
     out_dir: Path = args.out_dir
