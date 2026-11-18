@@ -653,7 +653,7 @@ def load_station_data_from_canhys_dir(station_records, config):
         }
 
         with sqlite3.connect(config.translator_path) as con:
-            real_to_canhys_mapping: pd.DataFrame = pd.read_sql_query("select SiteCode,SiteId from source;", con)
+            real_to_canhys_mapping: pd.DataFrame = pd.read_sql_query("select SiteCode,SiteId from sites;", con)
             real_to_canhys_mapping = real_to_canhys_mapping.rename(colnames, axis=1).set_index("real")
 
     except IOError:    
@@ -719,8 +719,9 @@ def load_station_data_from_canhys_dir(station_records, config):
         # old query: f"select datetimeutc, datavalue from datavalue where siteid={canhys_id};", con=conn)
         query = f"""SELECT siteid, datetimeutc, datavalue, variableid
                     FROM datavalue
-                    WHERE siteid
-                    IN ({','.join(station_info_canhys_ids)}) and variableid IN ({config.variable_id});"""
+                    WHERE 
+                    siteid IN ({','.join(station_info_canhys_ids)}) and 
+                    variableid IN ({','.join([str(vid) for vid in config.variable_id])});"""
 
         data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby(
             "siteid")  # TODO: maybe move the grouping to the sqlite query

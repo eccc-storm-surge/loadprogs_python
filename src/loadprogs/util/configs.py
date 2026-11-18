@@ -282,7 +282,8 @@ def parse_config_settings(config_path, cfg_overrides: dict | None = None) -> Nam
         _config.translator_path = o.path(OptionNames.obs.CANHYS_ID_TRANSLATION_DICT, missing_ok=False)
         
         # comma-separated list of variable ids for the canhys db
-        _config.variable_id = o.int(OptionNames.obs.OBS_VARIABLE_ID, fallback=100) # 100 - water lev, 200 - streamflow , 300- temperature
+        _config.variable_id = o.list(OptionNames.obs.OBS_VARIABLE_ID, fallback=[100, ]) # 100 - water lev, 200 - streamflow , 300- temperature
+        logger.info(f"Obs: variable ids ")
 
 
     # obs detiding options
