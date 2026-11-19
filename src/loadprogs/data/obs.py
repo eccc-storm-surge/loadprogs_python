@@ -645,6 +645,7 @@ def load_station_data_from_canhys_dir(station_records, config):
 
     _converters = {col: lambda x: x.lstrip("0") for col in (1, 2)}
 
+    real_to_canhys_mapping = None
     try:
         print("Trying to read canhys <-> real station id mapping, assuming sqlite source")
 
@@ -654,9 +655,20 @@ def load_station_data_from_canhys_dir(station_records, config):
 
         with sqlite3.connect(config.translator_path) as con:
             real_to_canhys_mapping: pd.DataFrame = pd.read_sql_query("select SiteCode,SiteId from sites;", con)
-            real_to_canhys_mapping = real_to_canhys_mapping.rename(colnames, axis=1).set_index("real")
+            
+            real_to_canhys_mapping = real_to_canhys_mapping.rename(colnames, axis=1)
+            real_to_canhys_mapping["real"] = real_to_canhys_mapping["real"].str.lstrip("0")
+            real_to_canhys_mapping["canhys"] = real_to_canhys_mapping["canhys"].astype(str)
 
-    except IOError:    
+            # same station might be present in canhys under different canhys id
+            # for example from NOAA and from GLOSS or CHS and GLOSS..
+            # real_to_canhys_mapping = real_to_canhys_mapping.drop_duplicates(subset=("real"), keep="first")
+
+            # real_to_canhys_mapping = real_to_canhys_mapping.set_index("real")
+
+    except IOError as err :
+        print(f"{real_to_canhys_mapping = }")
+        print(err)    
         real_to_canhys_mapping = pd.read_csv(config.translator_path, usecols=(1, 2),
                                             names=["canhys", "real"], sep="|",
                                             header=None,
@@ -667,8 +679,8 @@ def load_station_data_from_canhys_dir(station_records, config):
         
     # for some stations we can have several canhys ids
     station_info_canhys_ids = []
-    for real_id in real_to_canhys_mapping.index.intersection(station_records):
-        part = real_to_canhys_mapping.loc[real_id, "canhys"]
+    for real_id in set(real_to_canhys_mapping["real"]).intersection(station_records):
+        part = real_to_canhys_mapping.loc[real_to_canhys_mapping["real"] == real_id, "canhys"]
         if isinstance(part, str):
             part = [part]
         else:
@@ -723,8 +735,7 @@ def load_station_data_from_canhys_dir(station_records, config):
                     siteid IN ({','.join(station_info_canhys_ids)}) and 
                     variableid IN ({','.join([str(vid) for vid in config.variable_id])});"""
 
-        data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby(
-            "siteid")  # TODO: maybe move the grouping to the sqlite query
+        data_for_all_stns = pd.read_sql(sql=query, con=conn).groupby("siteid")  # TODO: maybe move the grouping to the sqlite query
 
         for canhys_id in station_info_canhys_ids:
             try:
